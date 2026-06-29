@@ -1,0 +1,28 @@
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+
+# XcodeGen genera el proyecto; no se commitea
+# (se regenera con `xcodegen generate`)
+
+# Firebase — credenciales privadas, NO commitear
+GoogleService-Info.plist
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Package.resolved
+
+# Claude Code — config y artefactos locales
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# macOS
+.DS_Store
+
+# CocoaPods (no usado, por si acaso)
+Pods/
