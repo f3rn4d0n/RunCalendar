@@ -43,6 +43,12 @@ final class AuthViewModel {
     /// Escucha cambios de sesión (Firebase) durante toda la vida de la app.
     func start() async {
         for await user in observeAuthState() {
+            if let user {
+                let email = user.email ?? "nil"
+                Log.auth.info("Sesión activa uid=\(user.id, privacy: .public) email=\(email, privacy: .public)")
+            } else {
+                Log.auth.info("Sin sesión activa")
+            }
             state = user.map(SessionState.signedIn) ?? .signedOut
         }
     }
