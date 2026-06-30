@@ -21,6 +21,9 @@ enum RaceDTO {
         dict["longitude"] = race.location.longitude
         dict["cost"] = race.cost.map { NSDecimalNumber(decimal: $0).doubleValue }
         dict["registrationURL"] = race.registrationURL?.absoluteString
+        dict["isRegistered"] = race.isRegistered
+        dict["bibNumber"] = race.bibNumber
+        dict["finishTimeSeconds"] = race.finishTimeSeconds
 
         if let kit = race.kitPickup {
             var kitDict: [String: Any] = ["notes": kit.notes]
@@ -73,7 +76,10 @@ enum RaceDTO {
             registrationURL: url,
             kitPickup: kitPickup,
             notes: data["notes"] as? String ?? "",
-            status: RaceStatus(rawValue: data["status"] as? String ?? "") ?? .upcoming
+            status: RaceStatus(rawValue: data["status"] as? String ?? "") ?? .upcoming,
+            isRegistered: data["isRegistered"] as? Bool ?? false,
+            bibNumber: data["bibNumber"] as? String,
+            finishTimeSeconds: data["finishTimeSeconds"] as? Int
         )
     }
 }

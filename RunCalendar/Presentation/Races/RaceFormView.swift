@@ -20,6 +20,15 @@ struct RaceFormView: View {
     @State private var status: RaceStatus = .upcoming
     @State private var notes = ""
 
+    // Inscripción
+    @State private var isRegistered = false
+    @State private var bibNumber = ""
+
+    // Resultado (tiempo)
+    @State private var finishHours = ""
+    @State private var finishMinutes = ""
+    @State private var finishSeconds = ""
+
     // Kit
     @State private var hasKit = false
     @State private var kitDate = Date()
@@ -61,6 +70,25 @@ struct RaceFormView: View {
                         .autocorrectionDisabled()
                 }
 
+                Section("Inscripción") {
+                    Toggle("Ya estoy inscrito", isOn: $isRegistered)
+                    if isRegistered {
+                        TextField("Número de corredor (dorsal)", text: $bibNumber)
+                    }
+                }
+
+                if status == .completed {
+                    Section("Resultado") {
+                        HStack(spacing: 12) {
+                            timeField("Horas", $finishHours)
+                            Text(":").foregroundStyle(.secondary)
+                            timeField("Min", $finishMinutes)
+                            Text(":").foregroundStyle(.secondary)
+                            timeField("Seg", $finishSeconds)
+                        }
+                    }
+                }
+
                 Section("Entrega de kit") {
                     Toggle("Tiene entrega de kit", isOn: $hasKit)
                     if hasKit {
@@ -93,6 +121,15 @@ struct RaceFormView: View {
         }
     }
 
+    private func timeField(_ label: String, _ text: Binding<String>) -> some View {
+        VStack(spacing: 2) {
+            TextField("0", text: text)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
     private func populate() {
         guard let race else { return }
         name = race.name
@@ -106,6 +143,13 @@ struct RaceFormView: View {
         registrationURLText = race.registrationURL?.absoluteString ?? ""
         status = race.status
         notes = race.notes
+        isRegistered = race.isRegistered
+        bibNumber = race.bibNumber ?? ""
+        if let secs = race.finishTimeSeconds {
+            finishHours = String(secs / 3600)
+            finishMinutes = String((secs % 3600) / 60)
+            finishSeconds = String(secs % 60)
+        }
         if let kit = race.kitPickup {
             hasKit = true
             kitDate = kit.date ?? race.date
@@ -123,6 +167,15 @@ struct RaceFormView: View {
             )
             : nil
 
+        let trimmedBib = bibNumber.trimmingCharacters(in: .whitespaces)
+        let bib: String? = isRegistered && !trimmedBib.isEmpty ? trimmedBib : nil
+
+        let hours = Int(finishHours) ?? 0
+        let minutes = Int(finishMinutes) ?? 0
+        let seconds = Int(finishSeconds) ?? 0
+        let totalSeconds = hours * 3600 + minutes * 60 + seconds
+        let finishTime: Int? = status == .completed && totalSeconds > 0 ? totalSeconds : nil
+
         let newRace = Race(
             id: race?.id ?? UUID().uuidString,
             name: name.trimmingCharacters(in: .whitespaces),
@@ -135,7 +188,10 @@ struct RaceFormView: View {
             registrationURL: URL(string: registrationURLText),
             kitPickup: kit,
             notes: notes,
-            status: status
+            status: status,
+            isRegistered: isRegistered,
+            bibNumber: bib,
+            finishTimeSeconds: finishTime
         )
 
         if await viewModel.save(newRace, isNew: isNew) {

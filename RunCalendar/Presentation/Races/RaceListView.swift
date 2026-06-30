@@ -74,6 +74,21 @@ struct RaceRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                if race.isRegistered {
+                    Text("Inscrito")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.green.opacity(0.2), in: Capsule())
+                        .foregroundStyle(.green)
+                }
+                if let seconds = race.finishTimeSeconds {
+                    Text(seconds.durationString())
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .padding(.vertical, 2)
     }
