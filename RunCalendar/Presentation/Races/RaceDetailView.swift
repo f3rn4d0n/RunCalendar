@@ -40,6 +40,19 @@ struct RaceDetailView: View {
                 }
             }
 
+            Section("Inscripción") {
+                row("Estatus", race.isRegistered ? "Inscrito" : "No inscrito")
+                if let bib = race.bibNumber {
+                    row("Número de corredor", bib)
+                }
+            }
+
+            if let seconds = race.finishTimeSeconds {
+                Section("Resultado") {
+                    row("Tiempo", seconds.durationString())
+                }
+            }
+
             if let kit = race.kitPickup {
                 Section("Entrega de kit") {
                     if let date = kit.date { row("Fecha", date.dateTimeString()) }

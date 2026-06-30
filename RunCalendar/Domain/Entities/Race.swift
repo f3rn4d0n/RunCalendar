@@ -65,6 +65,14 @@ struct Race: Identifiable, Equatable, Sendable {
     var notes: String
     var status: RaceStatus
 
+    /// Si el usuario ya se inscribió a la carrera (independiente de `status`).
+    var isRegistered: Bool
+    /// Número de corredor (dorsal). Texto: admite ceros a la izquierda o letras.
+    var bibNumber: String?
+    /// Tiempo que tardó en completarla, en segundos. Numérico para futura
+    /// integración con Apple Watch / Garmin / Salud.
+    var finishTimeSeconds: Int?
+
     init(
         id: String = UUID().uuidString,
         name: String,
@@ -77,7 +85,10 @@ struct Race: Identifiable, Equatable, Sendable {
         registrationURL: URL? = nil,
         kitPickup: KitPickup? = nil,
         notes: String = "",
-        status: RaceStatus = .upcoming
+        status: RaceStatus = .upcoming,
+        isRegistered: Bool = false,
+        bibNumber: String? = nil,
+        finishTimeSeconds: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -91,5 +102,8 @@ struct Race: Identifiable, Equatable, Sendable {
         self.kitPickup = kitPickup
         self.notes = notes
         self.status = status
+        self.isRegistered = isRegistered
+        self.bibNumber = bibNumber
+        self.finishTimeSeconds = finishTimeSeconds
     }
 }
