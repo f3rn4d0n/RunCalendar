@@ -62,7 +62,6 @@ struct TrainingListView: View {
             .sheet(isPresented: $isCreating) {
                 TrainingFormView(viewModel: viewModel, session: nil)
             }
-            .task { await viewModel.start() }
         }
     }
 }

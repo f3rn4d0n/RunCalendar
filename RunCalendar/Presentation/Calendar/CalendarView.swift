@@ -83,12 +83,6 @@ struct CalendarView: View {
                 }
             }
             .navigationTitle("Calendario")
-            .task {
-                await racesViewModel.start()
-            }
-            .task {
-                await trainingViewModel.start()
-            }
         }
     }
 }

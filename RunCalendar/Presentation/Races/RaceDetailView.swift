@@ -2,12 +2,19 @@ import SwiftUI
 
 /// Detalle de una carrera con toda su información.
 struct RaceDetailView: View {
-    let race: Race
+    /// Copia recibida al navegar; se usa como id y como respaldo.
+    let initialRace: Race
     @State var viewModel: RacesViewModel
 
     @State private var isEditing = false
     @State private var showDeleteAlert = false
     @Environment(\.dismiss) private var dismiss
+
+    /// Versión viva de la carrera desde el ViewModel: refleja ediciones en tiempo real.
+    /// Si ya no existe (p. ej. fue eliminada), cae al respaldo recibido.
+    private var race: Race {
+        viewModel.races.first { $0.id == initialRace.id } ?? initialRace
+    }
 
     var body: some View {
         List {

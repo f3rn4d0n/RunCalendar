@@ -20,7 +20,7 @@ struct RaceListView: View {
                         if !viewModel.upcomingRaces.isEmpty {
                             Section("Próximas") {
                                 ForEach(viewModel.upcomingRaces) { race in
-                                    NavigationLink { RaceDetailView(race: race, viewModel: viewModel) } label: {
+                                    NavigationLink { RaceDetailView(initialRace: race, viewModel: viewModel) } label: {
                                         RaceRow(race: race)
                                     }
                                 }
@@ -29,7 +29,7 @@ struct RaceListView: View {
                         if !viewModel.completedRaces.isEmpty {
                             Section("Completadas") {
                                 ForEach(viewModel.completedRaces) { race in
-                                    NavigationLink { RaceDetailView(race: race, viewModel: viewModel) } label: {
+                                    NavigationLink { RaceDetailView(initialRace: race, viewModel: viewModel) } label: {
                                         RaceRow(race: race)
                                     }
                                 }
@@ -47,7 +47,6 @@ struct RaceListView: View {
             .sheet(isPresented: $isCreating) {
                 RaceFormView(viewModel: viewModel, race: nil)
             }
-            .task { await viewModel.start() }
         }
     }
 }
