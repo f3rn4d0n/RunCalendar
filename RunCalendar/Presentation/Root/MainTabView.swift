@@ -33,5 +33,10 @@ struct MainTabView: View {
                 ProfileView(user: user, authViewModel: authViewModel)
             }
         }
+        // Los streams se arrancan aquí, en el contenedor que vive toda la sesión.
+        // Si se arrancaran en las pestañas, el TabView cancela el .task de la pestaña
+        // no visible y se perderían las actualizaciones en vivo.
+        .task { await racesViewModel.start() }
+        .task { await trainingViewModel.start() }
     }
 }

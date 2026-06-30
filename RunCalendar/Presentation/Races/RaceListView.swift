@@ -47,7 +47,6 @@ struct RaceListView: View {
             .sheet(isPresented: $isCreating) {
                 RaceFormView(viewModel: viewModel, race: nil)
             }
-            .task { await viewModel.start() }
         }
     }
 }
