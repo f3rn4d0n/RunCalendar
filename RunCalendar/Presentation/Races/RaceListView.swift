@@ -79,7 +79,7 @@ struct RaceListView: View {
                             Section("Próximas") {
                                 ForEach(upcoming) { race in
                                     NavigationLink { RaceDetailView(initialRace: race, viewModel: viewModel) } label: {
-                                        RaceRow(race: race)
+                                        RaceRow(race: race, sort: sort)
                                     }
                                 }
                             }
@@ -88,7 +88,7 @@ struct RaceListView: View {
                             Section("Completadas") {
                                 ForEach(completed) { race in
                                     NavigationLink { RaceDetailView(initialRace: race, viewModel: viewModel) } label: {
-                                        RaceRow(race: race)
+                                        RaceRow(race: race, sort: sort)
                                     }
                                 }
                             }
@@ -133,6 +133,18 @@ struct RaceListView: View {
 /// Fila compacta de una carrera.
 struct RaceRow: View {
     let race: Race
+    /// Criterio de orden activo, para mostrar el valor correspondiente (costo/distancia).
+    var sort: RaceSort = .date
+
+    /// Valor a resaltar según el orden activo. Nil cuando se ordena por fecha
+    /// (la fecha ya se muestra a la izquierda) o si el dato no existe.
+    private var sortValue: String? {
+        switch sort {
+        case .date: return nil
+        case .distance: return race.distanceKm.map { "\($0.formatted()) km" }
+        case .cost: return race.cost.map { $0.currencyString(code: race.currency) }
+        }
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -158,6 +170,11 @@ struct RaceRow: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
+                if let sortValue {
+                    Text(sortValue)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.tint)
+                }
                 if race.isRegistered {
                     Text("Inscrito")
                         .font(.caption2.bold())
