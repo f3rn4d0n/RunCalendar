@@ -10,6 +10,10 @@ struct MonthCalendarView: View {
     @State private var monthAnchor: Date
     private let calendar = Calendar.current
 
+    // Tamaños que escalan con Dynamic Type.
+    @ScaledMetric private var daySize: CGFloat = 32
+    @ScaledMetric private var dotSize: CGFloat = 5
+
     init(selectedDate: Binding<Date>, markersByDay: [Date: [CalendarMarker]]) {
         self._selectedDate = selectedDate
         self.markersByDay = markersByDay
@@ -29,6 +33,7 @@ struct MonthCalendarView: View {
             Button { changeMonth(-1) } label: {
                 Image(systemName: "chevron.left").frame(width: 44, height: 32)
             }
+            .accessibilityLabel("Mes anterior")
             Spacer()
             Text(monthAnchor.formatted(.dateTime.month(.wide).year()))
                 .font(.headline)
@@ -36,6 +41,7 @@ struct MonthCalendarView: View {
             Button { changeMonth(1) } label: {
                 Image(systemName: "chevron.right").frame(width: 44, height: 32)
             }
+            .accessibilityLabel("Mes siguiente")
         }
         .padding(.horizontal)
     }
@@ -58,11 +64,12 @@ struct MonthCalendarView: View {
                 if let day {
                     dayCell(day)
                 } else {
-                    Color.clear.frame(height: 44)
+                    Color.clear.frame(minHeight: daySize + 14)
                 }
             }
         }
         .padding(.horizontal, 8)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
 
     private func dayCell(_ day: Date) -> some View {
@@ -77,7 +84,7 @@ struct MonthCalendarView: View {
                 Text("\(calendar.component(.day, from: day))")
                     .font(.callout)
                     .fontWeight(isToday ? .bold : .regular)
-                    .frame(width: 32, height: 32)
+                    .frame(width: daySize, height: daySize)
                     .background(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.clear), in: Circle())
                     .foregroundStyle(dayForeground(isSelected: isSelected, isToday: isToday))
                 dotsRow(markers)
@@ -86,6 +93,8 @@ struct MonthCalendarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(daySummary(for: day, markers: markers, isToday: isToday))
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     private func dayForeground(isSelected: Bool, isToday: Bool) -> Color {
@@ -97,10 +106,19 @@ struct MonthCalendarView: View {
     private func dotsRow(_ markers: [CalendarMarker]) -> some View {
         HStack(spacing: 2) {
             ForEach(markers.prefix(4)) { marker in
-                Circle().fill(marker.color).frame(width: 5, height: 5)
+                Circle().fill(marker.color).frame(width: dotSize, height: dotSize)
             }
         }
-        .frame(height: 6)
+        .frame(height: dotSize + 1)
+        .accessibilityHidden(true) // el resumen del día ya nombra las marcas
+    }
+
+    /// Resumen de accesibilidad del día: fecha + "hoy" + marcas presentes.
+    private func daySummary(for day: Date, markers: [CalendarMarker], isToday: Bool) -> String {
+        var parts = [day.formatted(.dateTime.day().month(.wide))]
+        if isToday { parts.append("hoy") }
+        if !markers.isEmpty { parts.append(markers.map(\.label).joined(separator: ", ")) }
+        return parts.joined(separator: ", ")
     }
 
     // MARK: - Cálculo de días

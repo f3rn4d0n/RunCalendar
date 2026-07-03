@@ -101,6 +101,7 @@ struct RaceListView: View {
                 ToolbarItem(placement: .topBarLeading) { filterMenu }
                 ToolbarItem(placement: .primaryAction) {
                     Button { isCreating = true } label: { Image(systemName: "plus") }
+                        .accessibilityLabel("Agregar carrera")
                 }
             }
             .sheet(isPresented: $isCreating) {
@@ -127,6 +128,7 @@ struct RaceListView: View {
                 ? "line.3.horizontal.decrease.circle.fill"
                 : "line.3.horizontal.decrease.circle")
         }
+        .accessibilityLabel("Filtros y orden")
     }
 }
 
@@ -151,6 +153,7 @@ struct RaceRow: View {
                 HStack(spacing: 4) {
                     if race.isPriority {
                         Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow)
+                            .accessibilityLabel("Evento prioritario")
                     }
                     Text(race.name).font(.headline)
                 }
