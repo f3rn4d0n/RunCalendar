@@ -45,19 +45,16 @@ struct ProfileView: View {
                 }
 
                 Section {
-                    Toggle("Recordatorios de eventos", isOn: Binding(
-                        get: { remindersViewModel.isEnabled },
-                        set: { newValue in Task { await remindersViewModel.setEnabled(newValue) } }
-                    ))
-                    if remindersViewModel.permissionDenied {
-                        Text("Activa las notificaciones de RunCalendar en Ajustes para recibir recordatorios.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                    NavigationLink {
+                        RemindersSettingsView(viewModel: remindersViewModel)
+                    } label: {
+                        HStack {
+                            Label("Recordatorios", systemImage: "bell")
+                            Spacer()
+                            Text(remindersViewModel.isEnabled ? "Activados" : "Desactivados")
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                } header: {
-                    Text("Recordatorios")
-                } footer: {
-                    Text("Te avisamos 7 días antes, la víspera y el día del evento, y de la entrega de kit.")
                 }
 
                 Section("Cuenta") {
