@@ -18,33 +18,30 @@ struct RaceDetailView: View {
 
     var body: some View {
         List {
+            Section {
+                chipsRow
+            }
+            .listRowBackground(Color.clear)
+
             Section("Evento") {
-                row("Fecha", race.date.dateTimeString())
-                row("Disciplina", race.discipline.displayName)
+                row("Fecha", race.date.dateTimeString(), icon: "calendar")
+                row("Disciplina", race.discipline.displayName, icon: "figure.run")
                 if let distance = race.distanceKm {
-                    row("Distancia", "\(distance.formatted()) km")
-                }
-                row("Estado", race.status.displayName)
-                if race.isPriority {
-                    HStack {
-                        Label("Evento prioritario", systemImage: "star.fill")
-                            .foregroundStyle(.yellow)
-                        Spacer()
-                    }
+                    row("Distancia", "\(distance.formatted()) km", icon: "ruler")
                 }
             }
 
             Section("Ubicación") {
-                row("Lugar", race.location.name)
+                row("Lugar", race.location.name, icon: "mappin.and.ellipse")
                 if !race.location.address.isEmpty {
-                    row("Dirección", race.location.address)
+                    row("Dirección", race.location.address, icon: "map")
                 }
             }
 
             if race.cost != nil || race.registrationURL != nil {
                 Section("Costo e inscripción") {
                     if let cost = race.cost {
-                        row("Costo", cost.currencyString(code: race.currency))
+                        row("Costo", cost.currencyString(code: race.currency), icon: "creditcard")
                     }
                     if let url = race.registrationURL {
                         Link(destination: url) {
@@ -55,15 +52,16 @@ struct RaceDetailView: View {
             }
 
             Section("Inscripción") {
-                row("Estatus", race.isRegistered ? "Inscrito" : "No inscrito")
+                row("Estatus", race.isRegistered ? "Inscrito" : "No inscrito",
+                    icon: "person.badge.checkmark")
                 if let bib = race.bibNumber {
-                    row("Número de corredor", bib)
+                    row("Número de corredor", bib, icon: "number")
                 }
             }
 
             if let seconds = race.finishTimeSeconds {
                 Section("Resultado") {
-                    row("Tiempo", seconds.durationString())
+                    row("Tiempo", seconds.durationString(), icon: "stopwatch")
                 }
             }
 
@@ -106,11 +104,40 @@ struct RaceDetailView: View {
         }
     }
 
-    private func row(_ label: String, _ value: String) -> some View {
+    private func row(_ label: String, _ value: String, icon: String? = nil) -> some View {
         HStack {
-            Text(label).foregroundStyle(.secondary)
+            if let icon {
+                Label(label, systemImage: icon).foregroundStyle(.secondary)
+            } else {
+                Text(label).foregroundStyle(.secondary)
+            }
             Spacer()
             Text(value).multilineTextAlignment(.trailing)
         }
+    }
+
+    /// Chips de estado en la cabecera del detalle.
+    private var chipsRow: some View {
+        HStack(spacing: 8) {
+            chip(race.status.displayName,
+                 systemImage: race.status == .completed ? "checkmark.circle.fill" : "clock",
+                 color: race.status == .completed ? .green : .blue)
+            if race.isRegistered {
+                chip("Inscrito", systemImage: "person.badge.checkmark", color: .green)
+            }
+            if race.isPriority {
+                chip("Prioritario", systemImage: "star.fill", color: .yellow)
+            }
+            Spacer()
+        }
+    }
+
+    private func chip(_ text: String, systemImage: String, color: Color) -> some View {
+        Label(text, systemImage: systemImage)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(color.opacity(0.15), in: Capsule())
+            .foregroundStyle(color)
     }
 }
