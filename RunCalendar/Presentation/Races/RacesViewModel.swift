@@ -47,6 +47,7 @@ final class RacesViewModel {
             } else {
                 try await updateRace(race, userID: userID)
             }
+            Haptics.success()
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -57,6 +58,7 @@ final class RacesViewModel {
     func delete(_ race: Race) async {
         do {
             try await deleteRace(raceID: race.id, userID: userID)
+            Haptics.success()
         } catch {
             errorMessage = error.localizedDescription
         }
