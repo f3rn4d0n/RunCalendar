@@ -48,6 +48,7 @@ final class TrainingViewModel {
             } else {
                 try await updateTraining(session, userID: userID)
             }
+            Haptics.success()
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -64,6 +65,7 @@ final class TrainingViewModel {
     func delete(_ session: TrainingSession) async {
         do {
             try await deleteTraining(sessionID: session.id, userID: userID)
+            Haptics.success()
         } catch {
             errorMessage = error.localizedDescription
         }

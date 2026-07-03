@@ -34,6 +34,7 @@ final class ProfileViewModel {
     func save(_ profile: UserProfile) async -> Bool {
         do {
             try await saveProfile(profile, userID: userID)
+            Haptics.success()
             return true
         } catch {
             errorMessage = error.localizedDescription

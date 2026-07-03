@@ -99,10 +99,11 @@ struct TrainingRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if session.completed {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    .accessibilityLabel("Completado")
-            }
+            Image(systemName: session.completed ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(session.completed ? AnyShapeStyle(.green) : AnyShapeStyle(.tertiary))
+                .contentTransition(.symbolEffect(.replace))
+                .animation(.smooth, value: session.completed)
+                .accessibilityLabel(session.completed ? "Completado" : "Sin completar")
         }
         .padding(.vertical, 2)
     }
