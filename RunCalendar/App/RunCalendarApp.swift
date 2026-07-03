@@ -19,8 +19,6 @@ struct RunCalendarApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(container: container)
-                .preferredColorScheme(.dark) // el tema neón vive sobre fondo oscuro
-                .tint(Neon.pink)
         }
     }
 }
