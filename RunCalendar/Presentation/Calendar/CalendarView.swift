@@ -81,6 +81,7 @@ struct CalendarView: View {
                     Circle().fill(marker.color).frame(width: 8, height: 8)
                     Text(marker.label).font(.caption2).foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
             }
         }
         .padding(.horizontal)

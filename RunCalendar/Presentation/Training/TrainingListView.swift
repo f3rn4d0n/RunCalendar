@@ -51,6 +51,7 @@ struct TrainingListView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button { isCreating = true } label: { Image(systemName: "plus") }
+                        .accessibilityLabel("Agregar entrenamiento")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
@@ -64,6 +65,7 @@ struct TrainingListView: View {
                             ? "line.3.horizontal.decrease.circle.fill"
                             : "line.3.horizontal.decrease.circle")
                     }
+                    .accessibilityLabel("Filtros")
                 }
             }
             .sheet(isPresented: $isCreating) {
@@ -86,6 +88,7 @@ struct TrainingRow: View {
                 HStack(spacing: 4) {
                     if session.isPriority {
                         Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow)
+                            .accessibilityLabel("Prioritario")
                     }
                     Text(session.title).font(.headline)
                 }
@@ -96,6 +99,7 @@ struct TrainingRow: View {
             Spacer()
             if session.completed {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    .accessibilityLabel("Completado")
             }
         }
         .padding(.vertical, 2)
