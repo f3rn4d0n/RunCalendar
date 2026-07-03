@@ -26,10 +26,10 @@ struct MainTabView: View {
                 CalendarView(racesViewModel: racesViewModel, trainingViewModel: trainingViewModel)
             }
             Tab("Carreras", systemImage: "flag.checkered") {
-                RaceListView(viewModel: racesViewModel)
+                RaceListView(viewModel: racesViewModel, trainingViewModel: trainingViewModel)
             }
             Tab("Entrenar", systemImage: "figure.run") {
-                TrainingListView(viewModel: trainingViewModel)
+                TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel)
             }
             Tab("Perfil", systemImage: "person.crop.circle") {
                 ProfileView(user: user, authViewModel: authViewModel, viewModel: profileViewModel)

@@ -18,6 +18,7 @@ enum TrainingDTO {
         dict["targetPace"] = session.targetPace
         dict["wod"] = session.wod
         dict["isPriority"] = session.isPriority
+        dict["targetRaceID"] = session.targetRaceID
         return dict
     }
 
@@ -39,7 +40,8 @@ enum TrainingDTO {
             wod: data["wod"] as? String,
             completed: data["completed"] as? Bool ?? false,
             notes: data["notes"] as? String ?? "",
-            isPriority: data["isPriority"] as? Bool ?? false
+            isPriority: data["isPriority"] as? Bool ?? false,
+            targetRaceID: data["targetRaceID"] as? String
         )
     }
 }
