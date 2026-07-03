@@ -14,21 +14,30 @@ struct LocalNotificationService: ReminderScheduler {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
     }
 
-    func reschedule(races: [Race], trainings: [TrainingSession]) async {
+    func reschedule(races: [Race], trainings: [TrainingSession], preferences: ReminderPreferences) async {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         let calendar = Calendar.current
         let now = Date()
-        let used = await scheduleRaces(races, budget: Self.maxNotifications, calendar: calendar, now: now)
-        _ = await scheduleTrainings(trainings, budget: Self.maxNotifications - used, calendar: calendar, now: now)
+        let used = await scheduleRaces(
+            races, preferences: preferences, budget: Self.maxNotifications, calendar: calendar, now: now
+        )
+        if preferences.trainings {
+            _ = await scheduleTrainings(
+                trainings, budget: Self.maxNotifications - used, calendar: calendar, now: now
+            )
+        }
     }
 
-    /// Agenda recordatorios de carrera y de kit. Devuelve cuántos agendó.
-    private func scheduleRaces(_ races: [Race], budget: Int, calendar: Calendar, now: Date) async -> Int {
+    /// Agenda recordatorios de carrera y de kit según las preferencias. Devuelve cuántos agendó.
+    private func scheduleRaces(
+        _ races: [Race], preferences: ReminderPreferences, budget: Int, calendar: Calendar, now: Date
+    ) async -> Int {
+        let reminders = Self.raceReminders(from: preferences)
         let futureRaces = races.filter { $0.status == .upcoming && $0.date > now }
         let upcoming = futureRaces.sorted { $0.date < $1.date }
         var scheduled = 0
         for race in upcoming {
-            for reminder in Self.raceReminders {
+            for reminder in reminders {
                 guard scheduled < budget,
                       let fireDate = triggerDate(daysBefore: reminder.daysBefore, hour: reminder.hour,
                                                  base: race.date, calendar: calendar),
@@ -42,8 +51,9 @@ struct LocalNotificationService: ReminderScheduler {
                 )
                 scheduled += 1
             }
-            if let kitDate = race.kitPickup?.date, kitDate > now, scheduled < budget,
-               let fireDate = triggerDate(daysBefore: 1, hour: 18, base: kitDate, calendar: calendar),
+            if preferences.kit, let kitDate = race.kitPickup?.date, kitDate > now, scheduled < budget,
+               let fireDate = triggerDate(daysBefore: 1, hour: preferences.reminderHour,
+                                          base: kitDate, calendar: calendar),
                fireDate > now {
                 await add(
                     id: "kit-\(race.id)",
@@ -88,11 +98,22 @@ struct LocalNotificationService: ReminderScheduler {
     }
 
     private static let maxNotifications = 50 // margen bajo el límite de 64 de iOS
-    private static let raceReminders: [RaceReminder] = [
-        RaceReminder(daysBefore: 7, hour: 9, label: "Faltan 7 días"),
-        RaceReminder(daysBefore: 1, hour: 18, label: "Es mañana"),
-        RaceReminder(daysBefore: 0, hour: 7, label: "¡Hoy es el día!")
-    ]
+
+    /// Construye los avisos de carrera según las preferencias.
+    private static func raceReminders(from prefs: ReminderPreferences) -> [RaceReminder] {
+        var reminders: [RaceReminder] = []
+        if prefs.leadDays > 1 {
+            reminders.append(RaceReminder(daysBefore: prefs.leadDays, hour: prefs.reminderHour,
+                                          label: "Faltan \(prefs.leadDays) días"))
+        }
+        if prefs.dayBefore {
+            reminders.append(RaceReminder(daysBefore: 1, hour: prefs.reminderHour, label: "Es mañana"))
+        }
+        if prefs.dayOf {
+            reminders.append(RaceReminder(daysBefore: 0, hour: prefs.reminderHour, label: "¡Hoy es el día!"))
+        }
+        return reminders
+    }
 
     private func triggerDate(daysBefore: Int, hour: Int, base: Date, calendar: Calendar) -> Date? {
         guard let day = calendar.date(byAdding: .day, value: -daysBefore, to: base) else { return nil }
