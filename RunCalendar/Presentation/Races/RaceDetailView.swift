@@ -25,6 +25,13 @@ struct RaceDetailView: View {
                     row("Distancia", "\(distance.formatted()) km")
                 }
                 row("Estado", race.status.displayName)
+                if race.isPriority {
+                    HStack {
+                        Label("Evento prioritario", systemImage: "star.fill")
+                            .foregroundStyle(.yellow)
+                        Spacer()
+                    }
+                }
             }
 
             Section("Ubicación") {

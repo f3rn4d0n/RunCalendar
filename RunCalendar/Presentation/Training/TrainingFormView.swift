@@ -17,6 +17,7 @@ struct TrainingFormView: View {
     @State private var wod = ""
     @State private var completed = false
     @State private var notes = ""
+    @State private var isPriority = false
 
     private var isNew: Bool { session == nil }
 
@@ -34,6 +35,9 @@ struct TrainingFormView: View {
                     TextField("Duración (min)", text: $durationText)
                         .keyboardType(.numberPad)
                     Toggle("Completado", isOn: $completed)
+                    Toggle(isOn: $isPriority) {
+                        Label("Prioritario", systemImage: "star.fill")
+                    }
                 }
 
                 if type == .running {
@@ -87,6 +91,7 @@ struct TrainingFormView: View {
         wod = session.wod ?? ""
         completed = session.completed
         notes = session.notes
+        isPriority = session.isPriority
     }
 
     private func save() async {
@@ -103,7 +108,8 @@ struct TrainingFormView: View {
             targetPace: type == .running && !targetPace.isEmpty ? targetPace : nil,
             wod: type == .crossfit && !wod.isEmpty ? wod : nil,
             completed: completed,
-            notes: notes
+            notes: notes,
+            isPriority: isPriority
         )
 
         if await viewModel.save(newSession, isNew: isNew) {

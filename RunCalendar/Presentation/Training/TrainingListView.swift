@@ -4,11 +4,13 @@ import SwiftUI
 struct TrainingListView: View {
     @State var viewModel: TrainingViewModel
     @State private var filter: TrainingType?
+    @State private var onlyPriority = false
     @State private var isCreating = false
 
     private var filtered: [TrainingSession] {
-        guard let filter else { return viewModel.sessions }
-        return viewModel.sessions(of: filter)
+        var result = filter.map(viewModel.sessions(of:)) ?? viewModel.sessions
+        if onlyPriority { result = result.filter(\.isPriority) }
+        return result
     }
 
     var body: some View {
@@ -56,7 +58,12 @@ struct TrainingListView: View {
                             Text("Todos").tag(TrainingType?.none)
                             ForEach(TrainingType.allCases) { Text($0.displayName).tag(Optional($0)) }
                         }
-                    } label: { Image(systemName: "line.3.horizontal.decrease.circle") }
+                        Toggle("Solo prioritarios", isOn: $onlyPriority)
+                    } label: {
+                        Image(systemName: filter != nil || onlyPriority
+                            ? "line.3.horizontal.decrease.circle.fill"
+                            : "line.3.horizontal.decrease.circle")
+                    }
                 }
             }
             .sheet(isPresented: $isCreating) {
@@ -76,7 +83,12 @@ struct TrainingRow: View {
                 .foregroundStyle(.tint)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.title).font(.headline)
+                HStack(spacing: 4) {
+                    if session.isPriority {
+                        Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow)
+                    }
+                    Text(session.title).font(.headline)
+                }
                 Text(session.date.mediumString())
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

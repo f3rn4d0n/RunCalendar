@@ -72,6 +72,8 @@ struct Race: Identifiable, Equatable, Sendable {
     /// Tiempo que tardó en completarla, en segundos. Numérico para futura
     /// integración con Apple Watch / Garmin / Salud.
     var finishTimeSeconds: Int?
+    /// Evento objetivo/prioritario para enfocar el entrenamiento.
+    var isPriority: Bool
 
     init(
         id: String = UUID().uuidString,
@@ -88,7 +90,8 @@ struct Race: Identifiable, Equatable, Sendable {
         status: RaceStatus = .upcoming,
         isRegistered: Bool = false,
         bibNumber: String? = nil,
-        finishTimeSeconds: Int? = nil
+        finishTimeSeconds: Int? = nil,
+        isPriority: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -105,5 +108,6 @@ struct Race: Identifiable, Equatable, Sendable {
         self.isRegistered = isRegistered
         self.bibNumber = bibNumber
         self.finishTimeSeconds = finishTimeSeconds
+        self.isPriority = isPriority
     }
 }

@@ -19,6 +19,7 @@ struct RaceFormView: View {
     @State private var registrationURLText = ""
     @State private var status: RaceStatus = .upcoming
     @State private var notes = ""
+    @State private var isPriority = false
 
     // Inscripción
     @State private var isRegistered = false
@@ -51,6 +52,9 @@ struct RaceFormView: View {
                         .keyboardType(.decimalPad)
                     Picker("Estado", selection: $status) {
                         ForEach(RaceStatus.allCases) { Text($0.displayName).tag($0) }
+                    }
+                    Toggle(isOn: $isPriority) {
+                        Label("Evento prioritario", systemImage: "star.fill")
                     }
                 }
 
@@ -143,6 +147,7 @@ struct RaceFormView: View {
         registrationURLText = race.registrationURL?.absoluteString ?? ""
         status = race.status
         notes = race.notes
+        isPriority = race.isPriority
         isRegistered = race.isRegistered
         bibNumber = race.bibNumber ?? ""
         if let secs = race.finishTimeSeconds {
@@ -191,7 +196,8 @@ struct RaceFormView: View {
             status: status,
             isRegistered: isRegistered,
             bibNumber: bib,
-            finishTimeSeconds: finishTime
+            finishTimeSeconds: finishTime,
+            isPriority: isPriority
         )
 
         if await viewModel.save(newRace, isNew: isNew) {
