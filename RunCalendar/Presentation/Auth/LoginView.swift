@@ -57,19 +57,9 @@ struct LoginView: View {
                     .frame(height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                    Button {
+                    GoogleSignInButton {
                         Task { await viewModel.continueWithGoogle() }
-                    } label: {
-                        HStack {
-                            Image(systemName: "g.circle.fill")
-                            Text("Continuar con Google")
-                        }
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
                     .disabled(viewModel.isProcessing)
 
                     if viewModel.isProcessing { ProgressView() }
