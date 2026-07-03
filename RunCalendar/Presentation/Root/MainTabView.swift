@@ -17,10 +17,14 @@ struct MainTabView: View {
         self.user = user
         self.authViewModel = authViewModel
         let races = container.makeRacesViewModel(userID: user.id)
+        let trainings = container.makeTrainingViewModel(userID: user.id)
         _racesViewModel = State(initialValue: races)
-        _trainingViewModel = State(initialValue: container.makeTrainingViewModel(userID: user.id))
+        _trainingViewModel = State(initialValue: trainings)
         _profileViewModel = State(initialValue: container.makeProfileViewModel(userID: user.id))
-        _remindersViewModel = State(initialValue: container.makeRemindersViewModel(racesViewModel: races))
+        _remindersViewModel = State(initialValue: container.makeRemindersViewModel(
+            racesViewModel: races,
+            trainingViewModel: trainings
+        ))
     }
 
     var body: some View {
@@ -45,6 +49,9 @@ struct MainTabView: View {
         }
         .task { await remindersViewModel.refresh() }
         .onChange(of: racesViewModel.races) { _, _ in
+            Task { await remindersViewModel.refresh() }
+        }
+        .onChange(of: trainingViewModel.sessions) { _, _ in
             Task { await remindersViewModel.refresh() }
         }
         // Los streams se arrancan aquí, en el contenedor que vive toda la sesión.

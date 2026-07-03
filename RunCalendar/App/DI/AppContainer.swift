@@ -67,7 +67,14 @@ final class AppContainer {
         )
     }
 
-    func makeRemindersViewModel(racesViewModel: RacesViewModel) -> RemindersViewModel {
-        RemindersViewModel(scheduler: reminderScheduler, racesViewModel: racesViewModel)
+    func makeRemindersViewModel(
+        racesViewModel: RacesViewModel,
+        trainingViewModel: TrainingViewModel
+    ) -> RemindersViewModel {
+        RemindersViewModel(
+            scheduler: reminderScheduler,
+            racesViewModel: racesViewModel,
+            trainingViewModel: trainingViewModel
+        )
     }
 }

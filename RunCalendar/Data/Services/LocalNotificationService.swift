@@ -14,19 +14,22 @@ struct LocalNotificationService: ReminderScheduler {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
     }
 
-    func reschedule(races: [Race]) async {
-        let center = UNUserNotificationCenter.current()
-        center.removeAllPendingNotificationRequests()
-
+    func reschedule(races: [Race], trainings: [TrainingSession]) async {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
         let calendar = Calendar.current
         let now = Date()
+        let used = await scheduleRaces(races, budget: Self.maxNotifications, calendar: calendar, now: now)
+        _ = await scheduleTrainings(trainings, budget: Self.maxNotifications - used, calendar: calendar, now: now)
+    }
+
+    /// Agenda recordatorios de carrera y de kit. Devuelve cuántos agendó.
+    private func scheduleRaces(_ races: [Race], budget: Int, calendar: Calendar, now: Date) async -> Int {
         let futureRaces = races.filter { $0.status == .upcoming && $0.date > now }
         let upcoming = futureRaces.sorted { $0.date < $1.date }
-
         var scheduled = 0
         for race in upcoming {
             for reminder in Self.raceReminders {
-                guard scheduled < Self.maxNotifications,
+                guard scheduled < budget,
                       let fireDate = triggerDate(daysBefore: reminder.daysBefore, hour: reminder.hour,
                                                  base: race.date, calendar: calendar),
                       fireDate > now else { continue }
@@ -39,8 +42,7 @@ struct LocalNotificationService: ReminderScheduler {
                 )
                 scheduled += 1
             }
-
-            if let kitDate = race.kitPickup?.date, kitDate > now, scheduled < Self.maxNotifications,
+            if let kitDate = race.kitPickup?.date, kitDate > now, scheduled < budget,
                let fireDate = triggerDate(daysBefore: 1, hour: 18, base: kitDate, calendar: calendar),
                fireDate > now {
                 await add(
@@ -53,6 +55,28 @@ struct LocalNotificationService: ReminderScheduler {
                 scheduled += 1
             }
         }
+        return scheduled
+    }
+
+    /// Agenda un aviso a la hora de cada entrenamiento pendiente. Devuelve cuántos agendó.
+    private func scheduleTrainings(
+        _ trainings: [TrainingSession], budget: Int, calendar: Calendar, now: Date
+    ) async -> Int {
+        let futureTrainings = trainings.filter { !$0.completed && $0.date > now }
+        let upcoming = futureTrainings.sorted { $0.date < $1.date }
+        var scheduled = 0
+        for training in upcoming {
+            guard scheduled < budget else { break }
+            await add(
+                id: "training-\(training.id)",
+                title: training.title,
+                body: "Entrenamiento de \(training.type.displayName)",
+                fireDate: training.date,
+                calendar: calendar
+            )
+            scheduled += 1
+        }
+        return scheduled
     }
 
     // MARK: - Config

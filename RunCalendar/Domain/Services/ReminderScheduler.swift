@@ -6,9 +6,9 @@ protocol ReminderScheduler: Sendable {
     /// Pide permiso al usuario para enviar notificaciones. Devuelve si fue concedido.
     func requestAuthorization() async -> Bool
 
-    /// Reagenda todos los recordatorios a partir de las carreras dadas
+    /// Reagenda todos los recordatorios a partir de las carreras y entrenamientos dados
     /// (cancela los previos y agenda los vigentes).
-    func reschedule(races: [Race]) async
+    func reschedule(races: [Race], trainings: [TrainingSession]) async
 
     /// Cancela todos los recordatorios pendientes.
     func cancelAll() async
