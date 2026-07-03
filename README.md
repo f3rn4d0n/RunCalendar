@@ -58,10 +58,22 @@ open RunCalendar.xcodeproj
    `RunCalendar/Resources/GoogleService-Info.plist`
    *(está en `.gitignore`; nunca lo subas al repo.)*
 4. En la consola, activa:
-   - **Authentication → Sign-in method →** Email/Password **y** Apple.
+   - **Authentication → Sign-in method →** Email/Password, Apple **y Google**.
    - **Firestore Database →** crea la base en modo producción.
 
-### 3. Configurar Sign in with Apple
+### 3. Configurar Google Sign-In
+
+1. En **Authentication → Sign-in method**, habilita **Google** y guarda.
+2. **Descarga de nuevo** el `GoogleService-Info.plist` (ahora incluye `CLIENT_ID` y
+   `REVERSED_CLIENT_ID`) y reemplaza el de `RunCalendar/Resources/`.
+3. Crea el archivo **`RunCalendar/Resources/Secrets.xcconfig`** (está en `.gitignore`) con:
+   ```
+   REVERSED_CLIENT_ID = <el valor REVERSED_CLIENT_ID de tu GoogleService-Info.plist>
+   ```
+   Ese valor alimenta el URL scheme del `Info.plist` (necesario para el callback de Google).
+4. Corre `xcodegen generate`.
+
+### 4. Configurar Sign in with Apple
 
 1. En `project.yml`, pon tu **`DEVELOPMENT_TEAM`** (Team ID de Apple Developer) y
    vuelve a correr `xcodegen generate`. (O selecciónalo en Xcode → Signing & Capabilities.)
@@ -70,7 +82,7 @@ open RunCalendar.xcodeproj
 3. En Firebase, en el proveedor **Apple**, configura el **Service ID** / OAuth según la
    [guía oficial](https://firebase.google.com/docs/auth/ios/apple).
 
-### 4. Reglas de seguridad de Firestore
+### 5. Reglas de seguridad de Firestore
 
 Cada usuario solo accede a sus propios datos. Pega esto en **Firestore → Reglas**:
 
@@ -91,7 +103,7 @@ service cloud.firestore {
 }
 ```
 
-### 5. Compilar y correr
+### 6. Compilar y correr
 
 - **iPhone:** elige un simulador o tu dispositivo y ⌘R.
 - **Mac:** en el selector de destino elige **My Mac (Designed for iPad)** y ⌘R.

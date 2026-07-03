@@ -59,6 +59,19 @@ final class FirebaseAuthRepository: AuthRepository, @unchecked Sendable {
         }
     }
 
+    func signInWithGoogle(_ credential: GoogleCredential) async throws -> AppUser {
+        let firebaseCredential = GoogleAuthProvider.credential(
+            withIDToken: credential.idToken,
+            accessToken: credential.accessToken
+        )
+        do {
+            let result = try await auth.signIn(with: firebaseCredential)
+            return Self.mapUser(result.user)
+        } catch {
+            throw Self.mapError(error)
+        }
+    }
+
     func signOut() throws {
         try auth.signOut()
     }

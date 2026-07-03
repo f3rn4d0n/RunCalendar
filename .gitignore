@@ -12,6 +12,9 @@ build/
 # Firebase — credenciales privadas, NO commitear
 GoogleService-Info.plist
 
+# Config local con el reversed client id de Google Sign-In
+Secrets.xcconfig
+
 # Swift Package Manager
 .swiftpm/
 .build/

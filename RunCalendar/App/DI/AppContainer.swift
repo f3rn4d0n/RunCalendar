@@ -35,6 +35,7 @@ final class AppContainer {
             signIn: SignInWithEmailUseCase(repository: authRepository),
             signUp: SignUpUseCase(repository: authRepository),
             signInWithApple: SignInWithAppleUseCase(repository: authRepository),
+            signInWithGoogle: SignInWithGoogleUseCase(repository: authRepository),
             signOut: SignOutUseCase(repository: authRepository)
         )
     }
