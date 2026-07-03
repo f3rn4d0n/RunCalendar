@@ -181,8 +181,8 @@ struct RaceRow: View {
                         .font(.caption2.bold())
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(.green.opacity(0.2), in: Capsule())
-                        .foregroundStyle(.green)
+                        .background(Neon.green.opacity(0.2), in: Capsule())
+                        .foregroundStyle(Neon.green)
                 }
                 if let seconds = race.finishTimeSeconds {
                     Text(seconds.durationString())

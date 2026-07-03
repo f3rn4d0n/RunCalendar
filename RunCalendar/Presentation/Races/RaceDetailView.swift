@@ -121,9 +121,9 @@ struct RaceDetailView: View {
         HStack(spacing: 8) {
             chip(race.status.displayName,
                  systemImage: race.status == .completed ? "checkmark.circle.fill" : "clock",
-                 color: race.status == .completed ? .green : .blue)
+                 color: race.status == .completed ? Neon.green : Neon.blue)
             if race.isRegistered {
-                chip("Inscrito", systemImage: "person.badge.checkmark", color: .green)
+                chip("Inscrito", systemImage: "person.badge.checkmark", color: Neon.green)
             }
             if race.isPriority {
                 chip("Prioritario", systemImage: "star.fill", color: .yellow)
