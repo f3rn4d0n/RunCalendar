@@ -1,21 +1,17 @@
 import SwiftUI
 
-/// Botón de "Continuar con Google" con el estilo de marca (rojo, logo "G" en un tile
-/// blanco, texto blanco), similar al botón oficial de Google.
+/// Botón de "Continuar con Google" con el estilo de marca (rojo, logo "G" y texto blancos).
 struct GoogleSignInButton: View {
     let action: () -> Void
 
     private let googleRed = Color(red: 0.85, green: 0.27, blue: 0.22) // #DB4437
-    private let googleBlue = Color(red: 0.26, green: 0.52, blue: 0.96)
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Text("G")
-                    .font(.system(size: 18, weight: .bold, design: .default))
-                    .foregroundStyle(googleBlue)
-                    .frame(width: 30, height: 30)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 6))
+                    .font(.system(size: 20, weight: .bold, design: .default))
+                    .foregroundStyle(.white)
                 Text("Continuar con Google")
                     .font(.headline)
                     .foregroundStyle(.white)
