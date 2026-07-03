@@ -78,8 +78,14 @@ Cada usuario solo accede a sus propios datos. Pega esto en **Firestore → Regla
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
+    // El documento del perfil (users/{uid}) y todas sus subcolecciones.
+    // En rules v2 el wildcard {document=**} NO cubre el documento padre,
+    // por eso se declara la regla del propio users/{userId} por separado.
+    match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
   }
 }
