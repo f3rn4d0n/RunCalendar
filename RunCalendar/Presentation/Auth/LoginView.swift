@@ -4,6 +4,7 @@ import AuthenticationServices
 /// Pantalla de inicio de sesión: email/contraseña + Sign in with Apple.
 struct LoginView: View {
     @Bindable var viewModel: AuthViewModel
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var email = ""
     @State private var password = ""
@@ -53,7 +54,7 @@ struct LoginView: View {
                     } onCompletion: { result in
                         Task { await viewModel.handleAppleCompletion(result) }
                     }
-                    .signInWithAppleButtonStyle(.black)
+                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                     .frame(height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
