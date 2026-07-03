@@ -57,6 +57,9 @@ struct LoginView: View {
                     .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
                     .frame(height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    // El botón fija su estilo al crearse y no reacciona al cambio de
+                    // modo en caliente; el id fuerza a SwiftUI a recrearlo al cambiar.
+                    .id(colorScheme)
 
                     GoogleSignInButton {
                         Task { await viewModel.continueWithGoogle() }
