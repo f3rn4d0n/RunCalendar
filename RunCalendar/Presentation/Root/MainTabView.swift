@@ -10,14 +10,17 @@ struct MainTabView: View {
     @State private var racesViewModel: RacesViewModel
     @State private var trainingViewModel: TrainingViewModel
     @State private var profileViewModel: ProfileViewModel
+    @State private var remindersViewModel: RemindersViewModel
 
     init(container: AppContainer, user: AppUser, authViewModel: AuthViewModel) {
         self.container = container
         self.user = user
         self.authViewModel = authViewModel
-        _racesViewModel = State(initialValue: container.makeRacesViewModel(userID: user.id))
+        let races = container.makeRacesViewModel(userID: user.id)
+        _racesViewModel = State(initialValue: races)
         _trainingViewModel = State(initialValue: container.makeTrainingViewModel(userID: user.id))
         _profileViewModel = State(initialValue: container.makeProfileViewModel(userID: user.id))
+        _remindersViewModel = State(initialValue: container.makeRemindersViewModel(racesViewModel: races))
     }
 
     var body: some View {
@@ -32,8 +35,17 @@ struct MainTabView: View {
                 TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel)
             }
             Tab("Perfil", systemImage: "person.crop.circle") {
-                ProfileView(user: user, authViewModel: authViewModel, viewModel: profileViewModel)
+                ProfileView(
+                    user: user,
+                    authViewModel: authViewModel,
+                    viewModel: profileViewModel,
+                    remindersViewModel: remindersViewModel
+                )
             }
+        }
+        .task { await remindersViewModel.refresh() }
+        .onChange(of: racesViewModel.races) { _, _ in
+            Task { await remindersViewModel.refresh() }
         }
         // Los streams se arrancan aquí, en el contenedor que vive toda la sesión.
         // Si se arrancaran en las pestañas, el TabView cancela el .task de la pestaña

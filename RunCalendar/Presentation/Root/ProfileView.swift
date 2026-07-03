@@ -5,6 +5,7 @@ struct ProfileView: View {
     let user: AppUser
     let authViewModel: AuthViewModel
     @State var viewModel: ProfileViewModel
+    @State var remindersViewModel: RemindersViewModel
 
     @State private var isEditing = false
 
@@ -41,6 +42,22 @@ struct ProfileView: View {
                             LabeledContent("Teléfono", value: profile.emergencyContactPhone)
                         }
                     }
+                }
+
+                Section {
+                    Toggle("Recordatorios de eventos", isOn: Binding(
+                        get: { remindersViewModel.isEnabled },
+                        set: { newValue in Task { await remindersViewModel.setEnabled(newValue) } }
+                    ))
+                    if remindersViewModel.permissionDenied {
+                        Text("Activa las notificaciones de RunCalendar en Ajustes para recibir recordatorios.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Recordatorios")
+                } footer: {
+                    Text("Te avisamos 7 días antes, la víspera y el día del evento, y de la entrega de kit.")
                 }
 
                 Section("Cuenta") {
