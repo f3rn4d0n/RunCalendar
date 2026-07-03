@@ -24,6 +24,7 @@ enum RaceDTO {
         dict["isRegistered"] = race.isRegistered
         dict["bibNumber"] = race.bibNumber
         dict["finishTimeSeconds"] = race.finishTimeSeconds
+        dict["isPriority"] = race.isPriority
 
         if let kit = race.kitPickup {
             var kitDict: [String: Any] = ["notes": kit.notes]
@@ -79,7 +80,8 @@ enum RaceDTO {
             status: RaceStatus(rawValue: data["status"] as? String ?? "") ?? .upcoming,
             isRegistered: data["isRegistered"] as? Bool ?? false,
             bibNumber: data["bibNumber"] as? String,
-            finishTimeSeconds: data["finishTimeSeconds"] as? Int
+            finishTimeSeconds: data["finishTimeSeconds"] as? Int,
+            isPriority: data["isPriority"] as? Bool ?? false
         )
     }
 }
