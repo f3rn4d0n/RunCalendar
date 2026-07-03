@@ -25,7 +25,7 @@ struct ProfileView: View {
                         LabeledContent("Teléfono", value: profile.phone)
                     }
                     if let birthday = profile.birthday {
-                        LabeledContent("Cumpleaños", value: birthday.mediumString())
+                        LabeledContent("Fecha de nacimiento", value: birthday.mediumString())
                     }
                     if let age = profile.age {
                         LabeledContent("Edad", value: "\(age) años")

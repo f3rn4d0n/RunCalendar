@@ -12,8 +12,7 @@ struct ProfileEditView: View {
     @State private var phone = ""
     @State private var emergencyContactName = ""
     @State private var emergencyContactPhone = ""
-    @State private var hasBirthday = false
-    @State private var birthday = Date()
+    @State private var birthDate: Date?
 
     var body: some View {
         NavigationStack {
@@ -24,17 +23,7 @@ struct ProfileEditView: View {
                         .keyboardType(.phonePad)
                 }
 
-                Section("Cumpleaños") {
-                    Toggle("Registrar cumpleaños", isOn: $hasBirthday)
-                    if hasBirthday {
-                        DatePicker(
-                            "Fecha",
-                            selection: $birthday,
-                            in: ...Date(),
-                            displayedComponents: .date
-                        )
-                    }
-                }
+                birthDateSection
 
                 Section("Contacto de emergencia") {
                     TextField("Nombre", text: $emergencyContactName)
@@ -60,16 +49,36 @@ struct ProfileEditView: View {
         }
     }
 
+    /// Sección de fecha de nacimiento, opcional y sin switch:
+    /// si no hay fecha, se ofrece agregarla; si la hay, se puede quitar.
+    @ViewBuilder
+    private var birthDateSection: some View {
+        Section("Fecha de nacimiento") {
+            if let date = birthDate {
+                DatePicker(
+                    "Fecha",
+                    selection: Binding(get: { date }, set: { birthDate = $0 }),
+                    in: ...Date(),
+                    displayedComponents: .date
+                )
+                Button("Quitar fecha de nacimiento", role: .destructive) {
+                    birthDate = nil
+                }
+            } else {
+                Button("Agregar fecha de nacimiento") {
+                    birthDate = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
+                }
+            }
+        }
+    }
+
     private func populate() {
         let profile = viewModel.profile
         displayName = profile.displayName.isEmpty ? (fallbackName ?? "") : profile.displayName
         phone = profile.phone
         emergencyContactName = profile.emergencyContactName
         emergencyContactPhone = profile.emergencyContactPhone
-        if let date = profile.birthday {
-            hasBirthday = true
-            birthday = date
-        }
+        birthDate = profile.birthday
     }
 
     private func save() async {
@@ -78,7 +87,7 @@ struct ProfileEditView: View {
             phone: phone.trimmingCharacters(in: .whitespaces),
             emergencyContactName: emergencyContactName.trimmingCharacters(in: .whitespaces),
             emergencyContactPhone: emergencyContactPhone.trimmingCharacters(in: .whitespaces),
-            birthday: hasBirthday ? birthday : nil
+            birthday: birthDate
         )
         if await viewModel.save(updated) {
             dismiss()
