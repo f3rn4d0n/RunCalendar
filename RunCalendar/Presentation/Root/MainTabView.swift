@@ -9,6 +9,7 @@ struct MainTabView: View {
 
     @State private var racesViewModel: RacesViewModel
     @State private var trainingViewModel: TrainingViewModel
+    @State private var profileViewModel: ProfileViewModel
 
     init(container: AppContainer, user: AppUser, authViewModel: AuthViewModel) {
         self.container = container
@@ -16,6 +17,7 @@ struct MainTabView: View {
         self.authViewModel = authViewModel
         _racesViewModel = State(initialValue: container.makeRacesViewModel(userID: user.id))
         _trainingViewModel = State(initialValue: container.makeTrainingViewModel(userID: user.id))
+        _profileViewModel = State(initialValue: container.makeProfileViewModel(userID: user.id))
     }
 
     var body: some View {
@@ -30,7 +32,7 @@ struct MainTabView: View {
                 TrainingListView(viewModel: trainingViewModel)
             }
             Tab("Perfil", systemImage: "person.crop.circle") {
-                ProfileView(user: user, authViewModel: authViewModel)
+                ProfileView(user: user, authViewModel: authViewModel, viewModel: profileViewModel)
             }
         }
         // Los streams se arrancan aquí, en el contenedor que vive toda la sesión.
@@ -38,5 +40,6 @@ struct MainTabView: View {
         // no visible y se perderían las actualizaciones en vivo.
         .task { await racesViewModel.start() }
         .task { await trainingViewModel.start() }
+        .task { await profileViewModel.start() }
     }
 }

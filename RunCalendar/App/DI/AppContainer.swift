@@ -10,15 +10,18 @@ final class AppContainer {
     private let authRepository: AuthRepository
     private let raceRepository: RaceRepository
     private let trainingRepository: TrainingRepository
+    private let profileRepository: ProfileRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
         raceRepository: RaceRepository = FirestoreRaceRepository(),
-        trainingRepository: TrainingRepository = FirestoreTrainingRepository()
+        trainingRepository: TrainingRepository = FirestoreTrainingRepository(),
+        profileRepository: ProfileRepository = FirestoreProfileRepository()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
         self.trainingRepository = trainingRepository
+        self.profileRepository = profileRepository
     }
 
     // MARK: - ViewModels
@@ -50,6 +53,14 @@ final class AppContainer {
             addTraining: AddTrainingUseCase(repository: trainingRepository),
             updateTraining: UpdateTrainingUseCase(repository: trainingRepository),
             deleteTraining: DeleteTrainingUseCase(repository: trainingRepository)
+        )
+    }
+
+    func makeProfileViewModel(userID: String) -> ProfileViewModel {
+        ProfileViewModel(
+            userID: userID,
+            observeProfile: ObserveProfileUseCase(repository: profileRepository),
+            saveProfile: SaveProfileUseCase(repository: profileRepository)
         )
     }
 }
