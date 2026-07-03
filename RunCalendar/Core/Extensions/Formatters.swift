@@ -10,6 +10,26 @@ extension Date {
     func dateTimeString() -> String {
         formatted(.dateTime.day().month(.abbreviated).year().hour().minute())
     }
+
+    /// Días completos desde hoy hasta esta fecha (negativo si ya pasó).
+    func daysFromNow() -> Int {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: Date())
+        let target = calendar.startOfDay(for: self)
+        return calendar.dateComponents([.day], from: start, to: target).day ?? 0
+    }
+
+    /// Texto de cuenta regresiva: "Hoy", "Mañana", "Faltan 24 días", "Hace 3 días".
+    func countdownText() -> String {
+        let days = daysFromNow()
+        switch days {
+        case 0: return "Hoy"
+        case 1: return "Mañana"
+        case -1: return "Ayer"
+        case let future where future > 1: return "Faltan \(future) días"
+        default: return "Hace \(-days) días"
+        }
+    }
 }
 
 extension Decimal {

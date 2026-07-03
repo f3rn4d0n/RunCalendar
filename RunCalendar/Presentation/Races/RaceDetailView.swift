@@ -23,9 +23,25 @@ struct RaceDetailView: View {
         return matches.sorted { $0.date < $1.date }
     }
 
+    private var completedTrainingCount: Int {
+        linkedTrainings.filter(\.completed).count
+    }
+
     var body: some View {
         List {
             Section {
+                if race.date.daysFromNow() >= 0 {
+                    VStack(spacing: 2) {
+                        Text(race.date.countdownText())
+                            .font(.largeTitle.bold())
+                            .foregroundStyle(.tint)
+                        Text(race.date.mediumString())
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 6)
+                }
                 chipsRow
             }
             .listRowBackground(Color.clear)
@@ -74,6 +90,15 @@ struct RaceDetailView: View {
 
             if !linkedTrainings.isEmpty {
                 Section("Entrenamientos para este evento") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("\(completedTrainingCount) de \(linkedTrainings.count) completados")
+                            .font(.subheadline)
+                        ProgressView(
+                            value: Double(completedTrainingCount),
+                            total: Double(linkedTrainings.count)
+                        )
+                        .tint(Neon.green)
+                    }
                     ForEach(linkedTrainings) { training in
                         HStack(spacing: 12) {
                             Image(systemName: training.type.systemImage)

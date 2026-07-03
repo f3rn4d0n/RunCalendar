@@ -171,6 +171,11 @@ struct RaceRow: View {
                 Text(race.location.name)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if race.status == .upcoming, race.date.daysFromNow() >= 0 {
+                    Text(race.date.countdownText())
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tint)
+                }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
