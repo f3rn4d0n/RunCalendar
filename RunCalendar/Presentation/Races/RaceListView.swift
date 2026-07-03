@@ -133,18 +133,8 @@ struct RaceListView: View {
 /// Fila compacta de una carrera.
 struct RaceRow: View {
     let race: Race
-    /// Criterio de orden activo, para mostrar el valor correspondiente (costo/distancia).
+    /// Criterio de orden activo, para resaltar el valor correspondiente.
     var sort: RaceSort = .date
-
-    /// Valor a resaltar según el orden activo. Nil cuando se ordena por fecha
-    /// (la fecha ya se muestra a la izquierda) o si el dato no existe.
-    private var sortValue: String? {
-        switch sort {
-        case .date: return nil
-        case .distance: return race.distanceKm.map { "\($0.formatted()) km" }
-        case .cost: return race.cost.map { $0.currencyString(code: race.currency) }
-        }
-    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -164,17 +154,20 @@ struct RaceRow: View {
                     }
                     Text(race.name).font(.headline)
                 }
-                Text("\(race.discipline.displayName) · \(race.location.name)")
+                Text(race.location.name)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
-                if let sortValue {
-                    Text(sortValue)
+                if sort == .cost, let cost = race.cost {
+                    Text(cost.currencyString(code: race.currency))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.tint)
                 }
+                Text(race.discipline.displayName)
+                    .font(.subheadline.weight(sort == .distance ? .semibold : .regular))
+                    .foregroundStyle(sort == .distance ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                 if race.isRegistered {
                     Text("Inscrito")
                         .font(.caption2.bold())
