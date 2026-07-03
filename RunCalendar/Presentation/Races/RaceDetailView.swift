@@ -5,6 +5,7 @@ struct RaceDetailView: View {
     /// Copia recibida al navegar; se usa como id y como respaldo.
     let initialRace: Race
     @State var viewModel: RacesViewModel
+    let trainingViewModel: TrainingViewModel
 
     @State private var isEditing = false
     @State private var showDeleteAlert = false
@@ -14,6 +15,12 @@ struct RaceDetailView: View {
     /// Si ya no existe (p. ej. fue eliminada), cae al respaldo recibido.
     private var race: Race {
         viewModel.races.first { $0.id == initialRace.id } ?? initialRace
+    }
+
+    /// Entrenamientos que apuntan a este evento, ordenados por fecha.
+    private var linkedTrainings: [TrainingSession] {
+        let matches = trainingViewModel.sessions.filter { $0.targetRaceID == race.id }
+        return matches.sorted { $0.date < $1.date }
     }
 
     var body: some View {
@@ -62,6 +69,27 @@ struct RaceDetailView: View {
             if let seconds = race.finishTimeSeconds {
                 Section("Resultado") {
                     row("Tiempo", seconds.durationString(), icon: "stopwatch")
+                }
+            }
+
+            if !linkedTrainings.isEmpty {
+                Section("Entrenamientos para este evento") {
+                    ForEach(linkedTrainings) { training in
+                        HStack(spacing: 12) {
+                            Image(systemName: training.type.systemImage)
+                                .foregroundStyle(.tint)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(training.title)
+                                Text(training.date.mediumString())
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if training.completed {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(Neon.green)
+                            }
+                        }
+                    }
                 }
             }
 

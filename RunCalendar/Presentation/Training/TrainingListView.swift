@@ -3,6 +3,7 @@ import SwiftUI
 /// Lista de entrenamientos, filtrable por tipo (CrossFit / Carrera).
 struct TrainingListView: View {
     @State var viewModel: TrainingViewModel
+    let racesViewModel: RacesViewModel
     @State private var filter: TrainingType?
     @State private var onlyPriority = false
     @State private var isCreating = false
@@ -11,6 +12,14 @@ struct TrainingListView: View {
         var result = filter.map(viewModel.sessions(of:)) ?? viewModel.sessions
         if onlyPriority { result = result.filter(\.isPriority) }
         return result
+    }
+
+    private var racesByID: [String: Race] {
+        Dictionary(racesViewModel.races.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    private func targetName(for session: TrainingSession) -> String? {
+        session.targetRaceID.flatMap { racesByID[$0]?.name }
     }
 
     var body: some View {
@@ -26,9 +35,9 @@ struct TrainingListView: View {
                     List {
                         ForEach(filtered) { session in
                             NavigationLink {
-                                TrainingFormView(viewModel: viewModel, session: session)
+                                TrainingFormView(viewModel: viewModel, racesViewModel: racesViewModel, session: session)
                             } label: {
-                                TrainingRow(session: session)
+                                TrainingRow(session: session, targetName: targetName(for: session))
                             }
                             .swipeActions {
                                 Button(role: .destructive) {
@@ -69,7 +78,7 @@ struct TrainingListView: View {
                 }
             }
             .sheet(isPresented: $isCreating) {
-                TrainingFormView(viewModel: viewModel, session: nil)
+                TrainingFormView(viewModel: viewModel, racesViewModel: racesViewModel, session: nil)
             }
         }
     }
@@ -78,6 +87,7 @@ struct TrainingListView: View {
 /// Fila compacta de un entrenamiento.
 struct TrainingRow: View {
     let session: TrainingSession
+    var targetName: String?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -97,6 +107,12 @@ struct TrainingRow: View {
                 Text(session.date.mediumString())
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if let targetName {
+                    Label(targetName, systemImage: "target")
+                        .font(.caption2)
+                        .foregroundStyle(.tint)
+                        .lineLimit(1)
+                }
             }
             Spacer()
             Image(systemName: session.completed ? "checkmark.circle.fill" : "circle")

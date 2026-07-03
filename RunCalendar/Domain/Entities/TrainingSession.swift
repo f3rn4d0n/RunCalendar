@@ -35,6 +35,8 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
     var notes: String
     /// Entrenamiento prioritario (p. ej. un black challenge de crossfit).
     var isPriority: Bool
+    /// Evento objetivo (id de la carrera) al que apunta este entrenamiento.
+    var targetRaceID: String?
 
     init(
         id: String = UUID().uuidString,
@@ -48,7 +50,8 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         wod: String? = nil,
         completed: Bool = false,
         notes: String = "",
-        isPriority: Bool = false
+        isPriority: Bool = false,
+        targetRaceID: String? = nil
     ) {
         self.id = id
         self.date = date
@@ -62,5 +65,6 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         self.completed = completed
         self.notes = notes
         self.isPriority = isPriority
+        self.targetRaceID = targetRaceID
     }
 }

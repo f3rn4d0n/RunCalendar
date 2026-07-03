@@ -3,6 +3,7 @@ import SwiftUI
 /// Formulario de alta/edición de un entrenamiento (CrossFit o carrera).
 struct TrainingFormView: View {
     @State var viewModel: TrainingViewModel
+    let racesViewModel: RacesViewModel
     let session: TrainingSession?
 
     @Environment(\.dismiss) private var dismiss
@@ -18,8 +19,17 @@ struct TrainingFormView: View {
     @State private var completed = false
     @State private var notes = ""
     @State private var isPriority = false
+    @State private var targetRaceID: String?
 
     private var isNew: Bool { session == nil }
+
+    /// Carreras seleccionables como objetivo, prioritarias primero y luego por fecha.
+    private var targetableRaces: [Race] {
+        racesViewModel.races.sorted {
+            if $0.isPriority != $1.isPriority { return $0.isPriority }
+            return $0.date < $1.date
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -37,6 +47,17 @@ struct TrainingFormView: View {
                     Toggle("Completado", isOn: $completed)
                     Toggle(isOn: $isPriority) {
                         Label("Prioritario", systemImage: "star.fill")
+                    }
+                }
+
+                if !targetableRaces.isEmpty {
+                    Section("Evento objetivo") {
+                        Picker("Para el evento", selection: $targetRaceID) {
+                            Text("Ninguno").tag(String?.none)
+                            ForEach(targetableRaces) { race in
+                                Text(race.name).tag(Optional(race.id))
+                            }
+                        }
                     }
                 }
 
@@ -92,6 +113,7 @@ struct TrainingFormView: View {
         completed = session.completed
         notes = session.notes
         isPriority = session.isPriority
+        targetRaceID = session.targetRaceID
     }
 
     private func save() async {
@@ -109,7 +131,8 @@ struct TrainingFormView: View {
             wod: type == .crossfit && !wod.isEmpty ? wod : nil,
             completed: completed,
             notes: notes,
-            isPriority: isPriority
+            isPriority: isPriority,
+            targetRaceID: targetRaceID
         )
 
         if await viewModel.save(newSession, isNew: isNew) {

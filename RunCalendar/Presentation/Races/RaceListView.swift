@@ -19,6 +19,7 @@ enum RegistrationFilter: String, CaseIterable, Identifiable {
 /// Lista de carreras del usuario, separadas en próximas y completadas, con filtros y orden.
 struct RaceListView: View {
     @State var viewModel: RacesViewModel
+    let trainingViewModel: TrainingViewModel
     @State private var isCreating = false
 
     // Filtros / orden
@@ -58,6 +59,15 @@ struct RaceListView: View {
     private var upcoming: [Race] { filteredRaces.filter { $0.status == .upcoming } }
     private var completed: [Race] { filteredRaces.filter { $0.status == .completed } }
 
+    @ViewBuilder
+    private func raceLink(_ race: Race) -> some View {
+        NavigationLink {
+            RaceDetailView(initialRace: race, viewModel: viewModel, trainingViewModel: trainingViewModel)
+        } label: {
+            RaceRow(race: race, sort: sort)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -78,18 +88,14 @@ struct RaceListView: View {
                         if !upcoming.isEmpty {
                             Section("Próximas") {
                                 ForEach(upcoming) { race in
-                                    NavigationLink { RaceDetailView(initialRace: race, viewModel: viewModel) } label: {
-                                        RaceRow(race: race, sort: sort)
-                                    }
+                                    raceLink(race)
                                 }
                             }
                         }
                         if !completed.isEmpty {
                             Section("Completadas") {
                                 ForEach(completed) { race in
-                                    NavigationLink { RaceDetailView(initialRace: race, viewModel: viewModel) } label: {
-                                        RaceRow(race: race, sort: sort)
-                                    }
+                                    raceLink(race)
                                 }
                             }
                         }
