@@ -13,7 +13,7 @@ enum CalendarMarker: CaseIterable, Identifiable, Hashable {
     var color: Color {
         switch self {
         case .eventComplete: return Neon.green
-        case .raceRegistered: return Neon.blue
+        case .raceRegistered: return Neon.teal
         case .raceNotRegistered: return Neon.orange
         case .training: return Neon.purple
         }

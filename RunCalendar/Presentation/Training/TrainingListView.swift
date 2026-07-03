@@ -89,7 +89,7 @@ struct TrainingRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     if session.isPriority {
-                        Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow)
+                        Image(systemName: "star.fill").font(.caption).foregroundStyle(Neon.gold)
                             .accessibilityLabel("Prioritario")
                     }
                     Text(session.title).font(.headline)

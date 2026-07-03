@@ -139,7 +139,7 @@ struct RaceRow: View {
     var sort: RaceSort = .date
 
     private var dateTileStyle: AnyShapeStyle {
-        race.isPriority ? AnyShapeStyle(Color.yellow.opacity(0.18)) : AnyShapeStyle(.quaternary)
+        race.isPriority ? AnyShapeStyle(Neon.gold.opacity(0.18)) : AnyShapeStyle(.quaternary)
     }
 
     var body: some View {
@@ -157,7 +157,7 @@ struct RaceRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     if race.isPriority {
-                        Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow)
+                        Image(systemName: "star.fill").font(.caption).foregroundStyle(Neon.gold)
                             .accessibilityLabel("Evento prioritario")
                     }
                     Text(race.name).font(.headline)
@@ -181,8 +181,8 @@ struct RaceRow: View {
                         .font(.caption2.bold())
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Neon.green.opacity(0.2), in: Capsule())
-                        .foregroundStyle(Neon.green)
+                        .background(Neon.teal.opacity(0.2), in: Capsule())
+                        .foregroundStyle(Neon.teal)
                 }
                 if let seconds = race.finishTimeSeconds {
                     Text(seconds.durationString())
