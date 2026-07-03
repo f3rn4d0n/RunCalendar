@@ -49,6 +49,16 @@ struct SignInWithAppleUseCase: Sendable {
     }
 }
 
+/// Inicio de sesión con Google.
+struct SignInWithGoogleUseCase: Sendable {
+    private let repository: AuthRepository
+    init(repository: AuthRepository) { self.repository = repository }
+
+    func callAsFunction(_ credential: GoogleCredential) async throws -> AppUser {
+        try await repository.signInWithGoogle(credential)
+    }
+}
+
 /// Cierre de sesión.
 struct SignOutUseCase: Sendable {
     private let repository: AuthRepository

@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import GoogleSignIn
 
 @main
 struct RunCalendarApp: App {
@@ -19,6 +20,9 @@ struct RunCalendarApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(container: container)
+                .onOpenURL { url in
+                    GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }

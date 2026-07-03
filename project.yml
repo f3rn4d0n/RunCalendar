@@ -18,6 +18,9 @@ packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk.git
     from: "11.0.0"
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS.git
+    from: "7.1.0"
 
 targets:
   RunCalendar:
@@ -26,15 +29,23 @@ targets:
     deploymentTarget: "18.0"
     sources:
       - path: RunCalendar
+    configFiles:
+      Debug: RunCalendar/Resources/Secrets.xcconfig
+      Release: RunCalendar/Resources/Secrets.xcconfig
+    info:
+      path: RunCalendar/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: RunCalendar
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - $(REVERSED_CLIENT_ID)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.fercho.runcalendar.app
-        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: "YES"
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "YES"
-        INFOPLIST_KEY_CFBundleDisplayName: "RunCalendar"
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
-        GENERATE_INFOPLIST_FILE: "YES"
         CODE_SIGN_ENTITLEMENTS: RunCalendar/Resources/RunCalendar.entitlements
         SUPPORTS_MACCATALYST: "NO"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "YES"
@@ -45,3 +56,5 @@ targets:
         product: FirebaseAuth
       - package: Firebase
         product: FirebaseFirestore
+      - package: GoogleSignIn
+        product: GoogleSignIn

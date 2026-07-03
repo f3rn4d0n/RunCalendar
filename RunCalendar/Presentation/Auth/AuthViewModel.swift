@@ -24,6 +24,7 @@ final class AuthViewModel {
     private let signIn: SignInWithEmailUseCase
     private let signUp: SignUpUseCase
     private let signInWithApple: SignInWithAppleUseCase
+    private let signInWithGoogle: SignInWithGoogleUseCase
     private let signOut: SignOutUseCase
 
     init(
@@ -31,12 +32,14 @@ final class AuthViewModel {
         signIn: SignInWithEmailUseCase,
         signUp: SignUpUseCase,
         signInWithApple: SignInWithAppleUseCase,
+        signInWithGoogle: SignInWithGoogleUseCase,
         signOut: SignOutUseCase
     ) {
         self.observeAuthState = observeAuthState
         self.signIn = signIn
         self.signUp = signUp
         self.signInWithApple = signInWithApple
+        self.signInWithGoogle = signInWithGoogle
         self.signOut = signOut
     }
 
@@ -63,6 +66,14 @@ final class AuthViewModel {
 
     func logOut() {
         do { try signOut() } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Inicia sesión con Google: corre el flujo del SDK y canjea los tokens en Firebase.
+    func continueWithGoogle() async {
+        await run {
+            let credential = try await GoogleSignInService.signIn()
+            _ = try await self.signInWithGoogle(credential)
+        }
     }
 
     // MARK: - Sign in with Apple
