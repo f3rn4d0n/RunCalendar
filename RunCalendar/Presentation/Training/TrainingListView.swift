@@ -82,8 +82,10 @@ struct TrainingRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: session.type.systemImage)
+                .font(.headline)
                 .foregroundStyle(.tint)
-                .frame(width: 28)
+                .frame(width: 40, height: 40)
+                .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     if session.isPriority {

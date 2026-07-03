@@ -138,16 +138,21 @@ struct RaceRow: View {
     /// Criterio de orden activo, para resaltar el valor correspondiente.
     var sort: RaceSort = .date
 
+    private var dateTileStyle: AnyShapeStyle {
+        race.isPriority ? AnyShapeStyle(Color.yellow.opacity(0.18)) : AnyShapeStyle(.quaternary)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            VStack {
+            VStack(spacing: 0) {
                 Text(race.date.formatted(.dateTime.day()))
                     .font(.title3.bold())
-                Text(race.date.formatted(.dateTime.month(.abbreviated)))
-                    .font(.caption)
+                Text(race.date.formatted(.dateTime.month(.abbreviated)).uppercased())
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-            .frame(width: 44)
+            .frame(width: 46, height: 46)
+            .background(dateTileStyle, in: RoundedRectangle(cornerRadius: 10))
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
