@@ -103,7 +103,19 @@ service cloud.firestore {
 }
 ```
 
-### 6. Compilar y correr
+### 6. Apple Health (HealthKit)
+
+La pestaña **Condición** lee entrenamientos y datos de forma física de Salud.
+
+- Capability **HealthKit** declarada en `RunCalendar/Resources/RunCalendar.entitlements`
+  y el permiso `NSHealthShareUsageDescription` en `project.yml`.
+- **Solo iPhone/Watch:** HealthKit no existe en Mac; en Mac la pestaña muestra
+  "disponible en iPhone".
+- Para leer tu **historial real del Apple Watch**, corre la app en tu **iPhone físico**
+  (el Simulador no tiene tu historial). Con cuenta de desarrollador **gratuita** se
+  puede probar en tu dispositivo; la de pago solo es necesaria para distribuir.
+
+### 7. Compilar y correr
 
 - **iPhone:** elige un simulador o tu dispositivo y ⌘R.
 - **Mac:** en el selector de destino elige **My Mac (Designed for iPad)** y ⌘R.

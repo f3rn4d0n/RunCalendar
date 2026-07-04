@@ -12,19 +12,22 @@ final class AppContainer {
     private let trainingRepository: TrainingRepository
     private let profileRepository: ProfileRepository
     private let reminderScheduler: ReminderScheduler
+    private let healthRepository: HealthRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
         raceRepository: RaceRepository = FirestoreRaceRepository(),
         trainingRepository: TrainingRepository = FirestoreTrainingRepository(),
         profileRepository: ProfileRepository = FirestoreProfileRepository(),
-        reminderScheduler: ReminderScheduler = LocalNotificationService()
+        reminderScheduler: ReminderScheduler = LocalNotificationService(),
+        healthRepository: HealthRepository = HealthKitService()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
         self.trainingRepository = trainingRepository
         self.profileRepository = profileRepository
         self.reminderScheduler = reminderScheduler
+        self.healthRepository = healthRepository
     }
 
     // MARK: - ViewModels
@@ -76,6 +79,13 @@ final class AppContainer {
             scheduler: reminderScheduler,
             racesViewModel: racesViewModel,
             trainingViewModel: trainingViewModel
+        )
+    }
+
+    func makeHealthViewModel() -> HealthViewModel {
+        HealthViewModel(
+            fetchSummary: FetchFitnessSummaryUseCase(repository: healthRepository),
+            assessReadiness: AssessReadinessUseCase()
         )
     }
 }

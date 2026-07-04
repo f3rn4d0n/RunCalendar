@@ -42,6 +42,9 @@ targets:
           - UIInterfaceOrientationPortrait
         UIAppFonts:
           - PermanentMarker.ttf
+        NSHealthShareUsageDescription: >-
+          RunCalendar lee tus entrenamientos y datos de condición física de Salud
+          para estimar tu preparación hacia tus carreras.
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - $(REVERSED_CLIENT_ID)

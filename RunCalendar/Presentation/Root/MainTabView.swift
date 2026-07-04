@@ -11,6 +11,7 @@ struct MainTabView: View {
     @State private var trainingViewModel: TrainingViewModel
     @State private var profileViewModel: ProfileViewModel
     @State private var remindersViewModel: RemindersViewModel
+    @State private var healthViewModel: HealthViewModel
 
     init(container: AppContainer, user: AppUser, authViewModel: AuthViewModel) {
         self.container = container
@@ -25,6 +26,7 @@ struct MainTabView: View {
             racesViewModel: races,
             trainingViewModel: trainings
         ))
+        _healthViewModel = State(initialValue: container.makeHealthViewModel())
     }
 
     var body: some View {
@@ -37,6 +39,9 @@ struct MainTabView: View {
             }
             Tab("Entrenar", systemImage: "figure.run") {
                 TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel)
+            }
+            Tab("Condición", systemImage: "heart.text.square") {
+                HealthView(viewModel: healthViewModel)
             }
             Tab("Perfil", systemImage: "person.crop.circle") {
                 ProfileView(
