@@ -20,8 +20,8 @@ struct SignUpView: View {
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    SecureField("Contraseña (mín. 6)", text: $password)
-                    SecureField("Confirmar contraseña", text: $confirmPassword)
+                    PasswordField("Contraseña (mín. 6)", text: $password, textContentType: .newPassword)
+                    PasswordField("Confirmar contraseña", text: $confirmPassword, textContentType: .newPassword)
                 }
 
                 if let error = viewModel.errorMessage {
