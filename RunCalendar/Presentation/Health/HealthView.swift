@@ -61,20 +61,24 @@ struct HealthView: View {
 
             Section {
                 ForEach(readiness) { item in
-                    HStack(spacing: 12) {
-                        Image(systemName: item.level.systemImage)
-                            .foregroundStyle(color(for: item.level))
-                            .frame(width: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(item.distance.displayName) · \(item.level.rawValue)")
-                            Text(item.note).font(.mCaption).foregroundStyle(.secondary)
+                    NavigationLink {
+                        ReadinessDetailView(readiness: item)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: item.level.systemImage)
+                                .foregroundStyle(color(for: item.level))
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(item.distance.displayName) · \(item.level.rawValue)")
+                                Text(item.note).font(.mCaption).foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
             } header: {
                 Text("¿Listo para…?")
             } footer: {
-                Text("Estimado orientativo a partir de tus datos de Salud. No es consejo médico.")
+                Text("Toca una distancia para ver qué mejorar. Estimado orientativo, no es consejo médico.")
             }
 
             Section {

@@ -19,10 +19,18 @@ enum ReadinessLevel: String, Sendable {
 struct RaceReadiness: Identifiable, Equatable, Sendable {
     let distance: RaceDiscipline
     let level: ReadinessLevel
+    /// Carrera más larga actual del usuario (km).
+    let currentLongRunKm: Double
     /// Distancia de "long run" recomendada para llegar listo (km).
     let recommendedLongRunKm: Double
-    /// Nota orientativa para el usuario.
+    /// Volumen semanal actual (km).
+    let currentWeeklyKm: Double
+    /// Volumen semanal recomendado (km).
+    let recommendedWeeklyKm: Double
+    /// Nota corta para la fila.
     let note: String
+    /// Recomendaciones detalladas de qué mejorar.
+    let recommendations: [String]
 
     var id: String { distance.rawValue }
 }
