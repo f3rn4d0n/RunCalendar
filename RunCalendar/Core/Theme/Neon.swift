@@ -11,6 +11,18 @@ enum Neon {
     static let purple = adaptive(light: 0x8A2BE2, dark: 0xC15CFF)
     static let gold   = adaptive(light: 0xB8860B, dark: 0xFFC53D)
 
+    /// Degradado neón multicolor, inspirado en el app icon (magenta → naranja → amarillo → cian).
+    static let logoGradient = LinearGradient(
+        colors: [
+            Color(red: 1.00, green: 0.16, blue: 0.60), // magenta neón
+            Color(red: 1.00, green: 0.48, blue: 0.10), // naranja
+            Color(red: 1.00, green: 0.85, blue: 0.10), // amarillo
+            Color(red: 0.10, green: 0.80, blue: 1.00)  // cian
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
     private static func adaptive(light: UInt, dark: UInt) -> Color {
         Color(uiColor: UIColor { traits in
             UIColor(rgb: traits.userInterfaceStyle == .dark ? dark : light)

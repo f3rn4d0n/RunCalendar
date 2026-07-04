@@ -81,8 +81,9 @@ struct LoginView: View {
     private var header: some View {
         VStack(spacing: 8) {
             Image(systemName: "figure.run.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.tint)
+                .font(.system(size: 72))
+                .foregroundStyle(Neon.logoGradient)
+                .shadow(color: Neon.accent.opacity(0.5), radius: 12)
             Text("Tu calendario de carreras y entrenamientos")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
