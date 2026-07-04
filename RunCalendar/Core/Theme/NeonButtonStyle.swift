@@ -4,7 +4,7 @@ import SwiftUI
 struct NeonButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
+            .font(.mHeadline)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
