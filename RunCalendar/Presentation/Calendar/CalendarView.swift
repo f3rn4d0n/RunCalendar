@@ -2,12 +2,18 @@ import SwiftUI
 
 /// Evento unificado para mostrar carreras y entrenamientos en el mismo calendario.
 private struct CalendarItem: Identifiable {
+    /// Entidad de origen, para poder navegar a su detalle.
+    enum Payload {
+        case race(Race)
+        case training(TrainingSession)
+    }
     let id: String
     let date: Date
     let title: String
     let subtitle: String
     let icon: String
     let marker: CalendarMarker
+    let payload: Payload
 }
 
 /// Vista de calendario que agrega carreras + entrenamientos por día, con puntos de color
@@ -19,24 +25,26 @@ struct CalendarView: View {
     @State private var selectedDate = Date()
 
     private var allItems: [CalendarItem] {
-        let raceItems = racesViewModel.races.map {
+        let raceItems = racesViewModel.races.map { race in
             CalendarItem(
-                id: "race-\($0.id)",
-                date: $0.date,
-                title: $0.name,
-                subtitle: "\($0.discipline.displayName) · \($0.location.name)",
+                id: "race-\(race.id)",
+                date: race.date,
+                title: race.name,
+                subtitle: "\(race.discipline.displayName) · \(race.location.name)",
                 icon: "flag.checkered",
-                marker: CalendarMarker.forRace($0)
+                marker: CalendarMarker.forRace(race),
+                payload: .race(race)
             )
         }
-        let trainingItems = trainingViewModel.sessions.map {
+        let trainingItems = trainingViewModel.sessions.map { session in
             CalendarItem(
-                id: "training-\($0.id)",
-                date: $0.date,
-                title: $0.title,
-                subtitle: $0.type.displayName,
-                icon: $0.type.systemImage,
-                marker: .training
+                id: "training-\(session.id)",
+                date: session.date,
+                title: session.title,
+                subtitle: session.type.displayName,
+                icon: session.type.systemImage,
+                marker: .training,
+                payload: .training(session)
             )
         }
         return (raceItems + trainingItems).sorted { $0.date < $1.date }
@@ -100,23 +108,46 @@ struct CalendarView: View {
                     .padding(.horizontal)
             } else {
                 ForEach(itemsForSelectedDay) { item in
-                    HStack(spacing: 12) {
-                        Image(systemName: item.icon)
-                            .foregroundStyle(item.marker.color)
-                            .frame(width: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.title).font(.headline)
-                            Text(item.subtitle).font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text(item.date.formatted(.dateTime.hour().minute()))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    NavigationLink {
+                        destination(for: item)
+                    } label: {
+                        row(for: item)
                     }
-                    .padding(.horizontal)
+                    .buttonStyle(.plain)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func destination(for item: CalendarItem) -> some View {
+        switch item.payload {
+        case .race(let race):
+            RaceDetailView(initialRace: race, viewModel: racesViewModel, trainingViewModel: trainingViewModel)
+        case .training(let session):
+            TrainingFormView(viewModel: trainingViewModel, racesViewModel: racesViewModel, session: session)
+        }
+    }
+
+    private func row(for item: CalendarItem) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: item.icon)
+                .foregroundStyle(item.marker.color)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title).font(.headline).foregroundStyle(.primary)
+                Text(item.subtitle).font(.subheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(item.date.formatted(.dateTime.hour().minute()))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal)
+        .contentShape(Rectangle())
     }
 }
