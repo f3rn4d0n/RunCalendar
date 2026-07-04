@@ -75,10 +75,13 @@ open RunCalendar.xcodeproj
 
 ### 4. Configurar Sign in with Apple
 
-1. En `project.yml`, pon tu **`DEVELOPMENT_TEAM`** (Team ID de Apple Developer) y
-   vuelve a correr `xcodegen generate`. (O selecciónalo en Xcode → Signing & Capabilities.)
+1. Pon tu **Team ID** en `RunCalendar/Resources/Secrets.xcconfig` (gitignored):
+   `DEVELOPMENT_TEAM = XXXXXXXXXX`. Persiste al regenerar y no se sube al repo.
 2. La capability **Sign in with Apple** ya está declarada en
    `RunCalendar/Resources/RunCalendar.entitlements`.
+   > ⚠️ Requiere **membresía de pago** de Apple Developer: los equipos personales
+   > (cuenta gratis) no la soportan. Para probar en dispositivo con cuenta gratis,
+   > quita temporalmente la key `com.apple.developer.applesignin` del entitlements.
 3. En Firebase, en el proveedor **Apple**, configura el **Service ID** / OAuth según la
    [guía oficial](https://firebase.google.com/docs/auth/ios/apple).
 
