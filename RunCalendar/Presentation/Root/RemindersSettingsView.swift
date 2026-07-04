@@ -23,7 +23,7 @@ struct RemindersSettingsView: View {
                 ))
                 if viewModel.permissionDenied {
                     Text("Activa las notificaciones de RunCalendar en Ajustes para recibir recordatorios.")
-                        .font(.footnote)
+                        .font(.mFootnote)
                         .foregroundStyle(.secondary)
                 }
             }

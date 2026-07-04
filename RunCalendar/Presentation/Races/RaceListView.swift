@@ -152,9 +152,9 @@ struct RaceRow: View {
         HStack(spacing: 12) {
             VStack(spacing: 0) {
                 Text(race.date.formatted(.dateTime.day()))
-                    .font(.title3.bold())
+                    .font(.mTitle3.bold())
                 Text(race.date.formatted(.dateTime.month(.abbreviated)).uppercased())
-                    .font(.caption2)
+                    .font(.mCaption2)
                     .foregroundStyle(.secondary)
             }
             .frame(width: 46, height: 46)
@@ -163,17 +163,17 @@ struct RaceRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     if race.isPriority {
-                        Image(systemName: "star.fill").font(.caption).foregroundStyle(Neon.gold)
+                        Image(systemName: "star.fill").font(.mCaption).foregroundStyle(Neon.gold)
                             .accessibilityLabel("Evento prioritario")
                     }
-                    Text(race.name).font(.headline)
+                    Text(race.name).font(.mHeadline)
                 }
                 Text(race.location.name)
-                    .font(.subheadline)
+                    .font(.mSubheadline)
                     .foregroundStyle(.secondary)
                 if race.status == .upcoming, race.date.daysFromNow() >= 0 {
                     Text(race.date.countdownText())
-                        .font(.caption2.weight(.semibold))
+                        .font(.mCaption2.weight(.semibold))
                         .foregroundStyle(.tint)
                 }
             }
@@ -181,15 +181,15 @@ struct RaceRow: View {
             VStack(alignment: .trailing, spacing: 4) {
                 if sort == .cost, let cost = race.cost {
                     Text(cost.currencyString(code: race.currency))
-                        .font(.subheadline.weight(.semibold))
+                        .font(.mSubheadline.weight(.semibold))
                         .foregroundStyle(.tint)
                 }
                 Text(race.discipline.displayName)
-                    .font(.subheadline.weight(sort == .distance ? .semibold : .regular))
+                    .font(.mSubheadline.weight(sort == .distance ? .semibold : .regular))
                     .foregroundStyle(sort == .distance ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                 if race.isRegistered {
                     Text("Inscrito")
-                        .font(.caption2.bold())
+                        .font(.mCaption2.bold())
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(Neon.teal.opacity(0.2), in: Capsule())
@@ -197,7 +197,7 @@ struct RaceRow: View {
                 }
                 if let seconds = race.finishTimeSeconds {
                     Text(seconds.durationString())
-                        .font(.caption.monospacedDigit())
+                        .font(.mCaption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
             }

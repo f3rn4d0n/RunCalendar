@@ -33,10 +33,10 @@ struct RaceDetailView: View {
                 if race.date.daysFromNow() >= 0 {
                     VStack(spacing: 2) {
                         Text(race.date.countdownText())
-                            .font(.largeTitle.bold())
+                            .font(.mLargeTitle.bold())
                             .foregroundStyle(.tint)
                         Text(race.date.mediumString())
-                            .font(.subheadline)
+                            .font(.mSubheadline)
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -92,7 +92,7 @@ struct RaceDetailView: View {
                 Section("Entrenamientos para este evento") {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("\(completedTrainingCount) de \(linkedTrainings.count) completados")
-                            .font(.subheadline)
+                            .font(.mSubheadline)
                         ProgressView(
                             value: Double(completedTrainingCount),
                             total: Double(linkedTrainings.count)
@@ -107,7 +107,7 @@ struct RaceDetailView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(training.title)
                                 Text(training.date.mediumString())
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(.mCaption).foregroundStyle(.secondary)
                             }
                             Spacer()
                             if training.completed {
@@ -187,7 +187,7 @@ struct RaceDetailView: View {
 
     private func chip(_ text: String, systemImage: String, color: Color) -> some View {
         Label(text, systemImage: systemImage)
-            .font(.caption.weight(.semibold))
+            .font(.mCaption.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(color.opacity(0.15), in: Capsule())

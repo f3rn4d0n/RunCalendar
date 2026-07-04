@@ -107,7 +107,7 @@ struct RaceFormView: View {
                 }
 
                 if let error = viewModel.errorMessage {
-                    Section { Text(error).foregroundStyle(.red).font(.footnote) }
+                    Section { Text(error).foregroundStyle(.red).font(.mFootnote) }
                 }
             }
             .navigationTitle(title)
@@ -130,7 +130,7 @@ struct RaceFormView: View {
             TextField("0", text: text)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
-            Text(label).font(.caption2).foregroundStyle(.secondary)
+            Text(label).font(.mCaption2).foregroundStyle(.secondary)
         }
     }
 

@@ -87,7 +87,7 @@ struct CalendarView: View {
             ForEach(CalendarMarker.allCases) { marker in
                 HStack(spacing: 6) {
                     Circle().fill(marker.color).frame(width: 8, height: 8)
-                    Text(marker.label).font(.caption2).foregroundStyle(.secondary)
+                    Text(marker.label).font(.mCaption2).foregroundStyle(.secondary)
                 }
                 .accessibilityElement(children: .combine)
             }
@@ -98,12 +98,12 @@ struct CalendarView: View {
     private var selectedDaySection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(selectedDate.mediumString())
-                .font(.headline)
+                .font(.mHeadline)
                 .padding(.horizontal)
 
             if itemsForSelectedDay.isEmpty {
                 Text("Sin carreras ni entrenamientos este día.")
-                    .font(.subheadline)
+                    .font(.mSubheadline)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal)
             } else {
@@ -136,15 +136,15 @@ struct CalendarView: View {
                 .foregroundStyle(item.marker.color)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).font(.headline).foregroundStyle(.primary)
-                Text(item.subtitle).font(.subheadline).foregroundStyle(.secondary)
+                Text(item.title).font(.mHeadline).foregroundStyle(.primary)
+                Text(item.subtitle).font(.mSubheadline).foregroundStyle(.secondary)
             }
             Spacer()
             Text(item.date.formatted(.dateTime.hour().minute()))
-                .font(.caption)
+                .font(.mCaption)
                 .foregroundStyle(.secondary)
             Image(systemName: "chevron.right")
-                .font(.caption)
+                .font(.mCaption)
                 .foregroundStyle(.tertiary)
         }
         .padding(.horizontal)
