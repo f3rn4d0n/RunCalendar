@@ -40,6 +40,8 @@ targets:
         UIApplicationSupportsIndirectInputEvents: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UIAppFonts:
+          - PermanentMarker.ttf
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - $(REVERSED_CLIENT_ID)

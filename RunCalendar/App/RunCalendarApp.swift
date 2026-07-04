@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import FirebaseCore
 import GoogleSignIn
 
@@ -14,7 +15,23 @@ struct RunCalendarApp: App {
         FirebaseApp.configure()
         let projectID = FirebaseApp.app()?.options.projectID ?? "nil"
         Log.app.info("Firebase configurado, projectID=\(projectID, privacy: .public)")
+        Self.configureNavigationAppearance()
         _container = State(initialValue: AppContainer())
+    }
+
+    /// Aplica la fuente Permanent Marker a los títulos de navegación de toda la app.
+    private static func configureNavigationAppearance() {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithDefaultBackground()
+        if let large = UIFont(name: "PermanentMarker", size: 34) {
+            appearance.largeTitleTextAttributes[.font] = large
+        }
+        if let inline = UIFont(name: "PermanentMarker", size: 18) {
+            appearance.titleTextAttributes[.font] = inline
+        }
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
     }
 
     var body: some Scene {
