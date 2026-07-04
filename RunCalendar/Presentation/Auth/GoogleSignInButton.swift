@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Botón de "Continuar con Google" con el estilo de marca (rojo, logo "G" y texto blancos).
+/// Botón solo-ícono de Google (la "G" blanca sobre rojo de marca).
 struct GoogleSignInButton: View {
     let action: () -> Void
 
@@ -8,17 +8,11 @@ struct GoogleSignInButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                Text("G")
-                    .font(.system(size: 20, weight: .bold, design: .default))
-                    .foregroundStyle(.white)
-                Text("Continuar con Google")
-                    .font(.mHeadline)
-                    .foregroundStyle(.white)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 48)
-            .background(googleRed, in: RoundedRectangle(cornerRadius: 8))
+            Text("G")
+                .font(.system(size: 26, weight: .bold, design: .default))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(googleRed, in: RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Continuar con Google")
