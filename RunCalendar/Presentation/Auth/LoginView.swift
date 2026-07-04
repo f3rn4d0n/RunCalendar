@@ -69,7 +69,7 @@ struct LoginView: View {
                 .frame(maxWidth: 460)
                 .frame(maxWidth: .infinity)
             }
-            .navigationTitle("RunCalendar")
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showSignUp) {
                 SignUpView(viewModel: viewModel)
             }
@@ -82,6 +82,10 @@ struct LoginView: View {
                 .font(.system(size: 72))
                 .foregroundStyle(Neon.logoGradient)
                 .shadow(color: Neon.accent.opacity(0.5), radius: 12)
+            Text("RunCalendar")
+                .font(.marker(40))
+                .foregroundStyle(Neon.logoGradient)
+                .shadow(color: Neon.accent.opacity(0.4), radius: 8)
             Text("Tu calendario de carreras y entrenamientos")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
