@@ -37,10 +37,8 @@ struct LoginView: View {
                         Task { await viewModel.signInWithEmail(email: email, password: password) }
                     } label: {
                         Text("Entrar")
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(NeonButtonStyle())
                     .disabled(viewModel.isProcessing)
 
                     Button("¿No tienes cuenta? Regístrate") { showSignUp = true }
