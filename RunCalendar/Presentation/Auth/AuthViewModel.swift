@@ -78,6 +78,16 @@ final class AuthViewModel {
 
     // MARK: - Sign in with Apple
 
+    /// Inicia el flujo de Apple desde el botón solo-ícono.
+    func startSignInWithApple() {
+        let controller = AppleSignInController()
+        controller.start { [weak self] request in
+            self?.prepareAppleRequest(request)
+        } completion: { [weak self] result in
+            Task { await self?.handleAppleCompletion(result) }
+        }
+    }
+
     /// Configura la petición de Apple con un nonce nuevo.
     func prepareAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
         let nonce = NonceGenerator.randomNonce()
@@ -90,6 +100,8 @@ final class AuthViewModel {
     func handleAppleCompletion(_ result: Result<ASAuthorization, Error>) async {
         switch result {
         case .failure(let error):
+            // No mostrar error si el usuario simplemente canceló.
+            if (error as? ASAuthorizationError)?.code == .canceled { return }
             errorMessage = error.localizedDescription
         case .success(let authorization):
             guard

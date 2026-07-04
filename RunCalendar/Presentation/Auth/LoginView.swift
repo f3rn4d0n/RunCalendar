@@ -1,10 +1,8 @@
 import SwiftUI
-import AuthenticationServices
 
 /// Pantalla de inicio de sesión: email/contraseña + Sign in with Apple.
 struct LoginView: View {
     @Bindable var viewModel: AuthViewModel
-    @Environment(\.colorScheme) private var colorScheme
 
     @State private var email = ""
     @State private var password = ""
@@ -44,22 +42,11 @@ struct LoginView: View {
                     Button("¿No tienes cuenta? Regístrate") { showSignUp = true }
                         .font(.mFootnote)
 
-                    HStack { Divider(); Text("o").foregroundStyle(.secondary); Divider() }
+                    HStack { Divider(); Text("o continúa con").foregroundStyle(.secondary); Divider() }
 
-                    SignInWithAppleButton(.signIn) { request in
-                        viewModel.prepareAppleRequest(request)
-                    } onCompletion: { result in
-                        Task { await viewModel.handleAppleCompletion(result) }
-                    }
-                    .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-                    .frame(height: 48)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    // El botón fija su estilo al crearse y no reacciona al cambio de
-                    // modo en caliente; el id fuerza a SwiftUI a recrearlo al cambiar.
-                    .id(colorScheme)
-
-                    GoogleSignInButton {
-                        Task { await viewModel.continueWithGoogle() }
+                    HStack(spacing: 20) {
+                        AppleIconButton { viewModel.startSignInWithApple() }
+                        GoogleSignInButton { Task { await viewModel.continueWithGoogle() } }
                     }
                     .disabled(viewModel.isProcessing)
 
