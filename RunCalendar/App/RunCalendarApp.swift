@@ -19,24 +19,38 @@ struct RunCalendarApp: App {
         _container = State(initialValue: AppContainer())
     }
 
-    /// Aplica la fuente Permanent Marker a los títulos de navegación de toda la app.
+    /// Aplica la fuente Permanent Marker a la barra de navegación y a la de pestañas.
     private static func configureNavigationAppearance() {
-        let appearance = UINavigationBarAppearance()
-        appearance.configureWithDefaultBackground()
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithDefaultBackground()
         if let large = UIFont(name: "PermanentMarker", size: 34) {
-            appearance.largeTitleTextAttributes[.font] = large
+            navAppearance.largeTitleTextAttributes[.font] = large
         }
         if let inline = UIFont(name: "PermanentMarker", size: 18) {
-            appearance.titleTextAttributes[.font] = inline
+            navAppearance.titleTextAttributes[.font] = inline
         }
-        UINavigationBar.appearance().standardAppearance = appearance
-        UINavigationBar.appearance().scrollEdgeAppearance = appearance
-        UINavigationBar.appearance().compactAppearance = appearance
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+        UINavigationBar.appearance().compactAppearance = navAppearance
+
+        if let tabFont = UIFont(name: "PermanentMarker", size: 10) {
+            let tabAppearance = UITabBarAppearance()
+            tabAppearance.configureWithDefaultBackground()
+            for item in [tabAppearance.stackedLayoutAppearance,
+                         tabAppearance.inlineLayoutAppearance,
+                         tabAppearance.compactInlineLayoutAppearance] {
+                item.normal.titleTextAttributes[.font] = tabFont
+                item.selected.titleTextAttributes[.font] = tabFont
+            }
+            UITabBar.appearance().standardAppearance = tabAppearance
+            UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+        }
     }
 
     var body: some Scene {
         WindowGroup {
             RootView(container: container)
+                .environment(\.font, .marker(16, relativeTo: .body)) // fuente por defecto de toda la app
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
                 }

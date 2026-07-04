@@ -13,7 +13,7 @@ struct GoogleSignInButton: View {
                     .font(.system(size: 20, weight: .bold, design: .default))
                     .foregroundStyle(.white)
                 Text("Continuar con Google")
-                    .font(.headline)
+                    .font(.mHeadline)
                     .foregroundStyle(.white)
             }
             .frame(maxWidth: .infinity)

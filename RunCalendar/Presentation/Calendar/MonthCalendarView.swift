@@ -36,7 +36,7 @@ struct MonthCalendarView: View {
             .accessibilityLabel("Mes anterior")
             Spacer()
             Text(monthAnchor.formatted(.dateTime.month(.wide).year()))
-                .font(.headline)
+                .font(.mHeadline)
             Spacer()
             Button { changeMonth(1) } label: {
                 Image(systemName: "chevron.right").frame(width: 44, height: 32)
@@ -50,7 +50,7 @@ struct MonthCalendarView: View {
         HStack(spacing: 0) {
             ForEach(orderedWeekdaySymbols, id: \.self) { symbol in
                 Text(symbol.uppercased())
-                    .font(.caption2)
+                    .font(.mCaption2)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
             }
@@ -82,7 +82,7 @@ struct MonthCalendarView: View {
         } label: {
             VStack(spacing: 3) {
                 Text("\(calendar.component(.day, from: day))")
-                    .font(.callout)
+                    .font(.mCallout)
                     .fontWeight(isToday ? .bold : .regular)
                     .frame(width: daySize, height: daySize)
                     .background(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.clear), in: Circle())

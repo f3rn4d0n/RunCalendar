@@ -82,7 +82,7 @@ struct TrainingFormView: View {
                 }
 
                 if let error = viewModel.errorMessage {
-                    Section { Text(error).foregroundStyle(.red).font(.footnote) }
+                    Section { Text(error).foregroundStyle(.red).font(.mFootnote) }
                 }
             }
             .navigationTitle(isNew ? "Nuevo entrenamiento" : "Editar")

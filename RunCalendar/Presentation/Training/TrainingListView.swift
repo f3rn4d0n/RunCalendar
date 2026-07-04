@@ -92,24 +92,24 @@ struct TrainingRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: session.type.systemImage)
-                .font(.headline)
+                .font(.mHeadline)
                 .foregroundStyle(.tint)
                 .frame(width: 40, height: 40)
                 .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     if session.isPriority {
-                        Image(systemName: "star.fill").font(.caption).foregroundStyle(Neon.gold)
+                        Image(systemName: "star.fill").font(.mCaption).foregroundStyle(Neon.gold)
                             .accessibilityLabel("Prioritario")
                     }
-                    Text(session.title).font(.headline)
+                    Text(session.title).font(.mHeadline)
                 }
                 Text(session.date.mediumString())
-                    .font(.subheadline)
+                    .font(.mSubheadline)
                     .foregroundStyle(.secondary)
                 if let targetName {
                     Label(targetName, systemImage: "target")
-                        .font(.caption2)
+                        .font(.mCaption2)
                         .foregroundStyle(.tint)
                         .lineLimit(1)
                 }

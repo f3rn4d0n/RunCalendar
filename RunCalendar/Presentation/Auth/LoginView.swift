@@ -28,7 +28,7 @@ struct LoginView: View {
 
                     if let error = viewModel.errorMessage {
                         Text(error)
-                            .font(.footnote)
+                            .font(.mFootnote)
                             .foregroundStyle(.red)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -42,7 +42,7 @@ struct LoginView: View {
                     .disabled(viewModel.isProcessing)
 
                     Button("¿No tienes cuenta? Regístrate") { showSignUp = true }
-                        .font(.footnote)
+                        .font(.mFootnote)
 
                     HStack { Divider(); Text("o").foregroundStyle(.secondary); Divider() }
 
@@ -87,7 +87,7 @@ struct LoginView: View {
                 .foregroundStyle(Neon.logoGradient)
                 .shadow(color: Neon.accent.opacity(0.4), radius: 8)
             Text("Tu calendario de carreras y entrenamientos")
-                .font(.subheadline)
+                .font(.mSubheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
