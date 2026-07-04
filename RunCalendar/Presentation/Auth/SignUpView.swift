@@ -36,12 +36,15 @@ struct SignUpView: View {
                         }
                     } label: {
                         if viewModel.isProcessing {
-                            ProgressView().frame(maxWidth: .infinity)
+                            ProgressView().tint(.white)
                         } else {
-                            Text("Registrarme").frame(maxWidth: .infinity)
+                            Text("Registrarme")
                         }
                     }
+                    .buttonStyle(NeonButtonStyle())
                     .disabled(!passwordsMatch || viewModel.isProcessing)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 }
             }
             .navigationTitle("Registro")
