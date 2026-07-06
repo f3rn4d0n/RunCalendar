@@ -6,8 +6,10 @@ struct FitnessSummary: Equatable, Sendable {
     let weeks: Int
     /// Distancia total corrida en la ventana (km).
     let totalDistanceKm: Double
-    /// Promedio semanal de distancia (km).
+    /// Promedio semanal de distancia (km) en la ventana.
     let weeklyDistanceKm: Double
+    /// Distancia corrida en los últimos 7 días (km).
+    let last7DaysKm: Double
     /// Carrera más larga de la ventana (km).
     let longestRunKm: Double
     /// Número de entrenamientos de carrera en la ventana.
@@ -20,7 +22,7 @@ struct FitnessSummary: Equatable, Sendable {
     let restingHeartRate: Double?
 
     static let empty = FitnessSummary(
-        weeks: 0, totalDistanceKm: 0, weeklyDistanceKm: 0, longestRunKm: 0,
+        weeks: 0, totalDistanceKm: 0, weeklyDistanceKm: 0, last7DaysKm: 0, longestRunKm: 0,
         runCount: 0, lastRunDate: nil, vo2Max: nil, restingHeartRate: nil
     )
 }

@@ -26,7 +26,7 @@ struct ReadinessDetailView: View {
                     target: readiness.recommendedLongRunKm
                 )
                 progressRow(
-                    title: "Volumen semanal",
+                    title: "Volumen semanal (prom.)",
                     current: readiness.currentWeeklyKm,
                     target: readiness.recommendedWeeklyKm
                 )
