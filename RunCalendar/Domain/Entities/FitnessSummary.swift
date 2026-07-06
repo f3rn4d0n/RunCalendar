@@ -20,9 +20,11 @@ struct FitnessSummary: Equatable, Sendable {
     let vo2Max: Double?
     /// Frecuencia cardiaca en reposo (lpm), si Salud la tiene.
     let restingHeartRate: Double?
+    /// Edad del usuario (años), leída de Salud si está disponible.
+    let age: Int?
 
     static let empty = FitnessSummary(
         weeks: 0, totalDistanceKm: 0, weeklyDistanceKm: 0, last7DaysKm: 0, longestRunKm: 0,
-        runCount: 0, lastRunDate: nil, vo2Max: nil, restingHeartRate: nil
+        runCount: 0, lastRunDate: nil, vo2Max: nil, restingHeartRate: nil, age: nil
     )
 }
