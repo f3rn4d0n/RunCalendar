@@ -7,6 +7,7 @@ struct TrainingListView: View {
     @State private var filter: TrainingType?
     @State private var onlyPriority = false
     @State private var isCreating = false
+    @State private var isImporting = false
 
     private var filtered: [TrainingSession] {
         var result = filter.map(viewModel.sessions(of:)) ?? viewModel.sessions
@@ -58,6 +59,14 @@ struct TrainingListView: View {
             }
             .navigationTitle("Entrenamiento")
             .toolbar {
+                if !viewModel.importableWorkouts.isEmpty {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { isImporting = true } label: {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                        .accessibilityLabel("Importar de Salud")
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button { isCreating = true } label: { Image(systemName: "plus") }
                         .accessibilityLabel("Agregar entrenamiento")
@@ -79,6 +88,53 @@ struct TrainingListView: View {
             }
             .sheet(isPresented: $isCreating) {
                 TrainingFormView(viewModel: viewModel, racesViewModel: racesViewModel, session: nil)
+            }
+            .sheet(isPresented: $isImporting) {
+                ImportWorkoutsView(viewModel: viewModel)
+            }
+            .task { await viewModel.loadRecentWorkouts() }
+        }
+    }
+}
+
+/// Hoja para importar carreras de Apple Salud aún no registradas.
+private struct ImportWorkoutsView: View {
+    @State var viewModel: TrainingViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if viewModel.importableWorkouts.isEmpty {
+                    EmptyStateView(
+                        icon: "checkmark.circle",
+                        title: "Todo al día",
+                        message: "No hay carreras nuevas en Salud por importar."
+                    )
+                } else {
+                    List(viewModel.importableWorkouts) { workout in
+                        HStack(spacing: 12) {
+                            Image(systemName: "figure.run")
+                                .foregroundStyle(.tint).frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(workout.distanceKm.formatted(.number.precision(.fractionLength(1)))) km")
+                                    .font(.mHeadline)
+                                Text(workout.date.mediumString())
+                                    .font(.mCaption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Importar") { Task { await viewModel.importWorkout(workout) } }
+                                .buttonStyle(.bordered)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Desde Apple Salud")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Cerrar") { dismiss() }
+                }
             }
         }
     }

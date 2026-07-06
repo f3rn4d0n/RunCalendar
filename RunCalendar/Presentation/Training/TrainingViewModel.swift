@@ -6,6 +6,7 @@ import Observation
 final class TrainingViewModel {
 
     private(set) var sessions: [TrainingSession] = []
+    private(set) var recentWorkouts: [HealthWorkout] = []
     var errorMessage: String?
     private var hasStarted = false
 
@@ -14,23 +15,69 @@ final class TrainingViewModel {
     private let addTraining: AddTrainingUseCase
     private let updateTraining: UpdateTrainingUseCase
     private let deleteTraining: DeleteTrainingUseCase
+    private let fetchRecentWorkouts: FetchRecentWorkoutsUseCase
 
     init(
         userID: String,
         observeTrainings: ObserveTrainingsUseCase,
         addTraining: AddTrainingUseCase,
         updateTraining: UpdateTrainingUseCase,
-        deleteTraining: DeleteTrainingUseCase
+        deleteTraining: DeleteTrainingUseCase,
+        fetchRecentWorkouts: FetchRecentWorkoutsUseCase
     ) {
         self.userID = userID
         self.observeTrainings = observeTrainings
         self.addTraining = addTraining
         self.updateTraining = updateTraining
         self.deleteTraining = deleteTraining
+        self.fetchRecentWorkouts = fetchRecentWorkouts
     }
 
     func sessions(of type: TrainingType) -> [TrainingSession] {
         sessions.filter { $0.type == type }
+    }
+
+    /// Carreras de Salud que aún no tienen un entrenamiento parecido registrado.
+    var importableWorkouts: [HealthWorkout] {
+        recentWorkouts.filter { workout in
+            !sessions.contains { isSameActivity(day: workout.date, km: workout.distanceKm, with: $0) }
+        }
+    }
+
+    /// Trae las carreras recientes de Salud (silencioso: en Mac o sin permiso queda vacío).
+    func loadRecentWorkouts() async {
+        recentWorkouts = (try? await fetchRecentWorkouts()) ?? []
+    }
+
+    /// Importa una carrera de Salud como entrenamiento completado.
+    func importWorkout(_ workout: HealthWorkout) async {
+        let km = workout.distanceKm.formatted(.number.precision(.fractionLength(1)))
+        let session = TrainingSession(
+            date: workout.date,
+            type: .running,
+            title: "Carrera \(km) km",
+            durationMin: workout.durationMin,
+            distanceKm: workout.distanceKm,
+            completed: true
+        )
+        _ = await save(session, isNew: true)
+    }
+
+    /// Entrenamiento existente parecido a uno nuevo (mismo día, carrera, distancia similar).
+    func similarSession(to candidate: TrainingSession) -> TrainingSession? {
+        guard candidate.type == .running else { return nil }
+        return sessions.first {
+            $0.id != candidate.id
+                && isSameActivity(day: candidate.date, km: candidate.distanceKm, with: $0)
+        }
+    }
+
+    // ponytail: dedup por (día + distancia ~10%); si dos carreras iguales el mismo día
+    // colisionan de más, guardar el UUID de HealthKit en TrainingSession.
+    private func isSameActivity(day: Date, km: Double?, with session: TrainingSession) -> Bool {
+        guard session.type == .running, let new = km, let existing = session.distanceKm else { return false }
+        return Calendar.current.isDate(day, inSameDayAs: session.date)
+            && abs(new - existing) <= max(0.5, new * 0.1)
     }
 
     func start() async {

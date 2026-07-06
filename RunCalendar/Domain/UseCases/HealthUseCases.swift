@@ -16,6 +16,18 @@ struct FetchFitnessSummaryUseCase: Sendable {
     }
 }
 
+/// Trae las carreras recientes de Salud para sugerir importarlas.
+struct FetchRecentWorkoutsUseCase: Sendable {
+    private let repository: HealthRepository
+    init(repository: HealthRepository) { self.repository = repository }
+
+    var isAvailable: Bool { repository.isAvailable() }
+
+    func callAsFunction(days: Int = 14) async throws -> [HealthWorkout] {
+        try await repository.fetchRecentWorkouts(days: days)
+    }
+}
+
 /// Estima la preparación para las distancias clásicas a partir del resumen.
 /// Heurística orientativa (long run objetivo + volumen semanal), no consejo médico.
 struct AssessReadinessUseCase: Sendable {

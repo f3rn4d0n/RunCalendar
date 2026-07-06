@@ -79,6 +79,23 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         )
     }
 
+    func fetchRecentWorkouts(days: Int) async throws -> [HealthWorkout] {
+        guard isAvailable() else { return [] }
+        let start = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        let runs = try await runningWorkouts(since: start)
+        return runs
+            .map { workout in
+                HealthWorkout(
+                    id: workout.uuid.uuidString,
+                    date: workout.startDate,
+                    distanceKm: workoutDistanceKm(workout),
+                    durationMin: workout.duration > 0 ? Int(workout.duration / 60) : nil
+                )
+            }
+            .filter { $0.distanceKm > 0 }
+            .sorted { $0.date > $1.date }
+    }
+
     // MARK: - Queries
 
     private var vo2Unit: HKUnit {
