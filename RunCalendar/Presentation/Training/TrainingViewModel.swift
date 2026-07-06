@@ -44,9 +44,9 @@ final class TrainingViewModel {
         }
     }
 
-    /// Trae las carreras recientes de Salud (silencioso: en Mac o sin permiso queda vacío).
+    /// Trae TODAS las carreras de Salud (silencioso: en Mac o sin permiso queda vacío).
     func loadRecentWorkouts() async {
-        recentWorkouts = (try? await fetchRecentWorkouts()) ?? []
+        recentWorkouts = (try? await fetchRecentWorkouts(days: 0)) ?? []
     }
 
     /// Importa una carrera de Salud como entrenamiento completado.

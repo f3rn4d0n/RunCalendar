@@ -81,7 +81,10 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
 
     func fetchRecentWorkouts(days: Int) async throws -> [HealthWorkout] {
         guard isAvailable() else { return [] }
-        let start = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        // days <= 0 => todo el historial de Salud (sin límite de fecha).
+        let start = days > 0
+            ? (Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date())
+            : .distantPast
         let runs = try await runningWorkouts(since: start)
         return runs
             .map { workout in
