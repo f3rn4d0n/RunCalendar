@@ -53,7 +53,9 @@ struct HealthView: View {
     private func loaded(summary: FitnessSummary, readiness: [RaceReadiness]) -> some View {
         List {
             Section("Resumen (\(summary.weeks) semanas)") {
-                metric("Volumen semanal", km(summary.weeklyDistanceKm), icon: "chart.bar.fill")
+                metric("Esta semana (7 días)", km(summary.last7DaysKm), icon: "calendar")
+                metric("Promedio semanal (\(summary.weeks) sem)", km(summary.weeklyDistanceKm),
+                       icon: "chart.bar.fill")
                 metric("Carrera más larga", km(summary.longestRunKm), icon: "figure.run")
                 metric("Entrenamientos", "\(summary.runCount)", icon: "number")
                 if let vo2 = summary.vo2Max {

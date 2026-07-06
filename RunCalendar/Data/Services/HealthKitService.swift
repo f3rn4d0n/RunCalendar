@@ -46,6 +46,11 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         let totalKm = distances.reduce(0, +)
         let longest = distances.max() ?? 0
 
+        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? start
+        let last7Km = runs
+            .filter { $0.endDate >= sevenDaysAgo }
+            .reduce(0.0) { $0 + workoutDistanceKm($1) }
+
         let vo2 = try? await mostRecentQuantity(.vo2Max, unit: vo2Unit)
         let resting = try? await mostRecentQuantity(.restingHeartRate,
                                                     unit: HKUnit.count().unitDivided(by: .minute()))
@@ -54,6 +59,7 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
             weeks: weeks,
             totalDistanceKm: totalKm,
             weeklyDistanceKm: weeks > 0 ? totalKm / Double(weeks) : 0,
+            last7DaysKm: last7Km,
             longestRunKm: longest,
             runCount: runs.count,
             lastRunDate: runs.map(\.endDate).max(),
