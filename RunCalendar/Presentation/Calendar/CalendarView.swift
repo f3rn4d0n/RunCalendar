@@ -126,7 +126,11 @@ struct CalendarView: View {
         case .race(let race):
             RaceDetailView(initialRace: race, viewModel: racesViewModel, trainingViewModel: trainingViewModel)
         case .training(let session):
-            TrainingFormView(viewModel: trainingViewModel, racesViewModel: racesViewModel, session: session)
+            TrainingDetailView(
+                initialSession: session,
+                viewModel: trainingViewModel,
+                racesViewModel: racesViewModel
+            )
         }
     }
 

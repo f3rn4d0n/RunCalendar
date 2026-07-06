@@ -36,7 +36,11 @@ struct TrainingListView: View {
                     List {
                         ForEach(filtered) { session in
                             NavigationLink {
-                                TrainingFormView(viewModel: viewModel, racesViewModel: racesViewModel, session: session)
+                                TrainingDetailView(
+                                    initialSession: session,
+                                    viewModel: viewModel,
+                                    racesViewModel: racesViewModel
+                                )
                             } label: {
                                 TrainingRow(session: session, targetName: targetName(for: session))
                             }
