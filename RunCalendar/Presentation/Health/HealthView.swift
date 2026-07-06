@@ -52,19 +52,7 @@ struct HealthView: View {
 
     private func loaded(summary: FitnessSummary, readiness: [RaceReadiness]) -> some View {
         List {
-            Section("Resumen (\(summary.weeks) semanas)") {
-                metric("Esta semana (7 días)", km(summary.last7DaysKm), icon: "calendar")
-                metric("Promedio semanal (\(summary.weeks) sem)", km(summary.weeklyDistanceKm),
-                       icon: "chart.bar.fill")
-                metric("Carrera más larga", km(summary.longestRunKm), icon: "figure.run")
-                metric("Entrenamientos", "\(summary.runCount)", icon: "number")
-                if let vo2 = summary.vo2Max {
-                    metric("VO₂max", vo2.formatted(.number.precision(.fractionLength(1))), icon: "lungs.fill")
-                }
-                if let resting = summary.restingHeartRate {
-                    metric("FC en reposo", "\(Int(resting)) lpm", icon: "heart.fill")
-                }
-            }
+            summarySection(summary)
 
             Section {
                 ForEach(readiness) { item in
@@ -94,16 +82,32 @@ struct HealthView: View {
         }
     }
 
-    private func km(_ value: Double) -> String {
-        "\(value.formatted(.number.precision(.fractionLength(1)))) km"
+    @ViewBuilder
+    private func summarySection(_ summary: FitnessSummary) -> some View {
+        Section("Resumen (\(summary.weeks) semanas)") {
+            MetricRow(label: "Esta semana (7 días)", value: km(summary.last7DaysKm), icon: "calendar",
+                      info: HealthMetricInfo.thisWeek())
+            MetricRow(label: "Promedio semanal (\(summary.weeks) sem)",
+                      value: km(summary.weeklyDistanceKm), icon: "chart.bar.fill",
+                      info: HealthMetricInfo.weeklyAverage(weeks: summary.weeks))
+            MetricRow(label: "Carrera más larga", value: km(summary.longestRunKm), icon: "figure.run",
+                      info: HealthMetricInfo.longestRun())
+            MetricRow(label: "Entrenamientos", value: "\(summary.runCount)", icon: "number",
+                      info: HealthMetricInfo.runCount())
+            if let vo2 = summary.vo2Max {
+                MetricRow(label: "VO₂max", value: vo2.formatted(.number.precision(.fractionLength(1))),
+                          icon: "lungs.fill",
+                          info: HealthMetricInfo.vo2Max(vo2, age: summary.age))
+            }
+            if let resting = summary.restingHeartRate {
+                MetricRow(label: "FC en reposo", value: "\(Int(resting)) lpm", icon: "heart.fill",
+                          info: HealthMetricInfo.restingHeartRate(resting))
+            }
+        }
     }
 
-    private func metric(_ label: String, _ value: String, icon: String) -> some View {
-        HStack {
-            Label(label, systemImage: icon).foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-        }
+    private func km(_ value: Double) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(1)))) km"
     }
 
     private func color(for level: ReadinessLevel) -> Color {

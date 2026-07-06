@@ -18,7 +18,17 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         if let resting = HKQuantityType.quantityType(forIdentifier: .restingHeartRate) {
             types.insert(resting)
         }
+        if let dob = HKCharacteristicType.characteristicType(forIdentifier: .dateOfBirth) {
+            types.insert(dob)
+        }
         return types
+    }
+
+    /// Edad del usuario a partir de su fecha de nacimiento en Salud (si está autorizada).
+    private func currentAge() -> Int? {
+        guard let components = try? store.dateOfBirthComponents(),
+              let birthDate = Calendar.current.date(from: components) else { return nil }
+        return Calendar.current.dateComponents([.year], from: birthDate, to: Date()).year
     }
 
     func isAvailable() -> Bool {
@@ -64,7 +74,8 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
             runCount: runs.count,
             lastRunDate: runs.map(\.endDate).max(),
             vo2Max: vo2,
-            restingHeartRate: resting
+            restingHeartRate: resting,
+            age: currentAge()
         )
     }
 
