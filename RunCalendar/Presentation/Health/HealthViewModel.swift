@@ -21,7 +21,16 @@ final class HealthViewModel {
     init(fetchSummary: FetchFitnessSummaryUseCase, assessReadiness: AssessReadinessUseCase) {
         self.fetchSummary = fetchSummary
         self.assessReadiness = assessReadiness
-        self.state = fetchSummary.isAvailable ? .needsAuthorization : .unavailable
+        // Arranca cargando (no en "conectar"): HealthKit no re-muestra la hoja de
+        // permisos si el usuario ya respondió, así que cargamos directo.
+        self.state = fetchSummary.isAvailable ? .loading : .unavailable
+    }
+
+    /// Al aparecer: solicita (sin re-mostrar la hoja si ya se respondió) y carga.
+    func onAppear() async {
+        guard fetchSummary.isAvailable else { state = .unavailable; return }
+        if case .loaded = state { return } // ya cargado, no recargar
+        await connect()
     }
 
     /// Pide autorización y carga el resumen.

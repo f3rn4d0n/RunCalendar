@@ -22,10 +22,15 @@ struct HealthView: View {
                 case .loaded(let summary, let readiness):
                     loaded(summary: summary, readiness: readiness)
                 case .error(let message):
-                    EmptyStateView(icon: "exclamationmark.triangle", title: "Ups", message: message)
+                    VStack(spacing: 16) {
+                        EmptyStateView(icon: "exclamationmark.triangle", title: "Ups", message: message)
+                        Button("Reintentar") { Task { await viewModel.connect() } }
+                            .buttonStyle(.bordered)
+                    }
                 }
             }
             .navigationTitle("Condición")
+            .task { await viewModel.onAppear() }
         }
     }
 
