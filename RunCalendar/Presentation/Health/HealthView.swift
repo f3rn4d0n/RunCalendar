@@ -75,11 +75,8 @@ struct HealthView: View {
             } footer: {
                 Text("Toca una distancia para ver qué mejorar. Estimado orientativo, no es consejo médico.")
             }
-
-            Section {
-                Button("Actualizar") { Task { await viewModel.load() } }
-            }
         }
+        .refreshable { await viewModel.load() }
     }
 
     @ViewBuilder

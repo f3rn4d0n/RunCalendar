@@ -99,6 +99,18 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
             .sorted { $0.date > $1.date }
     }
 
+    func workoutUpdates() -> AsyncStream<Void> {
+        AsyncStream { continuation in
+            guard isAvailable() else { continuation.finish(); return }
+            let query = HKObserverQuery(sampleType: .workoutType(), predicate: nil) { _, handler, error in
+                if error == nil { continuation.yield(()) }
+                handler()
+            }
+            store.execute(query)
+            continuation.onTermination = { [store] _ in store.stop(query) }
+        }
+    }
+
     // MARK: - Queries
 
     private var vo2Unit: HKUnit {

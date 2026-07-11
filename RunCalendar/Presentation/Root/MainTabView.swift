@@ -65,5 +65,9 @@ struct MainTabView: View {
         .task { await racesViewModel.start() }
         .task { await trainingViewModel.start() }
         .task { await profileViewModel.start() }
+        // Observadores de Salud (HKObserverQuery): re-sincronizan solo cuando
+        // HealthKit reporta datos nuevos, sin recargar en cada aparición.
+        .task { await trainingViewModel.observeHealthUpdates() }
+        .task { await healthViewModel.observeUpdates() }
     }
 }

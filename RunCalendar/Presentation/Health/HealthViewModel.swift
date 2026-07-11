@@ -45,10 +45,19 @@ final class HealthViewModel {
         await load()
     }
 
+    /// Refresca cuando Salud reporta cambios. Llamar una vez por sesión;
+    /// solo actúa si ya hay datos cargados (la carga inicial la hace onAppear).
+    func observeUpdates() async {
+        for await _ in fetchSummary.updates() {
+            if case .loaded = state { await load() }
+        }
+    }
+
     /// Recarga el resumen (asume autorización ya solicitada).
     func load() async {
         guard fetchSummary.isAvailable else { state = .unavailable; return }
-        state = .loading
+        // Refresco silencioso: si ya hay datos no volvemos al spinner.
+        if case .loaded = state {} else { state = .loading }
         do {
             let summary = try await fetchSummary()
             state = .loaded(summary, assessReadiness(summary))

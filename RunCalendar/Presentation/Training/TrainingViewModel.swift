@@ -9,6 +9,11 @@ final class TrainingViewModel {
     private(set) var recentWorkouts: [HealthWorkout] = []
     var errorMessage: String?
     private var hasStarted = false
+    private var sessionsLoaded = false
+    private var isSyncing = false
+    /// IDs ya importados esta sesión: evita duplicar si Salud avisa antes de
+    /// que Firestore refleje los recién guardados.
+    private var importedIDs: Set<String> = []
 
     let userID: String
     private let observeTrainings: ObserveTrainingsUseCase
@@ -40,13 +45,30 @@ final class TrainingViewModel {
     /// Carreras de Salud que aún no tienen un entrenamiento parecido registrado.
     var importableWorkouts: [HealthWorkout] {
         recentWorkouts.filter { workout in
-            !sessions.contains { isSameActivity(day: workout.date, km: workout.distanceKm, with: $0) }
+            !importedIDs.contains(workout.id)
+                && !sessions.contains { isSameActivity(day: workout.date, km: workout.distanceKm, with: $0) }
         }
     }
 
-    /// Trae TODAS las carreras de Salud (silencioso: en Mac o sin permiso queda vacío).
-    func loadRecentWorkouts() async {
+    /// Sincroniza con Salud: carga todas las carreras e importa las que falten.
+    /// Silencioso: en Mac o sin permiso no hace nada. Espera al primer snapshot
+    /// de Firestore para no importar duplicados de lo ya registrado.
+    func syncFromHealth() async {
+        guard sessionsLoaded, !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
         recentWorkouts = (try? await fetchRecentWorkouts(days: 0)) ?? []
+        for workout in importableWorkouts {
+            importedIDs.insert(workout.id)
+            await importWorkout(workout)
+        }
+    }
+
+    /// Re-sincroniza cuando Salud reporta entrenamientos nuevos. Llamar una vez por sesión.
+    func observeHealthUpdates() async {
+        for await _ in fetchRecentWorkouts.updates() {
+            await syncFromHealth()
+        }
     }
 
     /// Importa una carrera de Salud como entrenamiento completado.
@@ -85,6 +107,10 @@ final class TrainingViewModel {
         hasStarted = true
         for await items in observeTrainings(userID: userID) {
             sessions = items
+            if !sessionsLoaded {
+                sessionsLoaded = true
+                Task { await self.syncFromHealth() } // primer snapshot listo: sincronizar
+            }
         }
     }
 
