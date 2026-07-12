@@ -14,6 +14,7 @@ final class AppContainer {
     private let reminderScheduler: ReminderScheduler
     private let healthRepository: HealthRepository
     private let weatherRepository: WeatherRepository
+    private let calendarRepository: CalendarRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
@@ -23,7 +24,8 @@ final class AppContainer {
         reminderScheduler: ReminderScheduler = LocalNotificationService(),
         healthRepository: HealthRepository = HealthKitService(),
         // Open-Meteo hoy; cambiar por WeatherKitService al publicar (mismo protocolo).
-        weatherRepository: WeatherRepository = OpenMeteoService()
+        weatherRepository: WeatherRepository = OpenMeteoService(),
+        calendarRepository: CalendarRepository = EventKitService()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
@@ -32,6 +34,7 @@ final class AppContainer {
         self.reminderScheduler = reminderScheduler
         self.healthRepository = healthRepository
         self.weatherRepository = weatherRepository
+        self.calendarRepository = calendarRepository
     }
 
     // MARK: - ViewModels
@@ -54,7 +57,8 @@ final class AppContainer {
             addRace: AddRaceUseCase(repository: raceRepository),
             updateRace: UpdateRaceUseCase(repository: raceRepository),
             deleteRace: DeleteRaceUseCase(repository: raceRepository),
-            fetchWeather: FetchRaceWeatherUseCase(repository: weatherRepository)
+            fetchWeather: FetchRaceWeatherUseCase(repository: weatherRepository),
+            addToCalendar: AddToCalendarUseCase(repository: calendarRepository)
         )
     }
 

@@ -16,6 +16,7 @@ final class RacesViewModel {
     private let updateRace: UpdateRaceUseCase
     private let deleteRace: DeleteRaceUseCase
     private let fetchWeather: FetchRaceWeatherUseCase
+    private let addToCalendar: AddToCalendarUseCase
 
     init(
         userID: String,
@@ -23,7 +24,8 @@ final class RacesViewModel {
         addRace: AddRaceUseCase,
         updateRace: UpdateRaceUseCase,
         deleteRace: DeleteRaceUseCase,
-        fetchWeather: FetchRaceWeatherUseCase
+        fetchWeather: FetchRaceWeatherUseCase,
+        addToCalendar: AddToCalendarUseCase
     ) {
         self.userID = userID
         self.observeRaces = observeRaces
@@ -31,6 +33,7 @@ final class RacesViewModel {
         self.updateRace = updateRace
         self.deleteRace = deleteRace
         self.fetchWeather = fetchWeather
+        self.addToCalendar = addToCalendar
     }
 
     /// Clima del día de la carrera. Si la carrera no tiene coordenadas (p. ej. una próxima
@@ -83,6 +86,51 @@ final class RacesViewModel {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    /// Agrega la carrera al calendario del sistema. Devuelve si tuvo éxito.
+    func addRaceToCalendar(_ race: Race) async -> Bool {
+        var notes = race.notes
+        if let bib = race.bibNumber, !bib.isEmpty {
+            notes = notes.isEmpty ? "Dorsal: \(bib)" : notes + "\nDorsal: \(bib)"
+        }
+        // Sin duración conocida: bloque de 2 h desde la hora del evento.
+        return await add(CalendarEvent(
+            title: race.name,
+            startDate: race.date,
+            endDate: race.date.addingTimeInterval(2 * 3600),
+            location: locationText(race.location),
+            notes: notes.isEmpty ? nil : notes
+        ))
+    }
+
+    /// Agrega la entrega de kit al calendario. `false` si el kit no tiene fecha.
+    func addKitPickupToCalendar(_ race: Race) async -> Bool {
+        guard let kit = race.kitPickup, let date = kit.date else { return false }
+        return await add(CalendarEvent(
+            title: "Entrega de kit — \(race.name)",
+            startDate: date,
+            endDate: date.addingTimeInterval(3600),
+            location: kit.location.flatMap(locationText),
+            notes: kit.notes.isEmpty ? nil : kit.notes
+        ))
+    }
+
+    private func add(_ event: CalendarEvent) async -> Bool {
+        do {
+            try await addToCalendar(event)
+            Haptics.success()
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    /// Texto de ubicación "Nombre, Dirección" (omite lo vacío).
+    private func locationText(_ location: RaceLocation) -> String? {
+        let parts = [location.name, location.address].filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
     /// Coordenadas del lugar a partir de su dirección (o nombre si no hay dirección).
