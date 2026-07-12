@@ -13,6 +13,7 @@ final class AppContainer {
     private let profileRepository: ProfileRepository
     private let reminderScheduler: ReminderScheduler
     private let healthRepository: HealthRepository
+    private let weatherRepository: WeatherRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
@@ -20,7 +21,9 @@ final class AppContainer {
         trainingRepository: TrainingRepository = FirestoreTrainingRepository(),
         profileRepository: ProfileRepository = FirestoreProfileRepository(),
         reminderScheduler: ReminderScheduler = LocalNotificationService(),
-        healthRepository: HealthRepository = HealthKitService()
+        healthRepository: HealthRepository = HealthKitService(),
+        // Open-Meteo hoy; cambiar por WeatherKitService al publicar (mismo protocolo).
+        weatherRepository: WeatherRepository = OpenMeteoService()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
@@ -28,6 +31,7 @@ final class AppContainer {
         self.profileRepository = profileRepository
         self.reminderScheduler = reminderScheduler
         self.healthRepository = healthRepository
+        self.weatherRepository = weatherRepository
     }
 
     // MARK: - ViewModels
@@ -49,7 +53,8 @@ final class AppContainer {
             observeRaces: ObserveRacesUseCase(repository: raceRepository),
             addRace: AddRaceUseCase(repository: raceRepository),
             updateRace: UpdateRaceUseCase(repository: raceRepository),
-            deleteRace: DeleteRaceUseCase(repository: raceRepository)
+            deleteRace: DeleteRaceUseCase(repository: raceRepository),
+            fetchWeather: FetchRaceWeatherUseCase(repository: weatherRepository)
         )
     }
 
@@ -61,7 +66,8 @@ final class AppContainer {
             updateTraining: UpdateTrainingUseCase(repository: trainingRepository),
             deleteTraining: DeleteTrainingUseCase(repository: trainingRepository),
             fetchRecentWorkouts: FetchRecentWorkoutsUseCase(repository: healthRepository),
-            fetchWorkoutRoute: FetchWorkoutRouteUseCase(repository: healthRepository)
+            fetchWorkoutRoute: FetchWorkoutRouteUseCase(repository: healthRepository),
+            fetchWeather: FetchRaceWeatherUseCase(repository: weatherRepository)
         )
     }
 

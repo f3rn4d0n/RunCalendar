@@ -60,6 +60,12 @@ struct TrainingDetailView: View {
                             Label("Ver ruta en el mapa", systemImage: "map")
                         }
                     }
+
+                    Section("Clima") {
+                        WeatherCardView(
+                            emptyMessage: "Sin ubicación GPS para consultar el clima de este entrenamiento."
+                        ) { await viewModel.weather(for: session) }
+                    }
                 }
             } else if let wod = session.wod, !wod.isEmpty {
                 Section("WOD") { Text(wod) }

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import CoreLocation
 
 @MainActor
 @Observable
@@ -14,19 +15,40 @@ final class RacesViewModel {
     private let addRace: AddRaceUseCase
     private let updateRace: UpdateRaceUseCase
     private let deleteRace: DeleteRaceUseCase
+    private let fetchWeather: FetchRaceWeatherUseCase
 
     init(
         userID: String,
         observeRaces: ObserveRacesUseCase,
         addRace: AddRaceUseCase,
         updateRace: UpdateRaceUseCase,
-        deleteRace: DeleteRaceUseCase
+        deleteRace: DeleteRaceUseCase,
+        fetchWeather: FetchRaceWeatherUseCase
     ) {
         self.userID = userID
         self.observeRaces = observeRaces
         self.addRace = addRace
         self.updateRace = updateRace
         self.deleteRace = deleteRace
+        self.fetchWeather = fetchWeather
+    }
+
+    /// Clima del día de la carrera. Si la carrera no tiene coordenadas (p. ej. una próxima
+    /// que aún no se corre), geocodifica la dirección de la sección Ubicación al vuelo.
+    /// `nil` si no se pudo ubicar o la API no devolvió datos.
+    func weather(for race: Race) async -> RaceWeather? {
+        var latitude = race.location.latitude
+        var longitude = race.location.longitude
+        if latitude == nil || longitude == nil, let coordinate = await geocode(race.location) {
+            latitude = coordinate.latitude
+            longitude = coordinate.longitude
+        }
+        do {
+            return try await fetchWeather(latitude: latitude, longitude: longitude, date: race.date)
+        } catch {
+            Log.races.error("weather: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 
     var upcomingRaces: [Race] { races.filter { $0.status == .upcoming } }
@@ -41,6 +63,14 @@ final class RacesViewModel {
     }
 
     func save(_ race: Race, isNew: Bool) async -> Bool {
+        var race = race
+        // Sin coordenadas → geocodifica la dirección para poder mostrar el clima.
+        // Si falla (offline, dirección vaga), se guarda igual sin coordenadas.
+        if race.location.latitude == nil, race.location.longitude == nil,
+           let coordinate = await geocode(race.location) {
+            race.location.latitude = coordinate.latitude
+            race.location.longitude = coordinate.longitude
+        }
         do {
             if isNew {
                 try await addRace(race, userID: userID)
@@ -53,6 +83,14 @@ final class RacesViewModel {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    /// Coordenadas del lugar a partir de su dirección (o nombre si no hay dirección).
+    private func geocode(_ location: RaceLocation) async -> CLLocationCoordinate2D? {
+        let query = location.address.isEmpty ? location.name : location.address
+        guard !query.isEmpty else { return nil }
+        let placemarks = try? await CLGeocoder().geocodeAddressString(query)
+        return placemarks?.first?.location?.coordinate
     }
 
     func delete(_ race: Race) async {

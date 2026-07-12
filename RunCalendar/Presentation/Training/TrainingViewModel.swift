@@ -22,6 +22,7 @@ final class TrainingViewModel {
     private let deleteTraining: DeleteTrainingUseCase
     private let fetchRecentWorkouts: FetchRecentWorkoutsUseCase
     private let fetchWorkoutRoute: FetchWorkoutRouteUseCase
+    private let fetchWeather: FetchRaceWeatherUseCase
 
     init(
         userID: String,
@@ -30,7 +31,8 @@ final class TrainingViewModel {
         updateTraining: UpdateTrainingUseCase,
         deleteTraining: DeleteTrainingUseCase,
         fetchRecentWorkouts: FetchRecentWorkoutsUseCase,
-        fetchWorkoutRoute: FetchWorkoutRouteUseCase
+        fetchWorkoutRoute: FetchWorkoutRouteUseCase,
+        fetchWeather: FetchRaceWeatherUseCase
     ) {
         self.userID = userID
         self.observeTrainings = observeTrainings
@@ -39,6 +41,23 @@ final class TrainingViewModel {
         self.deleteTraining = deleteTraining
         self.fetchRecentWorkouts = fetchRecentWorkouts
         self.fetchWorkoutRoute = fetchWorkoutRoute
+        self.fetchWeather = fetchWeather
+    }
+
+    /// Clima del entrenamiento: usa las coordenadas de la traza GPS de Salud (sin pedir
+    /// dirección ni geocodificar). `nil` si no es carrera o no tiene ruta con GPS.
+    // ponytail: reusa route() (trae toda la traza + FC); si pesa, un query de solo
+    // la primera coordenada del workout sería más ligero.
+    func weather(for session: TrainingSession) async -> RaceWeather? {
+        guard session.type == .running,
+              let start = await route(onDay: session.date, distanceKm: session.distanceKm)?.points.first
+        else { return nil }
+        do {
+            return try await fetchWeather(latitude: start.latitude, longitude: start.longitude, date: session.date)
+        } catch {
+            Log.health.error("weather(training): \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 
     /// ¿El dispositivo puede leer rutas de Salud? (falso en Mac).
