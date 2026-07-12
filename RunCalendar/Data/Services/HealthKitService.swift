@@ -79,6 +79,38 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         )
     }
 
+    func fetchRecentWorkouts(days: Int) async throws -> [HealthWorkout] {
+        guard isAvailable() else { return [] }
+        // days <= 0 => todo el historial de Salud (sin límite de fecha).
+        let start = days > 0
+            ? (Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date())
+            : .distantPast
+        let runs = try await runningWorkouts(since: start)
+        return runs
+            .map { workout in
+                HealthWorkout(
+                    id: workout.uuid.uuidString,
+                    date: workout.startDate,
+                    distanceKm: workoutDistanceKm(workout),
+                    durationMin: workout.duration > 0 ? Int(workout.duration / 60) : nil
+                )
+            }
+            .filter { $0.distanceKm > 0 }
+            .sorted { $0.date > $1.date }
+    }
+
+    func workoutUpdates() -> AsyncStream<Void> {
+        AsyncStream { continuation in
+            guard isAvailable() else { continuation.finish(); return }
+            let query = HKObserverQuery(sampleType: .workoutType(), predicate: nil) { _, handler, error in
+                if error == nil { continuation.yield(()) }
+                handler()
+            }
+            store.execute(query)
+            continuation.onTermination = { [store] _ in store.stop(query) }
+        }
+    }
+
     // MARK: - Queries
 
     private var vo2Unit: HKUnit {

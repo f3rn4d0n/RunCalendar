@@ -11,4 +11,11 @@ protocol HealthRepository: Sendable {
 
     /// Calcula el resumen de condición de las últimas `weeks` semanas.
     func fetchSummary(weeks: Int) async throws -> FitnessSummary
+
+    /// Carreras registradas en Salud en los últimos `days` días (para importarlas).
+    func fetchRecentWorkouts(days: Int) async throws -> [HealthWorkout]
+
+    /// Emite un aviso cuando cambian los entrenamientos en Salud
+    /// (y una vez al empezar a observar). Vacío donde no hay HealthKit.
+    func workoutUpdates() -> AsyncStream<Void>
 }

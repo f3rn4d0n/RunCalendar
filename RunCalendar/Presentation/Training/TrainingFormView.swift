@@ -21,7 +21,14 @@ struct TrainingFormView: View {
     @State private var isPriority = false
     @State private var targetRaceID: String?
 
-    private var isNew: Bool { session == nil }
+    /// Al elegir "editar la parecida", pasamos a editar ese entrenamiento existente.
+    @State private var editing: TrainingSession?
+    @State private var duplicate: TrainingSession?
+    @State private var showDuplicateDialog = false
+    @State private var forceCreate = false
+
+    private var effectiveSession: TrainingSession? { editing ?? session }
+    private var isNew: Bool { effectiveSession == nil }
 
     /// Carreras seleccionables como objetivo, prioritarias primero y luego por fecha.
     private var targetableRaces: [Race] {
@@ -96,11 +103,30 @@ struct TrainingFormView: View {
                         .disabled(trainingTitle.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            .onAppear(perform: populate)
+            .onAppear { populate(from: session) }
+            .confirmationDialog(
+                duplicate.map { "Se parece a «\($0.title)» del \($0.date.mediumString())" } ?? "",
+                isPresented: $showDuplicateDialog,
+                titleVisibility: .visible
+            ) {
+                if let match = duplicate {
+                    Button("Editar la parecida") {
+                        editing = match
+                        populate(from: match)
+                    }
+                }
+                Button("Crear de todas formas") {
+                    forceCreate = true
+                    Task { await save() }
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("¿Quieres editar el entrenamiento existente o crear uno nuevo igual?")
+            }
         }
     }
 
-    private func populate() {
+    private func populate(from session: TrainingSession?) {
         guard let session else { return }
         date = session.date
         type = session.type
@@ -118,7 +144,7 @@ struct TrainingFormView: View {
 
     private func save() async {
         let newSession = TrainingSession(
-            id: session?.id ?? UUID().uuidString,
+            id: effectiveSession?.id ?? UUID().uuidString,
             date: date,
             type: type,
             title: trainingTitle.trimmingCharacters(in: .whitespaces),
@@ -134,6 +160,13 @@ struct TrainingFormView: View {
             isPriority: isPriority,
             targetRaceID: targetRaceID
         )
+
+        // Al crear una carrera, avisa si ya hay una parecida (evita duplicar la del Watch).
+        if isNew, !forceCreate, let match = viewModel.similarSession(to: newSession) {
+            duplicate = match
+            showDuplicateDialog = true
+            return
+        }
 
         if await viewModel.save(newSession, isNew: isNew) {
             dismiss()

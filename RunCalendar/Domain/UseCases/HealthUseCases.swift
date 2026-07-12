@@ -14,6 +14,28 @@ struct FetchFitnessSummaryUseCase: Sendable {
     func callAsFunction(weeks: Int = 8) async throws -> FitnessSummary {
         try await repository.fetchSummary(weeks: weeks)
     }
+
+    /// Aviso de que Salud tiene datos nuevos (para refrescar sin recargar de más).
+    func updates() -> AsyncStream<Void> {
+        repository.workoutUpdates()
+    }
+}
+
+/// Trae las carreras recientes de Salud para sugerir importarlas.
+struct FetchRecentWorkoutsUseCase: Sendable {
+    private let repository: HealthRepository
+    init(repository: HealthRepository) { self.repository = repository }
+
+    var isAvailable: Bool { repository.isAvailable() }
+
+    func callAsFunction(days: Int = 14) async throws -> [HealthWorkout] {
+        try await repository.fetchRecentWorkouts(days: days)
+    }
+
+    /// Aviso de que Salud tiene entrenamientos nuevos (para re-sincronizar).
+    func updates() -> AsyncStream<Void> {
+        repository.workoutUpdates()
+    }
 }
 
 /// Estima la preparación para las distancias clásicas a partir del resumen.
