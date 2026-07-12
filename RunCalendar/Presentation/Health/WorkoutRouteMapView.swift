@@ -93,13 +93,20 @@ struct WorkoutRouteMapView: View {
                        icon: "heart.fill", tint: point.zone.map(color(for:)) ?? Neon.orange)
             }
 
+            HStack {
+                Label("\(point.distanceKm.formatted(.number.precision(.fractionLength(2)))) km",
+                      systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                    .font(.mSubheadline.weight(.semibold))
+                Spacer()
+                Text("+\(Int(point.elapsed))s").font(.mCaption).foregroundStyle(.secondary)
+            }
+
             if let zone = point.zone {
                 HStack {
                     Circle().fill(color(for: zone)).frame(width: 10, height: 10)
                     Text("\(zone.label) · \(zone.percentRange) de FC máx")
                         .font(.mCaption).foregroundStyle(.secondary)
                     Spacer()
-                    Text("+\(Int(point.elapsed))s").font(.mCaption2).foregroundStyle(.tertiary)
                 }
             }
 

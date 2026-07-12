@@ -46,6 +46,8 @@ struct RoutePoint: Identifiable, Sendable {
     let longitude: Double
     /// Segundos transcurridos desde el inicio de la corrida.
     let elapsed: TimeInterval
+    /// Distancia acumulada desde el inicio hasta este punto, en km.
+    let distanceKm: Double
     let speedKmh: Double
     let heartRate: Int?
     let zone: HeartRateZone?
