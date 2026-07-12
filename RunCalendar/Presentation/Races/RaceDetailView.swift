@@ -61,6 +61,12 @@ struct RaceDetailView: View {
                 }
             }
 
+            if race.location.latitude != nil || !race.location.name.isEmpty || !race.location.address.isEmpty {
+                Section("Clima") {
+                    WeatherCardView { await viewModel.weather(for: race) }
+                }
+            }
+
             if race.cost != nil || race.registrationURL != nil {
                 Section("Costo e inscripción") {
                     if let cost = race.cost {
