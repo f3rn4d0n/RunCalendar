@@ -15,7 +15,7 @@ final class FirestoreTrainingRepository: TrainingRepository, @unchecked Sendable
         AsyncStream { continuation in
             Log.training.info("Suscribiendo a users/\(userID, privacy: .public)/trainings")
             let listener = collection(userID)
-                .order(by: "date")
+                .order(by: "date", descending: true)
                 .addSnapshotListener { snapshot, error in
                     if let error {
                         Log.training.error("snapshot trainings: \(error.localizedDescription, privacy: .public)")

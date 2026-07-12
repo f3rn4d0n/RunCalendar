@@ -60,7 +60,8 @@ final class AppContainer {
             addTraining: AddTrainingUseCase(repository: trainingRepository),
             updateTraining: UpdateTrainingUseCase(repository: trainingRepository),
             deleteTraining: DeleteTrainingUseCase(repository: trainingRepository),
-            fetchRecentWorkouts: FetchRecentWorkoutsUseCase(repository: healthRepository)
+            fetchRecentWorkouts: FetchRecentWorkoutsUseCase(repository: healthRepository),
+            fetchWorkoutRoute: FetchWorkoutRouteUseCase(repository: healthRepository)
         )
     }
 
