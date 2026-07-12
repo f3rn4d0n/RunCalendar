@@ -137,7 +137,13 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         let sampled = downsample(locations, max: 800)
         let t0 = sampled.first?.timestamp ?? workout.startDate
         var hrIndex = 0
+        // Distancia acumulada punto a punto (recta entre muestras GPS; con ~800 puntos
+        // los tramos son cortos y el error vs. la trayectoria real es despreciable).
+        var cumulativeMeters = 0.0
+        var previous: CLLocation?
         let points: [RoutePoint] = sampled.map { loc in
+            if let previous { cumulativeMeters += loc.distance(from: previous) }
+            previous = loc
             let bpm = nearestHeartRate(heartRates, at: loc.timestamp, from: &hrIndex)
             let speedKmh = loc.speed >= 0 ? loc.speed * 3.6 : 0
             var zone: HeartRateZone?
@@ -146,6 +152,7 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
                 latitude: loc.coordinate.latitude,
                 longitude: loc.coordinate.longitude,
                 elapsed: loc.timestamp.timeIntervalSince(t0),
+                distanceKm: cumulativeMeters / 1000,
                 speedKmh: speedKmh,
                 heartRate: bpm,
                 zone: zone
