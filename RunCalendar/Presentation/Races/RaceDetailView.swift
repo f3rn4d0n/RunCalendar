@@ -88,6 +88,22 @@ struct RaceDetailView: View {
                 }
             }
 
+            if race.status == .completed, trainingViewModel.canShowRoutes {
+                Section("Recorrido") {
+                    NavigationLink {
+                        WorkoutRouteMapView(
+                            title: race.name,
+                            date: race.date,
+                            distanceKm: race.distanceKm,
+                            loader: trainingViewModel.route,
+                            isAvailable: trainingViewModel.canShowRoutes
+                        )
+                    } label: {
+                        Label("Ver ruta en el mapa", systemImage: "map")
+                    }
+                }
+            }
+
             if !linkedTrainings.isEmpty {
                 Section("Entrenamientos para este evento") {
                     VStack(alignment: .leading, spacing: 6) {

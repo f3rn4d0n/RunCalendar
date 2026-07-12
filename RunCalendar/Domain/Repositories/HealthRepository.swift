@@ -15,6 +15,10 @@ protocol HealthRepository: Sendable {
     /// Carreras registradas en Salud en los últimos `days` días (para importarlas).
     func fetchRecentWorkouts(days: Int) async throws -> [HealthWorkout]
 
+    /// Traza GPS (+ FC por punto) de la corrida de Salud de ese día que mejor
+    /// coincide con `distanceKm`. `nil` si no hay corrida con ruta ese día.
+    func fetchRoute(onDay date: Date, distanceKm: Double?) async throws -> WorkoutRoute?
+
     /// Emite un aviso cuando cambian los entrenamientos en Salud
     /// (y una vez al empezar a observar). Vacío donde no hay HealthKit.
     func workoutUpdates() -> AsyncStream<Void>

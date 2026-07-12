@@ -46,6 +46,21 @@ struct TrainingDetailView: View {
                         row("Ritmo objetivo", pace, icon: "speedometer")
                     }
                 }
+                if viewModel.canShowRoutes {
+                    Section("Recorrido") {
+                        NavigationLink {
+                            WorkoutRouteMapView(
+                                title: session.title,
+                                date: session.date,
+                                distanceKm: session.distanceKm,
+                                loader: viewModel.route,
+                                isAvailable: viewModel.canShowRoutes
+                            )
+                        } label: {
+                            Label("Ver ruta en el mapa", systemImage: "map")
+                        }
+                    }
+                }
             } else if let wod = session.wod, !wod.isEmpty {
                 Section("WOD") { Text(wod) }
             }

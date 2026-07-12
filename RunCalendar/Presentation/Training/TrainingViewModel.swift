@@ -21,6 +21,7 @@ final class TrainingViewModel {
     private let updateTraining: UpdateTrainingUseCase
     private let deleteTraining: DeleteTrainingUseCase
     private let fetchRecentWorkouts: FetchRecentWorkoutsUseCase
+    private let fetchWorkoutRoute: FetchWorkoutRouteUseCase
 
     init(
         userID: String,
@@ -28,7 +29,8 @@ final class TrainingViewModel {
         addTraining: AddTrainingUseCase,
         updateTraining: UpdateTrainingUseCase,
         deleteTraining: DeleteTrainingUseCase,
-        fetchRecentWorkouts: FetchRecentWorkoutsUseCase
+        fetchRecentWorkouts: FetchRecentWorkoutsUseCase,
+        fetchWorkoutRoute: FetchWorkoutRouteUseCase
     ) {
         self.userID = userID
         self.observeTrainings = observeTrainings
@@ -36,6 +38,20 @@ final class TrainingViewModel {
         self.updateTraining = updateTraining
         self.deleteTraining = deleteTraining
         self.fetchRecentWorkouts = fetchRecentWorkouts
+        self.fetchWorkoutRoute = fetchWorkoutRoute
+    }
+
+    /// ¿El dispositivo puede leer rutas de Salud? (falso en Mac).
+    var canShowRoutes: Bool { fetchWorkoutRoute.isAvailable }
+
+    /// Traza GPS de la corrida de Salud de ese día (para el detalle de carrera/entrenamiento).
+    func route(onDay date: Date, distanceKm: Double?) async -> WorkoutRoute? {
+        do {
+            return try await fetchWorkoutRoute(onDay: date, distanceKm: distanceKm)
+        } catch {
+            Log.health.error("route: error al leer ruta: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 
     func sessions(of type: TrainingType) -> [TrainingSession] {
