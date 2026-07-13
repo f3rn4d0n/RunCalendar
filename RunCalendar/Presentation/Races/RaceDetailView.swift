@@ -9,6 +9,7 @@ struct RaceDetailView: View {
 
     @State private var isEditing = false
     @State private var showDeleteAlert = false
+    @State private var calendarMessage: String?
     @Environment(\.dismiss) private var dismiss
 
     /// Versión viva de la carrera desde el ViewModel: refleja ediciones en tiempo real.
@@ -51,6 +52,15 @@ struct RaceDetailView: View {
                 row("Disciplina", race.discipline.displayName, icon: "figure.run")
                 if let distance = race.distanceKm {
                     row("Distancia", "\(distance.formatted()) km", icon: "ruler")
+                }
+                Button {
+                    Task {
+                        calendarMessage = await viewModel.addRaceToCalendar(race)
+                            ? "Se agregó la carrera a tu calendario."
+                            : "No se pudo agregar. Revisa el permiso de Calendario en Ajustes."
+                    }
+                } label: {
+                    Label("Añadir al calendario", systemImage: "calendar.badge.plus")
                 }
             }
 
@@ -145,6 +155,17 @@ struct RaceDetailView: View {
                     if let date = kit.date { row("Fecha", date.dateTimeString()) }
                     if let location = kit.location { row("Lugar", location.name) }
                     if !kit.notes.isEmpty { row("Notas", kit.notes) }
+                    if kit.date != nil {
+                        Button {
+                            Task {
+                                calendarMessage = await viewModel.addKitPickupToCalendar(race)
+                                    ? "Se agregó la entrega de kit a tu calendario."
+                                    : "No se pudo agregar. Revisa el permiso de Calendario en Ajustes."
+                            }
+                        } label: {
+                            Label("Añadir la entrega al calendario", systemImage: "calendar.badge.plus")
+                        }
+                    }
                 }
             }
 
@@ -176,6 +197,14 @@ struct RaceDetailView: View {
                 }
             }
             Button("Cancelar", role: .cancel) {}
+        }
+        .alert("Calendario", isPresented: Binding(
+            get: { calendarMessage != nil },
+            set: { if !$0 { calendarMessage = nil } }
+        )) {
+            Button("OK") { calendarMessage = nil }
+        } message: {
+            Text(calendarMessage ?? "")
         }
     }
 

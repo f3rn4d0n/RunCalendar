@@ -45,6 +45,8 @@ targets:
         NSHealthShareUsageDescription: >-
           RunCalendar lee tus entrenamientos y datos de condición física de Salud
           para estimar tu preparación hacia tus carreras.
+        NSCalendarsWriteOnlyAccessUsageDescription: >-
+          RunCalendar agrega tus carreras y entregas de kit a tu calendario.
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - $(REVERSED_CLIENT_ID)
