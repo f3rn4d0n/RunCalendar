@@ -12,8 +12,7 @@ struct RaceFormView: View {
     @State private var date = Date()
     @State private var discipline: RaceDiscipline = .tenK
     @State private var distanceText = ""
-    @State private var locationName = ""
-    @State private var locationAddress = ""
+    @State private var location = RaceLocation(name: "")
     @State private var costText = ""
     @State private var currency = "MXN"
     @State private var registrationURLText = ""
@@ -58,9 +57,12 @@ struct RaceFormView: View {
                     }
                 }
 
-                Section("Ubicación") {
-                    TextField("Lugar", text: $locationName)
-                    TextField("Dirección", text: $locationAddress)
+                Section {
+                    LocationPickerField(location: $location)
+                } header: {
+                    Text("Ubicación")
+                } footer: {
+                    Text("Busca el lugar para guardar su ubicación exacta (mejora el clima y el mapa).")
                 }
 
                 Section("Costo e inscripción") {
@@ -140,8 +142,7 @@ struct RaceFormView: View {
         date = race.date
         discipline = race.discipline
         distanceText = race.distanceKm.map { String($0) } ?? ""
-        locationName = race.location.name
-        locationAddress = race.location.address
+        location = race.location
         costText = race.cost.map { NSDecimalNumber(decimal: $0).stringValue } ?? ""
         currency = race.currency
         registrationURLText = race.registrationURL?.absoluteString ?? ""
@@ -187,7 +188,7 @@ struct RaceFormView: View {
             date: date,
             discipline: discipline,
             distanceKm: Double(distanceText.replacingOccurrences(of: ",", with: ".")),
-            location: RaceLocation(name: locationName, address: locationAddress),
+            location: location,
             cost: Decimal(string: costText.replacingOccurrences(of: ",", with: ".")),
             currency: currency.isEmpty ? "MXN" : currency,
             registrationURL: URL(string: registrationURLText),
