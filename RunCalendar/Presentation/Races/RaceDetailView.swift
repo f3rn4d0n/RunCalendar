@@ -69,6 +69,9 @@ struct RaceDetailView: View {
                 if !race.location.address.isEmpty {
                     row("Dirección", race.location.address, icon: "map")
                 }
+                if let coordinate = race.location.coordinate {
+                    NavigateButton(coordinate: coordinate)
+                }
             }
 
             if race.location.latitude != nil || !race.location.name.isEmpty || !race.location.address.isEmpty {
@@ -155,6 +158,9 @@ struct RaceDetailView: View {
                     if let date = kit.date { row("Fecha", date.dateTimeString()) }
                     if let location = kit.location { row("Lugar", location.name) }
                     if !kit.notes.isEmpty { row("Notas", kit.notes) }
+                    if let coordinate = kit.location?.coordinate {
+                        NavigateButton(coordinate: coordinate, label: "Cómo llegar a la entrega")
+                    }
                     if kit.date != nil {
                         Button {
                             Task {
