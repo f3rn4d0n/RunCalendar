@@ -2,6 +2,30 @@ import Foundation
 import Observation
 import CoreLocation
 
+/// Total gastado en una moneda.
+struct CurrencyTotal: Identifiable {
+    let currency: String
+    let amount: Decimal
+    var id: String { currency }
+}
+
+/// Gasto de un mes concreto.
+struct MonthlySpending: Identifiable {
+    let month: Int          // 1–12
+    let name: String
+    let totals: [CurrencyTotal]
+    let races: [Race]
+    var id: Int { month }
+}
+
+/// Resumen de gasto en carreras inscritas de un año, con desglose por mes.
+struct SpendingSummary {
+    let year: Int
+    let count: Int
+    let totals: [CurrencyTotal]
+    let months: [MonthlySpending]
+}
+
 @MainActor
 @Observable
 final class RacesViewModel {
@@ -56,6 +80,41 @@ final class RacesViewModel {
 
     var upcomingRaces: [Race] { races.filter { $0.status == .upcoming } }
     var completedRaces: [Race] { races.filter { $0.status == .completed } }
+
+    /// Gasto en carreras **inscritas** con costo del año en curso, con desglose
+    /// por mes y agrupado por moneda. `nil` si no hay ninguna.
+    var spendingThisYear: SpendingSummary? {
+        let calendar = Calendar.current
+        let year = calendar.component(.year, from: Date())
+        let paid = races.filter {
+            $0.isRegistered && $0.cost != nil && calendar.component(.year, from: $0.date) == year
+        }
+        guard !paid.isEmpty else { return nil }
+
+        let months = Dictionary(grouping: paid) { calendar.component(.month, from: $0.date) }
+            .map { month, racesInMonth in
+                MonthlySpending(
+                    month: month,
+                    name: racesInMonth[0].date.formatted(.dateTime.month(.wide)).capitalized,
+                    totals: currencyTotals(racesInMonth),
+                    races: racesInMonth.sorted { $0.date < $1.date }
+                )
+            }
+            .sorted { $0.month < $1.month }
+
+        return SpendingSummary(year: year, count: paid.count, totals: currencyTotals(paid), months: months)
+    }
+
+    /// Suma de costos agrupada por moneda (mayor a menor).
+    private func currencyTotals(_ races: [Race]) -> [CurrencyTotal] {
+        var byCurrency: [String: Decimal] = [:]
+        for race in races {
+            byCurrency[race.currency, default: 0] += race.cost ?? 0
+        }
+        return byCurrency
+            .sorted { $0.value > $1.value }
+            .map { CurrencyTotal(currency: $0.key, amount: $0.value) }
+    }
 
     func start() async {
         guard !hasStarted else { return }

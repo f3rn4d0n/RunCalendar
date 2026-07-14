@@ -85,6 +85,15 @@ struct RaceListView: View {
                     )
                 } else {
                     List {
+                        if let spending = viewModel.spendingThisYear {
+                            Section {
+                                NavigationLink {
+                                    SpendingDetailView(spending: spending)
+                                } label: {
+                                    SpendingSummaryCard(spending: spending)
+                                }
+                            }
+                        }
                         if !upcoming.isEmpty {
                             Section("Próximas") {
                                 ForEach(upcoming) { race in
@@ -135,6 +144,85 @@ struct RaceListView: View {
                 : "line.3.horizontal.decrease.circle")
         }
         .accessibilityLabel("Filtros y orden")
+    }
+}
+
+/// Tarjeta con el gasto en carreras del año en curso.
+private struct SpendingSummaryCard: View {
+    let spending: SpendingSummary
+
+    private var amountsText: String {
+        spending.totals
+            .map { $0.amount.currencyString(code: $0.currency) }
+            .joined(separator: " + ")
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "creditcard.fill")
+                .font(.mTitle3)
+                .foregroundStyle(Neon.teal)
+                .frame(width: 44, height: 44)
+                .background(Neon.teal.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(amountsText).font(.mTitle3.bold())
+                Text("en \(spending.count) \(spending.count == 1 ? "carrera inscrita" : "carreras inscritas") de \(String(spending.year))")
+                    .font(.mSubheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Detalle de gastos del año: total y desglose por mes con las carreras.
+private struct SpendingDetailView: View {
+    let spending: SpendingSummary
+
+    private func amounts(_ totals: [CurrencyTotal]) -> String {
+        totals.map { $0.amount.currencyString(code: $0.currency) }.joined(separator: " + ")
+    }
+
+    var body: some View {
+        List {
+            Section {
+                HStack {
+                    Text("Total \(String(spending.year))").font(.mHeadline)
+                    Spacer()
+                    Text(amounts(spending.totals))
+                        .font(.mHeadline).foregroundStyle(Neon.teal)
+                }
+            }
+
+            ForEach(spending.months) { month in
+                Section {
+                    ForEach(month.races) { race in
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(race.name).font(.mSubheadline)
+                                Text(race.date.mediumString())
+                                    .font(.mCaption2).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if let cost = race.cost {
+                                Text(cost.currencyString(code: race.currency))
+                                    .font(.mSubheadline.monospacedDigit())
+                            }
+                        }
+                    }
+                } header: {
+                    HStack {
+                        Text(month.name)
+                        Spacer()
+                        Text(amounts(month.totals)).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Gastos \(String(spending.year))")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
