@@ -32,7 +32,7 @@ struct RaceFormView: View {
     // Kit
     @State private var hasKit = false
     @State private var kitDate = Date()
-    @State private var kitLocation = ""
+    @State private var kitLocation = RaceLocation(name: "")
     @State private var kitNotes = ""
 
     private var isNew: Bool { race == nil }
@@ -99,7 +99,7 @@ struct RaceFormView: View {
                     Toggle("Tiene entrega de kit", isOn: $hasKit)
                     if hasKit {
                         DatePicker("Fecha del kit", selection: $kitDate)
-                        TextField("Lugar del kit", text: $kitLocation)
+                        LocationPickerField(location: $kitLocation, prompt: "Buscar lugar del kit")
                         TextField("Notas del kit", text: $kitNotes)
                     }
                 }
@@ -159,7 +159,7 @@ struct RaceFormView: View {
         if let kit = race.kitPickup {
             hasKit = true
             kitDate = kit.date ?? race.date
-            kitLocation = kit.location?.name ?? ""
+            kitLocation = kit.location ?? RaceLocation(name: "")
             kitNotes = kit.notes
         }
     }
@@ -168,7 +168,7 @@ struct RaceFormView: View {
         let kit: KitPickup? = hasKit
             ? KitPickup(
                 date: kitDate,
-                location: kitLocation.isEmpty ? nil : RaceLocation(name: kitLocation),
+                location: kitLocation.name.isEmpty ? nil : kitLocation,
                 notes: kitNotes
             )
             : nil

@@ -31,6 +31,8 @@ enum RaceDTO {
             kitDict["date"] = kit.date.map { Timestamp(date: $0) }
             kitDict["locationName"] = kit.location?.name
             kitDict["locationAddress"] = kit.location?.address
+            kitDict["locationLatitude"] = kit.location?.latitude
+            kitDict["locationLongitude"] = kit.location?.longitude
             dict["kitPickup"] = kitDict
         }
         return dict
@@ -53,7 +55,12 @@ enum RaceDTO {
         if let kitDict = data["kitPickup"] as? [String: Any] {
             let kitLocationName = kitDict["locationName"] as? String
             let kitLocation = kitLocationName.map {
-                RaceLocation(name: $0, address: kitDict["locationAddress"] as? String ?? "")
+                RaceLocation(
+                    name: $0,
+                    address: kitDict["locationAddress"] as? String ?? "",
+                    latitude: kitDict["locationLatitude"] as? Double,
+                    longitude: kitDict["locationLongitude"] as? Double
+                )
             }
             kitPickup = KitPickup(
                 date: (kitDict["date"] as? Timestamp)?.dateValue(),

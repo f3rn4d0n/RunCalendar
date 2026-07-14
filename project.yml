@@ -47,6 +47,9 @@ targets:
           para estimar tu preparación hacia tus carreras.
         NSCalendarsWriteOnlyAccessUsageDescription: >-
           RunCalendar agrega tus carreras y entregas de kit a tu calendario.
+        LSApplicationQueriesSchemes:
+          - comgooglemaps
+          - waze
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - $(REVERSED_CLIENT_ID)
