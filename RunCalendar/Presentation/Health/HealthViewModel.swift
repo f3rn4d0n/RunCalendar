@@ -9,7 +9,7 @@ final class HealthViewModel {
         case unavailable          // p. ej. en Mac
         case needsAuthorization
         case loading
-        case loaded(FitnessSummary, [RaceReadiness])
+        case loaded(FitnessSummary, [RaceReadiness], RecoveryEstimate?, RecoveryTrend?, WorkloadRatio?)
         case error(String)
     }
 
@@ -17,10 +17,28 @@ final class HealthViewModel {
 
     private let fetchSummary: FetchFitnessSummaryUseCase
     private let assessReadiness: AssessReadinessUseCase
+    private let fetchRecovery: FetchRecoveryUseCase
+    private let assessRecovery: AssessRecoveryUseCase
+    private let fetchRecoveryTrend: FetchRecoveryTrendUseCase
+    private let fetchWorkload: FetchWorkloadUseCase
+    private let assessWorkload: AssessWorkloadUseCase
 
-    init(fetchSummary: FetchFitnessSummaryUseCase, assessReadiness: AssessReadinessUseCase) {
+    init(
+        fetchSummary: FetchFitnessSummaryUseCase,
+        assessReadiness: AssessReadinessUseCase,
+        fetchRecovery: FetchRecoveryUseCase,
+        assessRecovery: AssessRecoveryUseCase,
+        fetchRecoveryTrend: FetchRecoveryTrendUseCase,
+        fetchWorkload: FetchWorkloadUseCase,
+        assessWorkload: AssessWorkloadUseCase
+    ) {
         self.fetchSummary = fetchSummary
         self.assessReadiness = assessReadiness
+        self.fetchRecovery = fetchRecovery
+        self.assessRecovery = assessRecovery
+        self.fetchRecoveryTrend = fetchRecoveryTrend
+        self.fetchWorkload = fetchWorkload
+        self.assessWorkload = assessWorkload
         // Arranca cargando (no en "conectar"): HealthKit no re-muestra la hoja de
         // permisos si el usuario ya respondió, así que cargamos directo.
         self.state = fetchSummary.isAvailable ? .loading : .unavailable
@@ -60,7 +78,10 @@ final class HealthViewModel {
         if case .loaded = state {} else { state = .loading }
         do {
             let summary = try await fetchSummary()
-            state = .loaded(summary, assessReadiness(summary))
+            let recovery = try await fetchRecovery().map(assessRecovery.callAsFunction)
+            let trend = (try? await fetchRecoveryTrend()) ?? nil
+            let workload = try await fetchWorkload().flatMap(assessWorkload.callAsFunction)
+            state = .loaded(summary, assessReadiness(summary), recovery, trend, workload)
         } catch {
             state = .error(error.localizedDescription)
         }

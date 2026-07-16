@@ -97,7 +97,12 @@ final class AppContainer {
     func makeHealthViewModel() -> HealthViewModel {
         HealthViewModel(
             fetchSummary: FetchFitnessSummaryUseCase(repository: healthRepository),
-            assessReadiness: AssessReadinessUseCase()
+            assessReadiness: AssessReadinessUseCase(),
+            fetchRecovery: FetchRecoveryUseCase(repository: healthRepository),
+            assessRecovery: AssessRecoveryUseCase(),
+            fetchRecoveryTrend: FetchRecoveryTrendUseCase(repository: healthRepository),
+            fetchWorkload: FetchWorkloadUseCase(repository: healthRepository),
+            assessWorkload: AssessWorkloadUseCase()
         )
     }
 }
