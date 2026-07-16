@@ -21,6 +21,9 @@ protocol HealthRepository: Sendable {
     /// Minutos de entrenamiento agudos (7 d) y crónicos (28 d) para la relación ACWR.
     func fetchWorkload() async throws -> WorkloadInput?
 
+    /// Volumen semanal y ritmo por corrida de las últimas `weeks` semanas (para graficar).
+    func fetchFitnessTrend(weeks: Int) async throws -> FitnessTrend?
+
     /// Carreras registradas en Salud en los últimos `days` días (para importarlas).
     func fetchRecentWorkouts(days: Int) async throws -> [HealthWorkout]
 

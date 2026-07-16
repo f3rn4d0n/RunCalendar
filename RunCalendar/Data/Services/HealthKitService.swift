@@ -113,6 +113,70 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         )
     }
 
+    func fetchFitnessTrend(weeks: Int) async throws -> FitnessTrend? {
+        guard isAvailable() else { return nil }
+        let calendar = Calendar.current
+        let start = calendar.date(byAdding: .day, value: -7 * weeks, to: calendar.startOfDay(for: Date())) ?? Date()
+        let runs = try await runningWorkouts(since: start)
+
+        // VO₂max: promedio semanal de los últimos ~6 meses (se mueve lento).
+        async let vo2 = weeklyVO2Series(weeks: 26)
+
+        // Volumen: km por semana (semana que empieza el lunes), cronológico.
+        var kmByWeek: [Date: Double] = [:]
+        for run in runs {
+            let weekStart = calendar.dateInterval(of: .weekOfYear, for: run.startDate)?.start
+                ?? calendar.startOfDay(for: run.startDate)
+            kmByWeek[weekStart, default: 0] += workoutDistanceKm(run)
+        }
+        let weeklyVolume = kmByWeek
+            .map { WeeklyVolume(weekStart: $0.key, km: $0.value) }
+            .sorted { $0.weekStart < $1.weekStart }
+
+        // Ritmo por corrida (con distancia y duración válidas), cronológico.
+        let pace = runs
+            .compactMap { run -> RunPacePoint? in
+                let km = workoutDistanceKm(run)
+                guard km > 0, run.duration > 0 else { return nil }
+                return RunPacePoint(
+                    id: run.uuid.uuidString,
+                    date: run.startDate,
+                    paceSecondsPerKm: Int(run.duration / km),
+                    distanceKm: km
+                )
+            }
+            .sorted { $0.date < $1.date }
+
+        return FitnessTrend(weeklyVolume: weeklyVolume, pace: pace, vo2Max: try await vo2)
+    }
+
+    /// Promedio semanal de VO₂max de las últimas `weeks` semanas (solo semanas con dato).
+    private func weeklyVO2Series(weeks: Int) async throws -> [VO2Point] {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .vo2Max) else { return [] }
+        let calendar = Calendar.current
+        let anchor = calendar.startOfDay(for: Date())
+        let start = calendar.date(byAdding: .day, value: -7 * weeks, to: anchor) ?? Date()
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
+        var interval = DateComponents(); interval.weekOfYear = 1
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: type, quantitySamplePredicate: predicate,
+                options: .discreteAverage, anchorDate: anchor, intervalComponents: interval
+            )
+            query.initialResultsHandler = { _, collection, error in
+                if let error { continuation.resume(throwing: error); return }
+                var result: [VO2Point] = []
+                collection?.enumerateStatistics(from: start, to: Date()) { stat, _ in
+                    if let avg = stat.averageQuantity()?.doubleValue(for: self.vo2Unit) {
+                        result.append(VO2Point(date: stat.startDate, value: avg))
+                    }
+                }
+                continuation.resume(returning: result)
+            }
+            store.execute(query)
+        }
+    }
+
     func fetchWorkload() async throws -> WorkloadInput? {
         guard isAvailable() else { return nil }
         async let acute = recentWorkoutLoad(hours: 7 * 24)

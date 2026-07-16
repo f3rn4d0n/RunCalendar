@@ -1,6 +1,16 @@
 import Foundation
 import Observation
 
+/// Todo lo que se muestra en Condición cuando hay datos cargados.
+struct HealthLoaded: Equatable {
+    let summary: FitnessSummary
+    let readiness: [RaceReadiness]
+    let recovery: RecoveryEstimate?
+    let recoveryTrend: RecoveryTrend?
+    let workload: WorkloadRatio?
+    let fitnessTrend: FitnessTrend?
+}
+
 @MainActor
 @Observable
 final class HealthViewModel {
@@ -9,7 +19,7 @@ final class HealthViewModel {
         case unavailable          // p. ej. en Mac
         case needsAuthorization
         case loading
-        case loaded(FitnessSummary, [RaceReadiness], RecoveryEstimate?, RecoveryTrend?, WorkloadRatio?)
+        case loaded(HealthLoaded)
         case error(String)
     }
 
@@ -22,6 +32,7 @@ final class HealthViewModel {
     private let fetchRecoveryTrend: FetchRecoveryTrendUseCase
     private let fetchWorkload: FetchWorkloadUseCase
     private let assessWorkload: AssessWorkloadUseCase
+    private let fetchFitnessTrend: FetchFitnessTrendUseCase
 
     init(
         fetchSummary: FetchFitnessSummaryUseCase,
@@ -30,7 +41,8 @@ final class HealthViewModel {
         assessRecovery: AssessRecoveryUseCase,
         fetchRecoveryTrend: FetchRecoveryTrendUseCase,
         fetchWorkload: FetchWorkloadUseCase,
-        assessWorkload: AssessWorkloadUseCase
+        assessWorkload: AssessWorkloadUseCase,
+        fetchFitnessTrend: FetchFitnessTrendUseCase
     ) {
         self.fetchSummary = fetchSummary
         self.assessReadiness = assessReadiness
@@ -39,6 +51,7 @@ final class HealthViewModel {
         self.fetchRecoveryTrend = fetchRecoveryTrend
         self.fetchWorkload = fetchWorkload
         self.assessWorkload = assessWorkload
+        self.fetchFitnessTrend = fetchFitnessTrend
         // Arranca cargando (no en "conectar"): HealthKit no re-muestra la hoja de
         // permisos si el usuario ya respondió, así que cargamos directo.
         self.state = fetchSummary.isAvailable ? .loading : .unavailable
@@ -79,9 +92,17 @@ final class HealthViewModel {
         do {
             let summary = try await fetchSummary()
             let recovery = try await fetchRecovery().map(assessRecovery.callAsFunction)
-            let trend = (try? await fetchRecoveryTrend()) ?? nil
+            let recoveryTrend = (try? await fetchRecoveryTrend()) ?? nil
             let workload = try await fetchWorkload().flatMap(assessWorkload.callAsFunction)
-            state = .loaded(summary, assessReadiness(summary), recovery, trend, workload)
+            let fitnessTrend = (try? await fetchFitnessTrend()) ?? nil
+            state = .loaded(HealthLoaded(
+                summary: summary,
+                readiness: assessReadiness(summary),
+                recovery: recovery,
+                recoveryTrend: recoveryTrend,
+                workload: workload,
+                fitnessTrend: fitnessTrend
+            ))
         } catch {
             state = .error(error.localizedDescription)
         }

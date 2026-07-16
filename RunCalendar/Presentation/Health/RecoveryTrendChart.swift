@@ -7,6 +7,9 @@ import Charts
 struct RecoveryTrendSection: View {
     let trend: RecoveryTrend
 
+    @State private var hrvSel: Date?
+    @State private var sleepSel: Date?
+
     private var enoughHRV: Bool { trend.hrvValues.count >= 3 }
     private var enoughSleep: Bool { trend.sleepValues.count >= 3 }
 
@@ -96,7 +99,12 @@ struct RecoveryTrendSection: View {
                         .lineStyle(StrokeStyle(lineWidth: 2))
                         .interpolationMethod(.catmullRom)
                 }
+                if let sel = nearestByDate(hrvSel, in: trend.hrvValues, \.date), let hrv = sel.hrv {
+                    chartSelectionMark(date: sel.date, title: sel.date.mediumString(),
+                                       value: "\(Int(hrv)) ms")
+                }
             }
+            .chartXSelection(value: $hrvSel)
             .chartYAxisLabel("ms")
             .chartYAxis { AxisMarks(position: .leading) }
             .chartXAxis {
@@ -136,7 +144,12 @@ struct RecoveryTrendSection: View {
                         .foregroundStyle(Neon.teal)
                         .cornerRadius(3)
                 }
+                if let sel = nearestByDate(sleepSel, in: trend.sleepValues, \.date), let hours = sel.sleepHours {
+                    chartSelectionMark(date: sel.date, title: sel.date.mediumString(),
+                                       value: "\(hours.formatted(.number.precision(.fractionLength(1)))) h")
+                }
             }
+            .chartXSelection(value: $sleepSel)
             .chartYAxisLabel("horas")
             .chartYAxis { AxisMarks(position: .leading) }
             .chartXAxis {
