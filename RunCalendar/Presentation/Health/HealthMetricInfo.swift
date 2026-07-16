@@ -80,6 +80,48 @@ enum HealthMetricInfo {
         )
     }
 
+    static func hrv(current: Double, baseline: Double, deviationPct: Double?) -> MetricInfo {
+        let cur = Int(current.rounded())
+        let base = Int(baseline.rounded())
+        let category: String
+        switch deviationPct ?? 0 {
+        case 5...:        category = "Por encima de tu base — buena señal de recuperación."
+        case -5..<5:      category = "En tu rango normal."
+        case -15 ..< -5:  category = "Algo por debajo de tu base — recuperación incompleta."
+        default:          category = "Bastante por debajo de tu base — prioriza descanso."
+        }
+        return MetricInfo(
+            importance: "El HRV (variabilidad de la frecuencia cardiaca, SDNN) mide la variación entre "
+                + "latidos. Un HRV más alto refleja un sistema nervioso recuperado y listo; cuando cae "
+                + "por debajo de tu base suele indicar fatiga, estrés o entrenamiento acumulado.",
+            reference: [
+                "Lo que importa es tu tendencia vs. tu propia base, no compararte con otros.",
+                "El HRV varía mucho por edad, sueño, alcohol, estrés e hidratación.",
+                "El Apple Watch lo mide de noche y en sesiones de Respirar."
+            ],
+            assessment: "Tu valor: \(cur) ms vs base \(base) ms → \(category)"
+        )
+    }
+
+    static func sleep(_ hours: Double) -> MetricInfo {
+        let category: String
+        switch hours {
+        case 8...:      category = "Excelente para recuperar."
+        case 7..<8:     category = "Bien — dentro del rango recomendado."
+        case 6..<7:     category = "Algo corto; tu recuperación puede resentirlo."
+        default:        category = "Corto — prioriza dormir más para recuperar mejor."
+        }
+        return MetricInfo(
+            importance: "El sueño es cuando tu cuerpo repara tejido y consolida la adaptación al "
+                + "entrenamiento. Dormir poco baja tu HRV, sube tu FC en reposo y alarga tu recuperación.",
+            reference: [
+                "Recomendado para adultos: 7–9 h.",
+                "Los deportistas en carga alta suelen necesitar el extremo alto del rango."
+            ],
+            assessment: "Anoche: \(hours.formatted(.number.precision(.fractionLength(1)))) h → \(category)"
+        )
+    }
+
     static func vo2Max(_ value: Double, age: Int?) -> MetricInfo {
         // Los umbrales bajan con la edad (aprox. tras los 30).
         let ageAdj = Double(max(0, (age ?? 30) - 30)) * 0.3

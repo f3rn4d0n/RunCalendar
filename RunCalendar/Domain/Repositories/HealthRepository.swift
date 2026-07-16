@@ -12,6 +12,15 @@ protocol HealthRepository: Sendable {
     /// Calcula el resumen de condición de las últimas `weeks` semanas.
     func fetchSummary(weeks: Int) async throws -> FitnessSummary
 
+    /// Datos crudos (HRV, FC en reposo, carga reciente) para estimar recuperación.
+    func fetchRecovery() async throws -> RecoverySnapshot?
+
+    /// Serie diaria de HRV y sueño de los últimos `days` días (para graficar la tendencia).
+    func fetchRecoveryTrend(days: Int) async throws -> RecoveryTrend?
+
+    /// Minutos de entrenamiento agudos (7 d) y crónicos (28 d) para la relación ACWR.
+    func fetchWorkload() async throws -> WorkloadInput?
+
     /// Carreras registradas en Salud en los últimos `days` días (para importarlas).
     func fetchRecentWorkouts(days: Int) async throws -> [HealthWorkout]
 
