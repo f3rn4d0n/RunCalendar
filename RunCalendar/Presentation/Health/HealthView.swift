@@ -19,9 +19,8 @@ struct HealthView: View {
                     connectPrompt
                 case .loading:
                     ProgressView("Leyendo Salud…")
-                case .loaded(let summary, let readiness, let recovery, let trend, let workload):
-                    loaded(summary: summary, readiness: readiness, recovery: recovery,
-                           trend: trend, workload: workload)
+                case .loaded(let data):
+                    loaded(data)
                 case .error(let message):
                     VStack(spacing: 16) {
                         EmptyStateView(icon: "exclamationmark.triangle", title: "Ups", message: message)
@@ -51,24 +50,26 @@ struct HealthView: View {
         .padding()
     }
 
-    private func loaded(summary: FitnessSummary, readiness: [RaceReadiness],
-                        recovery: RecoveryEstimate?, trend: RecoveryTrend?,
-                        workload: WorkloadRatio?) -> some View {
+    private func loaded(_ data: HealthLoaded) -> some View {
         List {
-            if let recovery {
+            if let recovery = data.recovery {
                 recoverySection(recovery)
             }
-            if let trend {
+            if let trend = data.recoveryTrend {
                 RecoveryTrendSection(trend: trend)
             }
-            if let workload {
+            if let workload = data.workload {
                 workloadSection(workload)
             }
 
-            summarySection(summary)
+            summarySection(data.summary)
+
+            if let fitnessTrend = data.fitnessTrend {
+                FitnessTrendSection(trend: fitnessTrend)
+            }
 
             Section {
-                ForEach(readiness) { item in
+                ForEach(data.readiness) { item in
                     NavigationLink {
                         ReadinessDetailView(readiness: item)
                     } label: {

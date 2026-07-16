@@ -41,6 +41,16 @@ struct FetchRecoveryTrendUseCase: Sendable {
     }
 }
 
+/// Trae el volumen semanal y el ritmo por corrida para las gráficas de tendencia.
+struct FetchFitnessTrendUseCase: Sendable {
+    private let repository: HealthRepository
+    init(repository: HealthRepository) { self.repository = repository }
+
+    func callAsFunction(weeks: Int = 8) async throws -> FitnessTrend? {
+        try await repository.fetchFitnessTrend(weeks: weeks)
+    }
+}
+
 /// Estima el tiempo de recuperación a partir del HRV, la FC en reposo y la carga
 /// reciente. Heurística **orientativa** y transparente, no es consejo médico.
 struct AssessRecoveryUseCase: Sendable {

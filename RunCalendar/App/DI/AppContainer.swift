@@ -102,7 +102,8 @@ final class AppContainer {
             assessRecovery: AssessRecoveryUseCase(),
             fetchRecoveryTrend: FetchRecoveryTrendUseCase(repository: healthRepository),
             fetchWorkload: FetchWorkloadUseCase(repository: healthRepository),
-            assessWorkload: AssessWorkloadUseCase()
+            assessWorkload: AssessWorkloadUseCase(),
+            fetchFitnessTrend: FetchFitnessTrendUseCase(repository: healthRepository)
         )
     }
 }
