@@ -21,6 +21,7 @@ struct RaceListView: View {
     @State var viewModel: RacesViewModel
     let trainingViewModel: TrainingViewModel
     @State private var isCreating = false
+    @State private var showingRecords = false
 
     // Filtros / orden
     @State private var sort: RaceSort = .date
@@ -115,12 +116,19 @@ struct RaceListView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { filterMenu }
                 ToolbarItem(placement: .primaryAction) {
+                    Button { showingRecords = true } label: { Image(systemName: "medal") }
+                        .accessibilityLabel("Récords personales")
+                }
+                ToolbarItem(placement: .primaryAction) {
                     Button { isCreating = true } label: { Image(systemName: "plus") }
                         .accessibilityLabel("Agregar carrera")
                 }
             }
             .sheet(isPresented: $isCreating) {
                 RaceFormView(viewModel: viewModel, race: nil)
+            }
+            .sheet(isPresented: $showingRecords) {
+                PersonalRecordsView(racesViewModel: viewModel, trainingViewModel: trainingViewModel)
             }
         }
     }

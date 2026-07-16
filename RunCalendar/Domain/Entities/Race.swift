@@ -11,6 +11,17 @@ enum RaceDiscipline: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
     var displayName: String { rawValue }
+
+    /// Distancia oficial en km (para ritmo/récords). `nil` en distancias variables.
+    var standardDistanceKm: Double? {
+        switch self {
+        case .fiveK:        return 5
+        case .tenK:         return 10
+        case .halfMarathon: return 21.0975
+        case .marathon:     return 42.195
+        case .trail, .other: return nil
+        }
+    }
 }
 
 /// Estado de la carrera respecto a la fecha actual.
