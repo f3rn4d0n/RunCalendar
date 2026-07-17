@@ -26,7 +26,7 @@ struct MainTabView: View {
             racesViewModel: races,
             trainingViewModel: trainings
         ))
-        _healthViewModel = State(initialValue: container.makeHealthViewModel())
+        _healthViewModel = State(initialValue: container.makeHealthViewModel(userID: user.id))
     }
 
     var body: some View {
