@@ -16,6 +16,7 @@ enum TrainingDTO {
         dict["durationMin"] = session.durationMin
         dict["distanceKm"] = session.distanceKm
         dict["targetPace"] = session.targetPace
+        dict["avgHeartRate"] = session.avgHeartRate
         dict["wod"] = session.wod
         dict["isPriority"] = session.isPriority
         dict["targetRaceID"] = session.targetRaceID
@@ -37,6 +38,7 @@ enum TrainingDTO {
             durationMin: data["durationMin"] as? Int,
             distanceKm: data["distanceKm"] as? Double,
             targetPace: data["targetPace"] as? String,
+            avgHeartRate: data["avgHeartRate"] as? Int,
             wod: data["wod"] as? String,
             completed: data["completed"] as? Bool ?? false,
             notes: data["notes"] as? String ?? "",

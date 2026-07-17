@@ -7,4 +7,6 @@ struct HealthWorkout: Identifiable, Equatable, Sendable {
     let date: Date
     let distanceKm: Double
     let durationMin: Int?
+    /// Frecuencia cardiaca promedio (lpm), si el workout la registró.
+    let avgHeartRate: Int?
 }

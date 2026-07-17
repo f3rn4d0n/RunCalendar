@@ -20,6 +20,13 @@ struct TrainingDetailView: View {
         session.targetRaceID.flatMap { id in racesViewModel.races.first { $0.id == id }?.name }
     }
 
+    /// Ritmo promedio "m:ss" derivado de la distancia y la duración registradas.
+    private var avgPace: String? {
+        guard let km = session.distanceKm, km > 0, let min = session.durationMin, min > 0 else { return nil }
+        let secondsPerKm = Int(Double(min * 60) / km)
+        return String(format: "%d:%02d", secondsPerKm / 60, secondsPerKm % 60)
+    }
+
     var body: some View {
         List {
             Section {
@@ -42,8 +49,14 @@ struct TrainingDetailView: View {
                     if let distance = session.distanceKm {
                         row("Distancia", "\(distance.formatted()) km", icon: "ruler")
                     }
+                    if let pace = avgPace {
+                        row("Ritmo promedio", "\(pace) /km", icon: "speedometer")
+                    }
+                    if let hr = session.avgHeartRate {
+                        row("FC promedio", "\(hr) lpm", icon: "heart.fill")
+                    }
                     if let pace = session.targetPace, !pace.isEmpty {
-                        row("Ritmo objetivo", pace, icon: "speedometer")
+                        row("Ritmo objetivo", pace, icon: "target")
                     }
                 }
                 if viewModel.canShowRoutes {

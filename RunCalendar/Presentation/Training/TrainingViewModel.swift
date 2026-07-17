@@ -115,6 +115,7 @@ final class TrainingViewModel {
             title: "Carrera \(km) km",
             durationMin: workout.durationMin,
             distanceKm: workout.distanceKm,
+            avgHeartRate: workout.avgHeartRate,
             completed: true
         )
         _ = await save(session, isNew: true)
