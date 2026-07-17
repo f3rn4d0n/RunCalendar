@@ -21,6 +21,7 @@ private struct CalendarItem: Identifiable {
 struct CalendarView: View {
     @State var racesViewModel: RacesViewModel
     @State var trainingViewModel: TrainingViewModel
+    let healthViewModel: HealthViewModel
 
     @State private var selectedDate = Date()
 
@@ -124,7 +125,8 @@ struct CalendarView: View {
     private func destination(for item: CalendarItem) -> some View {
         switch item.payload {
         case .race(let race):
-            RaceDetailView(initialRace: race, viewModel: racesViewModel, trainingViewModel: trainingViewModel)
+            RaceDetailView(initialRace: race, viewModel: racesViewModel,
+                           trainingViewModel: trainingViewModel, healthViewModel: healthViewModel)
         case .training(let session):
             TrainingDetailView(
                 initialSession: session,

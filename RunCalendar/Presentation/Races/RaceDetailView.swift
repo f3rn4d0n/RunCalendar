@@ -6,6 +6,7 @@ struct RaceDetailView: View {
     let initialRace: Race
     @State var viewModel: RacesViewModel
     let trainingViewModel: TrainingViewModel
+    let healthViewModel: HealthViewModel
 
     @State private var isEditing = false
     @State private var showDeleteAlert = false
@@ -26,6 +27,43 @@ struct RaceDetailView: View {
 
     private var completedTrainingCount: Int {
         linkedTrainings.filter(\.completed).count
+    }
+
+    private static let standardDistances: [RaceDiscipline] = [.fiveK, .tenK, .halfMarathon, .marathon]
+
+    /// Muestra la preparación solo para carreras próximas de distancia estándar.
+    private var showsReadiness: Bool {
+        healthViewModel.isHealthAvailable
+            && race.date.daysFromNow() >= 0
+            && Self.standardDistances.contains(race.discipline)
+    }
+
+    private var raceReadiness: RaceReadiness? {
+        healthViewModel.readinessByDistance.first { $0.distance == race.discipline }
+    }
+
+    @ViewBuilder
+    private var readinessSection: some View {
+        if showsReadiness {
+            Section {
+                if let readiness = raceReadiness {
+                    NavigationLink {
+                        ReadinessDetailView(readiness: readiness)
+                    } label: {
+                        RaceReadinessRow(race: race, readiness: readiness)
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Calculando con tus datos de Salud…").foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Tu preparación")
+            } footer: {
+                Text("Toca para ver qué mejorar antes de esta carrera.")
+            }
+        }
     }
 
     var body: some View {
@@ -63,6 +101,8 @@ struct RaceDetailView: View {
                     Label("Añadir al calendario", systemImage: "calendar.badge.plus")
                 }
             }
+
+            readinessSection
 
             Section("Ubicación") {
                 row("Lugar", race.location.name, icon: "mappin.and.ellipse")
@@ -187,6 +227,10 @@ struct RaceDetailView: View {
         }
         .navigationTitle(race.name)
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            // Carga la readiness si aún no está (idempotente: no re-pide permiso si ya se dio).
+            if showsReadiness { await healthViewModel.onAppear() }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Editar") { isEditing = true }

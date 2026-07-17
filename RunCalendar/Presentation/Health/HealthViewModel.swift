@@ -25,6 +25,15 @@ final class HealthViewModel {
 
     private(set) var state: State
 
+    /// Readiness por distancia si ya se cargó (para el detalle de carrera). Vacío si no.
+    var readinessByDistance: [RaceReadiness] {
+        if case .loaded(let data) = state { return data.readiness }
+        return []
+    }
+
+    /// ¿Hay datos de salud disponibles en este dispositivo? (falso en Mac).
+    var isHealthAvailable: Bool { fetchSummary.isAvailable }
+
     private let fetchSummary: FetchFitnessSummaryUseCase
     private let assessReadiness: AssessReadinessUseCase
     private let fetchRecovery: FetchRecoveryUseCase
