@@ -42,6 +42,12 @@ struct TrainingDetailView: View {
                 }
                 row("Estado", session.completed ? "Completado" : "Pendiente",
                     icon: session.completed ? "checkmark.circle" : "circle")
+                if let rpe = session.rpe {
+                    row("Esfuerzo (RPE)", "\(rpe)/10", icon: "gauge.with.dots.needle.67percent")
+                }
+                if let load = session.sessionLoad {
+                    row("Carga de sesión", "\(load)", icon: "chart.bar.fill")
+                }
             }
 
             if session.type == .running {

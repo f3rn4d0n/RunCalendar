@@ -97,6 +97,21 @@ final class TrainingViewModel {
             importedIDs.insert(workout.id)
             await importWorkout(workout)
         }
+        await backfillEffort()
+    }
+
+    /// Rellena el RPE de carreras ya importadas con el esfuerzo que Salud ahora expone.
+    /// Idempotente: solo toca las que aún no tienen RPE, así que en syncs siguientes es no-op.
+    private func backfillEffort() async {
+        for workout in recentWorkouts {
+            guard let effort = workout.perceivedEffort,
+                  var match = sessions.first(where: {
+                      $0.rpe == nil && isSameActivity(day: workout.date, km: workout.distanceKm, with: $0)
+                  })
+            else { continue }
+            match.rpe = effort
+            _ = await save(match, isNew: false)
+        }
     }
 
     /// Re-sincroniza cuando Salud reporta entrenamientos nuevos. Llamar una vez por sesión.
@@ -116,7 +131,8 @@ final class TrainingViewModel {
             durationMin: workout.durationMin,
             distanceKm: workout.distanceKm,
             avgHeartRate: workout.avgHeartRate,
-            completed: true
+            completed: true,
+            rpe: workout.perceivedEffort
         )
         _ = await save(session, isNew: true)
     }

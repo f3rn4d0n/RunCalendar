@@ -20,6 +20,7 @@ struct TrainingFormView: View {
     @State private var notes = ""
     @State private var isPriority = false
     @State private var targetRaceID: String?
+    @State private var rpe = 0   // 0 = sin registrar
 
     /// Al elegir "editar la parecida", pasamos a editar ese entrenamiento existente.
     @State private var editing: TrainingSession?
@@ -54,6 +55,12 @@ struct TrainingFormView: View {
                     Toggle("Completado", isOn: $completed)
                     Toggle(isOn: $isPriority) {
                         Label("Prioritario", systemImage: "star.fill")
+                    }
+                    Picker("Esfuerzo (RPE)", selection: $rpe) {
+                        Text("Sin registrar").tag(0)
+                        ForEach(1...10, id: \.self) { level in
+                            Text("\(level) · \(rpeLabel(level))").tag(level)
+                        }
                     }
                 }
 
@@ -140,6 +147,17 @@ struct TrainingFormView: View {
         notes = session.notes
         isPriority = session.isPriority
         targetRaceID = session.targetRaceID
+        rpe = session.rpe ?? 0
+    }
+
+    private func rpeLabel(_ level: Int) -> String {
+        switch level {
+        case 1, 2: return "Muy fácil"
+        case 3, 4: return "Fácil"
+        case 5, 6: return "Moderado"
+        case 7, 8: return "Duro"
+        default:   return "Máximo"
+        }
     }
 
     private func save() async {
@@ -158,7 +176,8 @@ struct TrainingFormView: View {
             completed: completed,
             notes: notes,
             isPriority: isPriority,
-            targetRaceID: targetRaceID
+            targetRaceID: targetRaceID,
+            rpe: rpe == 0 ? nil : rpe
         )
 
         // Al crear una carrera, avisa si ya hay una parecida (evita duplicar la del Watch).

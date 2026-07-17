@@ -39,6 +39,14 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
     var isPriority: Bool
     /// Evento objetivo (id de la carrera) al que apunta este entrenamiento.
     var targetRaceID: String?
+    /// Esfuerzo percibido (RPE, 1–10). Base para calibrar la carga.
+    var rpe: Int?
+
+    /// Carga de sesión (RPE × minutos), métrica estándar de carga de entrenamiento.
+    var sessionLoad: Int? {
+        guard let rpe, let durationMin else { return nil }
+        return rpe * durationMin
+    }
 
     init(
         id: String = UUID().uuidString,
@@ -54,7 +62,8 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         completed: Bool = false,
         notes: String = "",
         isPriority: Bool = false,
-        targetRaceID: String? = nil
+        targetRaceID: String? = nil,
+        rpe: Int? = nil
     ) {
         self.id = id
         self.date = date
@@ -70,5 +79,6 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         self.notes = notes
         self.isPriority = isPriority
         self.targetRaceID = targetRaceID
+        self.rpe = rpe
     }
 }
