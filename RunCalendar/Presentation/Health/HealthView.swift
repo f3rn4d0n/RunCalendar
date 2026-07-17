@@ -69,6 +69,9 @@ struct HealthView: View {
             if let recovery = data.recovery {
                 recoverySection(recovery)
             }
+
+            checkInSection
+
             if let trend = data.recoveryTrend {
                 RecoveryTrendSection(trend: trend)
             }
@@ -136,6 +139,54 @@ struct HealthView: View {
             } footer: {
                 Text("Toca una carrera para ver qué mejorar antes del evento.")
             }
+        }
+    }
+
+    @ViewBuilder
+    private var checkInSection: some View {
+        Section {
+            feelingButtons(selected: viewModel.todayCheckIn?.feeling)
+            if let checkIn = viewModel.todayCheckIn {
+                Label("Registrado hoy: \(feelingLabel(checkIn.feeling))", systemImage: "checkmark.circle.fill")
+                    .font(.mCaption).foregroundStyle(Neon.green)
+            }
+        } header: {
+            Text("¿Cómo te sientes hoy?")
+        } footer: {
+            Text("Tu registro se compara con el estimado del modelo para personalizarlo con el tiempo.")
+        }
+    }
+
+    private func feelingButtons(selected: Int?) -> some View {
+        HStack(spacing: 8) {
+            ForEach(1...5, id: \.self) { value in
+                Button {
+                    Task { await viewModel.submitCheckIn(feeling: value) }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: "\(value).circle.fill").font(.system(size: 26))
+                        Text(feelingLabel(value)).font(.mCaption2).lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(selected == value ? AnyShapeStyle(Neon.accent.opacity(0.18))
+                                                  : AnyShapeStyle(Color.clear),
+                                in: RoundedRectangle(cornerRadius: 10))
+                    .foregroundStyle(selected == value ? AnyShapeStyle(Neon.accent) : AnyShapeStyle(.secondary))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func feelingLabel(_ value: Int) -> String {
+        switch value {
+        case 1: return "Agotado"
+        case 2: return "Cansado"
+        case 3: return "Normal"
+        case 4: return "Bien"
+        default: return "Fresco"
         }
     }
 

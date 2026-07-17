@@ -15,6 +15,7 @@ final class AppContainer {
     private let healthRepository: HealthRepository
     private let weatherRepository: WeatherRepository
     private let calendarRepository: CalendarRepository
+    private let recoveryLogRepository: RecoveryLogRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
@@ -25,7 +26,8 @@ final class AppContainer {
         healthRepository: HealthRepository = HealthKitService(),
         // Open-Meteo hoy; cambiar por WeatherKitService al publicar (mismo protocolo).
         weatherRepository: WeatherRepository = OpenMeteoService(),
-        calendarRepository: CalendarRepository = EventKitService()
+        calendarRepository: CalendarRepository = EventKitService(),
+        recoveryLogRepository: RecoveryLogRepository = FirestoreRecoveryLogRepository()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
@@ -35,6 +37,7 @@ final class AppContainer {
         self.healthRepository = healthRepository
         self.weatherRepository = weatherRepository
         self.calendarRepository = calendarRepository
+        self.recoveryLogRepository = recoveryLogRepository
     }
 
     // MARK: - ViewModels
@@ -94,8 +97,9 @@ final class AppContainer {
         )
     }
 
-    func makeHealthViewModel() -> HealthViewModel {
+    func makeHealthViewModel(userID: String) -> HealthViewModel {
         HealthViewModel(
+            userID: userID,
             fetchSummary: FetchFitnessSummaryUseCase(repository: healthRepository),
             assessReadiness: AssessReadinessUseCase(),
             fetchRecovery: FetchRecoveryUseCase(repository: healthRepository),
@@ -103,7 +107,9 @@ final class AppContainer {
             fetchRecoveryTrend: FetchRecoveryTrendUseCase(repository: healthRepository),
             fetchWorkload: FetchWorkloadUseCase(repository: healthRepository),
             assessWorkload: AssessWorkloadUseCase(),
-            fetchFitnessTrend: FetchFitnessTrendUseCase(repository: healthRepository)
+            fetchFitnessTrend: FetchFitnessTrendUseCase(repository: healthRepository),
+            saveCheckIn: SaveRecoveryCheckInUseCase(repository: recoveryLogRepository),
+            fetchCheckIns: FetchRecoveryCheckInsUseCase(repository: recoveryLogRepository)
         )
     }
 }
