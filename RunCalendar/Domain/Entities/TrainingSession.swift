@@ -27,6 +27,8 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
     // Específicos de carrera
     var distanceKm: Double?
     var targetPace: String?   // p. ej. "5:30 min/km"
+    /// FC promedio (lpm), típicamente de un workout importado de Salud.
+    var avgHeartRate: Int?
 
     // Específicos de CrossFit
     var wod: String?          // descripción del WOD
@@ -47,6 +49,7 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         durationMin: Int? = nil,
         distanceKm: Double? = nil,
         targetPace: String? = nil,
+        avgHeartRate: Int? = nil,
         wod: String? = nil,
         completed: Bool = false,
         notes: String = "",
@@ -61,6 +64,7 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         self.durationMin = durationMin
         self.distanceKm = distanceKm
         self.targetPace = targetPace
+        self.avgHeartRate = avgHeartRate
         self.wod = wod
         self.completed = completed
         self.notes = notes

@@ -67,4 +67,38 @@ struct WorkoutRoute: Sendable {
         guard let lo = bpms.min(), let hi = bpms.max() else { return nil }
         return (lo, hi)
     }
+
+    /// Parciales por kilómetro completo (tiempo y FC promedio de cada km).
+    var splits: [Split] {
+        guard points.count >= 2 else { return [] }
+        var result: [Split] = []
+        var km = 1
+        var startElapsed = 0.0
+        var hrSum = 0, hrCount = 0
+        for point in points {
+            if let hr = point.heartRate { hrSum += hr; hrCount += 1 }
+            if point.distanceKm >= Double(km) {
+                result.append(Split(
+                    km: km,
+                    seconds: Int(point.elapsed - startElapsed),
+                    avgHeartRate: hrCount > 0 ? hrSum / hrCount : nil
+                ))
+                startElapsed = point.elapsed
+                km += 1
+                hrSum = 0; hrCount = 0
+            }
+        }
+        return result
+    }
+}
+
+/// Parcial de un kilómetro: tiempo y FC promedio.
+struct Split: Identifiable, Sendable {
+    let km: Int
+    let seconds: Int
+    let avgHeartRate: Int?
+
+    var id: Int { km }
+    /// Ritmo del km como "m:ss".
+    var paceText: String { String(format: "%d:%02d", seconds / 60, seconds % 60) }
 }

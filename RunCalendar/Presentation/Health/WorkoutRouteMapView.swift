@@ -17,6 +17,7 @@ struct WorkoutRouteMapView: View {
     @State private var index = 0
     @State private var isPlaying = false
     @State private var camera: MapCameraPosition = .automatic
+    @State private var showingSplits = false
 
     var body: some View {
         Group {
@@ -43,6 +44,18 @@ struct WorkoutRouteMapView: View {
         }
         .navigationTitle("Ruta")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let route, !route.splits.isEmpty {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showingSplits = true } label: {
+                        Label("Parciales", systemImage: "list.number")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingSplits) {
+            if let route { SplitsView(splits: route.splits) }
+        }
         .task {
             guard isAvailable else { isLoading = false; return }
             route = await loader(date, distanceKm)

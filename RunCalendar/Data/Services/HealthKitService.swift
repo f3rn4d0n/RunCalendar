@@ -322,11 +322,21 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
                     id: workout.uuid.uuidString,
                     date: workout.startDate,
                     distanceKm: workoutDistanceKm(workout),
-                    durationMin: workout.duration > 0 ? Int(workout.duration / 60) : nil
+                    durationMin: workout.duration > 0 ? Int(workout.duration / 60) : nil,
+                    avgHeartRate: averageHeartRate(of: workout)
                 )
             }
             .filter { $0.distanceKm > 0 }
             .sorted { $0.date > $1.date }
+    }
+
+    /// FC promedio del workout, de sus estadísticas (nil si no la registró).
+    private func averageHeartRate(of workout: HKWorkout) -> Int? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate),
+              let avg = workout.statistics(for: type)?.averageQuantity()?
+                .doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+        else { return nil }
+        return Int(avg.rounded())
     }
 
     func fetchRoute(onDay date: Date, distanceKm: Double?) async throws -> WorkoutRoute? {
