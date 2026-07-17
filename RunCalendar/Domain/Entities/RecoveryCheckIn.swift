@@ -14,4 +14,16 @@ struct RecoveryCheckIn: Identifiable, Equatable, Sendable {
     let sleepHours: Double?
 
     var id: Date { date }
+
+    /// La predicción del modelo mapeada a la misma escala 1–5 de la sensación
+    /// (menos horas restantes = más recuperado = número más alto), para compararlas.
+    var modelFeeling: Int {
+        switch predictedRemainingHours {
+        case 0:      return 5
+        case 1...12: return 4
+        case 13...24: return 3
+        case 25...48: return 2
+        default:     return 1
+        }
+    }
 }
