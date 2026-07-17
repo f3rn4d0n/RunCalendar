@@ -32,16 +32,18 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             Tab("Calendario", systemImage: "calendar") {
-                CalendarView(racesViewModel: racesViewModel, trainingViewModel: trainingViewModel)
+                CalendarView(racesViewModel: racesViewModel, trainingViewModel: trainingViewModel,
+                             healthViewModel: healthViewModel)
             }
             Tab("Carreras", systemImage: "flag.checkered") {
-                RaceListView(viewModel: racesViewModel, trainingViewModel: trainingViewModel)
+                RaceListView(viewModel: racesViewModel, trainingViewModel: trainingViewModel,
+                             healthViewModel: healthViewModel)
             }
             Tab("Entrenar", systemImage: "figure.run") {
                 TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel)
             }
             Tab("Condición", systemImage: "heart.text.square") {
-                HealthView(viewModel: healthViewModel)
+                HealthView(viewModel: healthViewModel, racesViewModel: racesViewModel)
             }
             Tab("Perfil", systemImage: "person.crop.circle") {
                 ProfileView(

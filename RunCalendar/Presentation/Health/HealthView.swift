@@ -4,6 +4,18 @@ import SwiftUI
 /// estimado de preparación por distancia.
 struct HealthView: View {
     @State var viewModel: HealthViewModel
+    let racesViewModel: RacesViewModel
+
+    /// Carreras objetivo para la preparación: todas las prioritarias próximas.
+    /// Si no hay prioritarias, la próxima más cercana. El orden y el límite de
+    /// visualización se aplican después, por urgencia de preparación.
+    private var targetRaces: [Race] {
+        let upcoming = racesViewModel.races
+            .filter { $0.date.daysFromNow() >= 0 }
+            .sorted { $0.date < $1.date }
+        let priority = upcoming.filter(\.isPriority)
+        return priority.isEmpty ? Array(upcoming.prefix(1)) : priority
+    }
 
     var body: some View {
         NavigationStack {
@@ -52,6 +64,8 @@ struct HealthView: View {
 
     private func loaded(_ data: HealthLoaded) -> some View {
         List {
+            raceReadinessSection(data: data)
+
             if let recovery = data.recovery {
                 recoverySection(recovery)
             }
@@ -91,6 +105,38 @@ struct HealthView: View {
             }
         }
         .refreshable { await viewModel.load() }
+    }
+
+    @ViewBuilder
+    private func raceReadinessSection(data: HealthLoaded) -> some View {
+        let rows = targetRaces
+            .compactMap { race -> (Race, RaceReadiness)? in
+                data.readiness.first { $0.distance == race.discipline }.map { (race, $0) }
+            }
+            // Solo lo accionable: oculta las que ya estás listo (eso queda en el detalle).
+            .filter { $0.1.level != .ready }
+            // Primero lo que más falta preparar; a igual nivel, la más próxima antes.
+            .sorted { lhs, rhs in
+                if lhs.1.level.prepPriority != rhs.1.level.prepPriority {
+                    return lhs.1.level.prepPriority < rhs.1.level.prepPriority
+                }
+                return lhs.0.date < rhs.0.date
+            }
+        if !rows.isEmpty {
+            Section {
+                ForEach(rows, id: \.0.id) { race, readiness in
+                    NavigationLink {
+                        ReadinessDetailView(readiness: readiness)
+                    } label: {
+                        RaceReadinessRow(race: race, readiness: readiness)
+                    }
+                }
+            } header: {
+                Text(rows.contains { $0.0.isPriority } ? "Tus carreras prioritarias" : "Tu próxima carrera")
+            } footer: {
+                Text("Toca una carrera para ver qué mejorar antes del evento.")
+            }
+        }
     }
 
     @ViewBuilder

@@ -20,6 +20,7 @@ enum RegistrationFilter: String, CaseIterable, Identifiable {
 struct RaceListView: View {
     @State var viewModel: RacesViewModel
     let trainingViewModel: TrainingViewModel
+    let healthViewModel: HealthViewModel
     @State private var isCreating = false
     @State private var showingRecords = false
 
@@ -63,7 +64,8 @@ struct RaceListView: View {
     @ViewBuilder
     private func raceLink(_ race: Race) -> some View {
         NavigationLink {
-            RaceDetailView(initialRace: race, viewModel: viewModel, trainingViewModel: trainingViewModel)
+            RaceDetailView(initialRace: race, viewModel: viewModel,
+                           trainingViewModel: trainingViewModel, healthViewModel: healthViewModel)
         } label: {
             RaceRow(race: race, sort: sort)
         }

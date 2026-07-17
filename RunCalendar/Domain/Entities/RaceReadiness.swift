@@ -13,6 +13,15 @@ enum ReadinessLevel: String, Sendable {
         case .building: return "figure.run"
         }
     }
+
+    /// Orden por urgencia de preparación: lo que más falta preparar va primero.
+    var prepPriority: Int {
+        switch self {
+        case .building: return 0
+        case .almost:   return 1
+        case .ready:    return 2
+        }
+    }
 }
 
 /// Estimado de preparación para una distancia objetivo.
