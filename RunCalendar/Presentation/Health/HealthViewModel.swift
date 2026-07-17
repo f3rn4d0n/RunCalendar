@@ -36,6 +36,8 @@ final class HealthViewModel {
 
     /// Check-in de recuperación de hoy, si ya se registró.
     private(set) var todayCheckIn: RecoveryCheckIn?
+    /// Check-ins recientes (cronológicos) para la gráfica "sentido vs predicho".
+    private(set) var recentCheckIns: [RecoveryCheckIn] = []
 
     private let userID: String
     private let fetchSummary: FetchFitnessSummaryUseCase
@@ -132,6 +134,7 @@ final class HealthViewModel {
 
     private func loadTodayCheckIn() async {
         let recent = (try? await fetchCheckIns(userID: userID)) ?? []
+        recentCheckIns = recent
         let today = Calendar.current.startOfDay(for: Date())
         todayCheckIn = recent.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
     }
@@ -151,6 +154,8 @@ final class HealthViewModel {
         do {
             try await saveCheckIn(checkIn, userID: userID)
             todayCheckIn = checkIn
+            recentCheckIns.removeAll { Calendar.current.isDate($0.date, inSameDayAs: checkIn.date) }
+            recentCheckIns.append(checkIn)
             Haptics.success()
         } catch {
             Log.health.error("submitCheckIn: \(error.localizedDescription, privacy: .public)")

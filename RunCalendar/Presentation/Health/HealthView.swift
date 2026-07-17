@@ -5,6 +5,7 @@ import SwiftUI
 struct HealthView: View {
     @State var viewModel: HealthViewModel
     let racesViewModel: RacesViewModel
+    @State private var editingCheckIn = false
 
     /// Carreras objetivo para la preparación: todas las prioritarias próximas.
     /// Si no hay prioritarias, la próxima más cercana. El orden y el límite de
@@ -71,6 +72,10 @@ struct HealthView: View {
             }
 
             checkInSection
+
+            if viewModel.recentCheckIns.count >= 3 {
+                RecoveryAccuracyChart(checkIns: viewModel.recentCheckIns)
+            }
 
             if let trend = data.recoveryTrend {
                 RecoveryTrendSection(trend: trend)
@@ -145,15 +150,23 @@ struct HealthView: View {
     @ViewBuilder
     private var checkInSection: some View {
         Section {
-            feelingButtons(selected: viewModel.todayCheckIn?.feeling)
-            if let checkIn = viewModel.todayCheckIn {
-                Label("Registrado hoy: \(feelingLabel(checkIn.feeling))", systemImage: "checkmark.circle.fill")
-                    .font(.mCaption).foregroundStyle(Neon.green)
+            if let checkIn = viewModel.todayCheckIn, !editingCheckIn {
+                // Compacto: ya registraste hoy.
+                HStack {
+                    Label("Hoy: \(feelingLabel(checkIn.feeling))", systemImage: "\(checkIn.feeling).circle.fill")
+                        .foregroundStyle(feelingColor(checkIn.feeling))
+                    Spacer()
+                    Button("Cambiar") { editingCheckIn = true }.font(.mSubheadline)
+                }
+            } else {
+                feelingButtons(selected: viewModel.todayCheckIn?.feeling)
             }
         } header: {
             Text("¿Cómo te sientes hoy?")
         } footer: {
-            Text("Tu registro se compara con el estimado del modelo para personalizarlo con el tiempo.")
+            if viewModel.todayCheckIn == nil || editingCheckIn {
+                Text("Tu registro se compara con el estimado del modelo para personalizarlo con el tiempo.")
+            }
         }
     }
 
@@ -161,18 +174,23 @@ struct HealthView: View {
         HStack(spacing: 8) {
             ForEach(1...5, id: \.self) { value in
                 Button {
-                    Task { await viewModel.submitCheckIn(feeling: value) }
+                    Task {
+                        await viewModel.submitCheckIn(feeling: value)
+                        editingCheckIn = false
+                    }
                 } label: {
                     VStack(spacing: 4) {
                         Image(systemName: "\(value).circle.fill").font(.system(size: 26))
+                            .foregroundStyle(feelingColor(value))
                         Text(feelingLabel(value)).font(.mCaption2).lineLimit(1)
+                            .foregroundStyle(selected == value ? AnyShapeStyle(feelingColor(value))
+                                                               : AnyShapeStyle(.secondary))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                    .background(selected == value ? AnyShapeStyle(Neon.accent.opacity(0.18))
+                    .background(selected == value ? AnyShapeStyle(feelingColor(value).opacity(0.16))
                                                   : AnyShapeStyle(Color.clear),
                                 in: RoundedRectangle(cornerRadius: 10))
-                    .foregroundStyle(selected == value ? AnyShapeStyle(Neon.accent) : AnyShapeStyle(.secondary))
                 }
                 .buttonStyle(.plain)
             }
@@ -187,6 +205,17 @@ struct HealthView: View {
         case 3: return "Normal"
         case 4: return "Bien"
         default: return "Fresco"
+        }
+    }
+
+    /// Color por nivel de cansancio: rojo (agotado) → verde (fresco).
+    private func feelingColor(_ value: Int) -> Color {
+        switch value {
+        case 1: return Color(red: 0.90, green: 0.25, blue: 0.30)
+        case 2: return Neon.orange
+        case 3: return Neon.gold
+        case 4: return Neon.teal
+        default: return Neon.green
         }
     }
 
