@@ -28,6 +28,10 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         if let sleep = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) {
             types.insert(sleep)
         }
+        // Esfuerzo percibido que el reloj guarda al terminar el workout (RPE 1–10).
+        if #available(iOS 18.0, *) {
+            types.insert(HKQuantityType(.workoutEffortScore))
+        }
         types.insert(HKSeriesType.workoutRoute())
         if let dob = HKCharacteristicType.characteristicType(forIdentifier: .dateOfBirth) {
             types.insert(dob)
@@ -316,6 +320,7 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
             ? (Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date())
             : .distantPast
         let runs = try await runningWorkouts(since: start)
+        let efforts = await effortScores(for: runs)
         return runs
             .map { workout in
                 HealthWorkout(
@@ -323,11 +328,38 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
                     date: workout.startDate,
                     distanceKm: workoutDistanceKm(workout),
                     durationMin: workout.duration > 0 ? Int(workout.duration / 60) : nil,
-                    avgHeartRate: averageHeartRate(of: workout)
+                    avgHeartRate: averageHeartRate(of: workout),
+                    perceivedEffort: efforts[workout.uuid.uuidString]
                 )
             }
             .filter { $0.distanceKm > 0 }
             .sorted { $0.date > $1.date }
+    }
+
+    /// Esfuerzo percibido (RPE 1–10) que el usuario registró en el reloj, por UUID de workout.
+    /// Solo iOS 18+; en versiones previas devuelve vacío y el RPE queda para llenar a mano.
+    private func effortScores(for workouts: [HKWorkout]) async -> [String: Int] {
+        guard #available(iOS 18.0, *), !workouts.isEmpty else { return [:] }
+        let starts = workouts.map(\.startDate)
+        guard let first = starts.min(), let last = starts.max() else { return [:] }
+        let predicate = HKQuery.predicateForSamples(withStart: first, end: last.addingTimeInterval(1))
+        let effortType = HKQuantityType(.workoutEffortScore)
+        return await withCheckedContinuation { continuation in
+            let query = HKWorkoutEffortRelationshipQuery(
+                predicate: predicate, anchor: nil, options: .mostRelevant
+            ) { _, relationships, _, _ in
+                var result: [String: Int] = [:]
+                for relationship in relationships ?? [] {
+                    guard let sample = relationship.samples?
+                        .compactMap({ $0 as? HKQuantitySample })
+                        .first(where: { $0.quantityType == effortType }) else { continue }
+                    let score = Int(sample.quantity.doubleValue(for: .appleEffortScore()).rounded())
+                    if score > 0 { result[relationship.workout.uuid.uuidString] = score }
+                }
+                continuation.resume(returning: result)
+            }
+            store.execute(query)
+        }
     }
 
     /// FC promedio del workout, de sus estadísticas (nil si no la registró).
