@@ -4,6 +4,8 @@ import Foundation
 /// Se usa para sugerir importarlo como `TrainingSession` sin recapturarlo a mano.
 struct HealthWorkout: Identifiable, Equatable, Sendable {
     let id: String        // UUID del HKWorkout
+    /// Tipo de entrenamiento al que se mapeó la actividad de Salud.
+    let type: TrainingType
     let date: Date
     let distanceKm: Double
     let durationMin: Int?
