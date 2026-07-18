@@ -4,6 +4,8 @@ import Foundation
 enum TrainingType: String, CaseIterable, Identifiable, Sendable {
     case crossfit = "CrossFit"
     case running = "Carrera"
+    case walking = "Caminata"
+    case hiking = "Senderismo"
 
     var id: String { rawValue }
     var displayName: String { rawValue }
@@ -11,6 +13,16 @@ enum TrainingType: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .crossfit: return "dumbbell.fill"
         case .running: return "figure.run"
+        case .walking: return "figure.walk"
+        case .hiking: return "figure.hiking"
+        }
+    }
+
+    /// Actividades basadas en distancia (usan campos de distancia y ritmo).
+    var tracksDistance: Bool {
+        switch self {
+        case .running, .walking, .hiking: return true
+        case .crossfit: return false
         }
     }
 }

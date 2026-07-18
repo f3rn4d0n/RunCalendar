@@ -50,8 +50,8 @@ struct TrainingDetailView: View {
                 }
             }
 
-            if session.type == .running {
-                Section("Carrera") {
+            if session.type.tracksDistance {
+                Section(session.type.displayName) {
                     if let distance = session.distanceKm {
                         row("Distancia", "\(distance.formatted()) km", icon: "ruler")
                     }

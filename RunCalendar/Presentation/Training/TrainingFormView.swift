@@ -75,8 +75,8 @@ struct TrainingFormView: View {
                     }
                 }
 
-                if type == .running {
-                    Section("Carrera") {
+                if type.tracksDistance {
+                    Section(type.displayName) {
                         TextField("Distancia (km)", text: $distanceText)
                             .keyboardType(.decimalPad)
                         TextField("Ritmo objetivo (p. ej. 5:30 min/km)", text: $targetPace)
@@ -168,10 +168,10 @@ struct TrainingFormView: View {
             title: trainingTitle.trimmingCharacters(in: .whitespaces),
             details: details,
             durationMin: Int(durationText),
-            distanceKm: type == .running
+            distanceKm: type.tracksDistance
                 ? Double(distanceText.replacingOccurrences(of: ",", with: "."))
                 : nil,
-            targetPace: type == .running && !targetPace.isEmpty ? targetPace : nil,
+            targetPace: type.tracksDistance && !targetPace.isEmpty ? targetPace : nil,
             wod: type == .crossfit && !wod.isEmpty ? wod : nil,
             completed: completed,
             notes: notes,
