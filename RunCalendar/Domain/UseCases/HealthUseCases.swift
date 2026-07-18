@@ -55,7 +55,7 @@ struct FetchFitnessTrendUseCase: Sendable {
 /// reciente. Heurística **orientativa** y transparente, no es consejo médico.
 struct AssessRecoveryUseCase: Sendable {
 
-    func callAsFunction(_ s: RecoverySnapshot) -> RecoveryEstimate {
+    func callAsFunction(_ s: RecoverySnapshot, calibration: RecoveryCalibration = .identity) -> RecoveryEstimate {
         // Carga acumulada → horas base de recuperación (≈ 1 h por cada 6 min entrenados,
         // acotado a 72 h). ponytail: constante calibrable; ajústala con datos reales.
         let loadHours = min(Double(s.recentLoadMinutes) / 6.0, 72)
@@ -92,7 +92,8 @@ struct AssessRecoveryUseCase: Sendable {
             }
         }
 
-        let needed = loadHours * hrvFactor * rhrFactor * sleepFactor
+        // Ajuste personal aprendido de tus check-ins (1 si aún no hay suficientes).
+        let needed = loadHours * hrvFactor * rhrFactor * sleepFactor * calibration.factor
         let elapsed = s.hoursSinceLastWorkout ?? needed
         let remaining = max(0, Int((needed - elapsed).rounded()))
 
@@ -106,7 +107,8 @@ struct AssessRecoveryUseCase: Sendable {
             hrvDeviationPct: deviation,
             sleepHours: s.lastNightSleepHours,
             note: note(level: level, deviation: deviation, snapshot: s),
-            tips: tips(level: level, snapshot: s)
+            tips: tips(level: level, snapshot: s),
+            calibration: calibration.isActive ? calibration : nil
         )
     }
 

@@ -114,11 +114,13 @@ final class HealthViewModel {
         if case .loaded = state {} else { state = .loading }
         do {
             let summary = try await fetchSummary()
-            let recovery = try await fetchRecovery().map(assessRecovery.callAsFunction)
+            // Check-ins primero: alimentan la calibración de la recuperación.
+            await loadTodayCheckIn()
+            let calibration = RecoveryCalibration(checkIns: recentCheckIns)
+            let recovery = try await fetchRecovery().map { assessRecovery($0, calibration: calibration) }
             let recoveryTrend = (try? await fetchRecoveryTrend()) ?? nil
             let workload = try await fetchWorkload().flatMap(assessWorkload.callAsFunction)
             let fitnessTrend = (try? await fetchFitnessTrend()) ?? nil
-            await loadTodayCheckIn()
             state = .loaded(HealthLoaded(
                 summary: summary,
                 readiness: assessReadiness(summary),
@@ -161,4 +163,34 @@ final class HealthViewModel {
             Log.health.error("submitCheckIn: \(error.localizedDescription, privacy: .public)")
         }
     }
+
+#if DEBUG
+    /// Debug: siembra check-ins sintéticos en memoria (sesgo positivo: te sentiste mejor de
+    /// lo previsto) para ver la calibración sin esperar días. No toca Firestore; al reiniciar
+    /// la app se pierde y vuelven los datos reales.
+    func seedDemoCheckIns() async {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        recentCheckIns = (1...18).reversed().map { day in
+            RecoveryCheckIn(
+                date: cal.date(byAdding: .day, value: -day, to: today) ?? today,
+                feeling: 5,                    // te sentiste fresco…
+                predictedRemainingHours: 30,   // …pero el modelo pedía ~1 día (modelFeeling 2)
+                hrv: nil, baselineHRV: nil, sleepHours: nil
+            )
+        }
+        let calibration = RecoveryCalibration(checkIns: recentCheckIns)
+        guard case .loaded(let data) = state else { return }
+        let snapshot = (try? await fetchRecovery()) ?? nil
+        let recovery = snapshot.map { assessRecovery($0, calibration: calibration) } ?? data.recovery
+        state = .loaded(HealthLoaded(
+            summary: data.summary,
+            readiness: data.readiness,
+            recovery: recovery,
+            recoveryTrend: data.recoveryTrend,
+            workload: data.workload,
+            fitnessTrend: data.fitnessTrend
+        ))
+    }
+#endif
 }
