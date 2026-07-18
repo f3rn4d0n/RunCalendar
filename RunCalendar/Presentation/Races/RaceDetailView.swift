@@ -29,7 +29,7 @@ struct RaceDetailView: View {
         linkedTrainings.filter(\.completed).count
     }
 
-    private static let standardDistances: [RaceDiscipline] = [.fiveK, .tenK, .halfMarathon, .marathon]
+    private static let standardDistances: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
 
     /// Muestra la preparación solo para carreras próximas de distancia estándar.
     private var showsReadiness: Bool {

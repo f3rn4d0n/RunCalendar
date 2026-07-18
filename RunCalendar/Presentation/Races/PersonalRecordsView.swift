@@ -7,7 +7,7 @@ struct PersonalRecordsView: View {
     let trainingViewModel: TrainingViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let distances: [RaceDiscipline] = [.fiveK, .tenK, .halfMarathon, .marathon]
+    private let distances: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
 
     private var records: [PersonalRecord] {
         PersonalRecords.compute(races: racesViewModel.races, sessions: trainingViewModel.sessions)

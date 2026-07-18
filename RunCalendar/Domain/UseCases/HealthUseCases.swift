@@ -246,6 +246,7 @@ struct AssessReadinessUseCase: Sendable {
     private let targets: [Target] = [
         Target(distance: .fiveK, longRunKm: 5, weeklyMinKm: 15),
         Target(distance: .tenK, longRunKm: 10, weeklyMinKm: 20),
+        Target(distance: .fifteenK, longRunKm: 15, weeklyMinKm: 25),
         Target(distance: .halfMarathon, longRunKm: 18, weeklyMinKm: 30),
         Target(distance: .marathon, longRunKm: 32, weeklyMinKm: 50)
     ]
@@ -313,7 +314,7 @@ struct AssessReadinessUseCase: Sendable {
 
     private func focusTips(for distance: RaceDiscipline) -> [String] {
         switch distance {
-        case .fiveK, .tenK:
+        case .fiveK, .tenK, .fifteenK:
             return [
                 "Corre la mayoría de tus kilómetros en zona 2 (fácil, puedes conversar).",
                 "Agrega 1 sesión semanal de intervalos/sprints para ganar velocidad."
