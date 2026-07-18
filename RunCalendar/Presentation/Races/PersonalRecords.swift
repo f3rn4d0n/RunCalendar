@@ -35,7 +35,7 @@ enum PersonalRecords {
 
     static func compute(races: [Race], sessions: [TrainingSession]) -> [PersonalRecord] {
         let efforts = raceEfforts(races) + trainingEfforts(sessions)
-        let standard: [RaceDiscipline] = [.fiveK, .tenK, .halfMarathon, .marathon]
+        let standard: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
         return standard.compactMap { distance in
             guard let target = distance.standardDistanceKm else { return nil }
             let bucket = efforts.filter { abs($0.distanceKm - target) / target <= tolerance }

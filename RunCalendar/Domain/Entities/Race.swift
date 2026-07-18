@@ -4,6 +4,7 @@ import Foundation
 enum RaceDiscipline: String, CaseIterable, Identifiable, Sendable {
     case fiveK = "5K"
     case tenK = "10K"
+    case fifteenK = "15K"
     case halfMarathon = "21K"
     case marathon = "42K"
     case trail = "Trail"
@@ -17,6 +18,7 @@ enum RaceDiscipline: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .fiveK:        return 5
         case .tenK:         return 10
+        case .fifteenK:     return 15
         case .halfMarathon: return 21.0975
         case .marathon:     return 42.195
         case .trail, .other: return nil
