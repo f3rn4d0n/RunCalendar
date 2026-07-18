@@ -46,6 +46,8 @@ struct RecoveryEstimate: Equatable, Sendable {
     let sleepHours: Double?
     let note: String
     let tips: [String]
+    /// Ajuste personal aplicado (nil si aún no hay suficientes registros para calibrar).
+    var calibration: RecoveryCalibration?
 
     /// "Listo", "~8 h", "~1 día 4 h".
     var remainingText: String {

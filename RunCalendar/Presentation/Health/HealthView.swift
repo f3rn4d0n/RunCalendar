@@ -77,6 +77,16 @@ struct HealthView: View {
                 RecoveryAccuracyChart(checkIns: viewModel.recentCheckIns)
             }
 
+#if DEBUG
+            Section {
+                Button("Sembrar 18 check-ins (debug)") {
+                    Task { await viewModel.seedDemoCheckIns() }
+                }
+            } footer: {
+                Text("Solo desarrollo: simula 2+ semanas de registros para ver la calibración. Se borra al reiniciar.")
+            }
+#endif
+
             if let trend = data.recoveryTrend {
                 RecoveryTrendSection(trend: trend)
             }
@@ -292,6 +302,11 @@ struct HealthView: View {
             }
 
             Text(r.note).font(.mCaption).foregroundStyle(.secondary)
+
+            if let calibration = r.calibration {
+                Label(calibration.summary, systemImage: "slider.horizontal.3")
+                    .font(.mCaption).foregroundStyle(Neon.accent)
+            }
 
             DisclosureGroup("Qué hacer") {
                 ForEach(r.tips, id: \.self) { tip in
