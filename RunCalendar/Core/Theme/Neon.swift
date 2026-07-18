@@ -9,6 +9,7 @@ enum Neon {
     static let teal   = adaptive(light: 0x009E86, dark: 0x2BE7C7)
     static let orange = adaptive(light: 0xE9720B, dark: 0xFF9A3D)
     static let purple = adaptive(light: 0x8A2BE2, dark: 0xC15CFF)
+    static let pink   = adaptive(light: 0xC71585, dark: 0xFF4FA3)
     static let gold   = adaptive(light: 0xB8860B, dark: 0xFFC53D)
 
     /// Degradado neón para botones primarios (azul → púrpura → magenta).

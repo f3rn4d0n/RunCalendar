@@ -7,6 +7,7 @@ enum CalendarMarker: CaseIterable, Identifiable, Hashable {
     case raceRegistered
     case raceNotRegistered
     case training
+    case trainingOther
 
     var id: Self { self }
 
@@ -16,6 +17,7 @@ enum CalendarMarker: CaseIterable, Identifiable, Hashable {
         case .raceRegistered: return Neon.teal
         case .raceNotRegistered: return Neon.orange
         case .training: return Neon.purple
+        case .trainingOther: return Neon.pink
         }
     }
 
@@ -24,7 +26,8 @@ enum CalendarMarker: CaseIterable, Identifiable, Hashable {
         case .eventComplete: return "Evento completado"
         case .raceRegistered: return "Inscrito"
         case .raceNotRegistered: return "No inscrito"
-        case .training: return "Entrenamiento"
+        case .training: return "Carrera (entreno)"
+        case .trainingOther: return "Otro ejercicio"
         }
     }
 
@@ -32,5 +35,10 @@ enum CalendarMarker: CaseIterable, Identifiable, Hashable {
     static func forRace(_ race: Race) -> CalendarMarker {
         if race.status == .completed { return .eventComplete }
         return race.isRegistered ? .raceRegistered : .raceNotRegistered
+    }
+
+    /// Carrera = púrpura; caminata/senderismo/CrossFit = otro color.
+    static func forTraining(_ type: TrainingType) -> CalendarMarker {
+        type == .running ? .training : .trainingOther
     }
 }
