@@ -81,7 +81,7 @@ final class TrainingViewModel {
     var importableWorkouts: [HealthWorkout] {
         recentWorkouts.filter { workout in
             !importedIDs.contains(workout.id)
-                && !sessions.contains { isSameActivity(day: workout.date, km: workout.distanceKm, with: $0) }
+                && !sessions.contains { isSameActivity(workout.type, day: workout.date, km: workout.distanceKm, with: $0) }
         }
     }
 
@@ -106,7 +106,7 @@ final class TrainingViewModel {
         for workout in recentWorkouts {
             guard let effort = workout.perceivedEffort,
                   var match = sessions.first(where: {
-                      $0.rpe == nil && isSameActivity(day: workout.date, km: workout.distanceKm, with: $0)
+                      $0.rpe == nil && isSameActivity(workout.type, day: workout.date, km: workout.distanceKm, with: $0)
                   })
             else { continue }
             match.rpe = effort
@@ -121,15 +121,14 @@ final class TrainingViewModel {
         }
     }
 
-    /// Importa una carrera de Salud como entrenamiento completado.
+    /// Importa un entrenamiento de Salud (carrera, caminata, senderismo o fuerza) como completado.
     func importWorkout(_ workout: HealthWorkout) async {
-        let km = workout.distanceKm.formatted(.number.precision(.fractionLength(1)))
         let session = TrainingSession(
             date: workout.date,
-            type: .running,
-            title: "Carrera \(km) km",
+            type: workout.type,
+            title: importTitle(for: workout),
             durationMin: workout.durationMin,
-            distanceKm: workout.distanceKm,
+            distanceKm: workout.type.tracksDistance ? workout.distanceKm : nil,
             avgHeartRate: workout.avgHeartRate,
             completed: true,
             rpe: workout.perceivedEffort
@@ -137,21 +136,26 @@ final class TrainingViewModel {
         _ = await save(session, isNew: true)
     }
 
-    /// Entrenamiento existente parecido a uno nuevo (mismo día, carrera, distancia similar).
+    private func importTitle(for workout: HealthWorkout) -> String {
+        guard workout.type.tracksDistance else { return workout.type.displayName }
+        let km = workout.distanceKm.formatted(.number.precision(.fractionLength(1)))
+        return "\(workout.type.displayName) \(km) km"
+    }
+
+    /// Entrenamiento existente parecido a uno nuevo (mismo día, mismo tipo, distancia similar).
     func similarSession(to candidate: TrainingSession) -> TrainingSession? {
-        guard candidate.type == .running else { return nil }
-        return sessions.first {
+        sessions.first {
             $0.id != candidate.id
-                && isSameActivity(day: candidate.date, km: candidate.distanceKm, with: $0)
+                && isSameActivity(candidate.type, day: candidate.date, km: candidate.distanceKm, with: $0)
         }
     }
 
-    // ponytail: dedup por (día + distancia ~10%); si dos carreras iguales el mismo día
-    // colisionan de más, guardar el UUID de HealthKit en TrainingSession.
-    private func isSameActivity(day: Date, km: Double?, with session: TrainingSession) -> Bool {
-        guard session.type == .running, let new = km, let existing = session.distanceKm else { return false }
-        return Calendar.current.isDate(day, inSameDayAs: session.date)
-            && abs(new - existing) <= max(0.5, new * 0.1)
+    // ponytail: dedup por (día + tipo + distancia ~10%); sin distancia, solo día + tipo.
+    // Si dos sesiones iguales el mismo día colisionan de más, guardar el UUID de HealthKit.
+    private func isSameActivity(_ type: TrainingType, day: Date, km: Double?, with session: TrainingSession) -> Bool {
+        guard session.type == type, Calendar.current.isDate(day, inSameDayAs: session.date) else { return false }
+        guard type.tracksDistance, let new = km, let existing = session.distanceKm else { return true }
+        return abs(new - existing) <= max(0.5, new * 0.1)
     }
 
     func start() async {

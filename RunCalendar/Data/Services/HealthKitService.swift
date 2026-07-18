@@ -319,20 +319,24 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         let start = days > 0
             ? (Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date())
             : .distantPast
-        let runs = try await runningWorkouts(since: start)
-        let efforts = await effortScores(for: runs)
-        return runs
-            .map { workout in
-                HealthWorkout(
+        let all = try await workouts(since: start, activity: nil)
+        let efforts = await effortScores(for: all)
+        return all
+            .compactMap { workout -> HealthWorkout? in
+                guard let type = trainingType(for: workout.workoutActivityType) else { return nil }
+                let km = workoutDistanceKm(workout)
+                // Actividad de distancia sin distancia registrada no aporta nada.
+                if type.tracksDistance && km <= 0 { return nil }
+                return HealthWorkout(
                     id: workout.uuid.uuidString,
+                    type: type,
                     date: workout.startDate,
-                    distanceKm: workoutDistanceKm(workout),
+                    distanceKm: km,
                     durationMin: workout.duration > 0 ? Int(workout.duration / 60) : nil,
                     avgHeartRate: averageHeartRate(of: workout),
                     perceivedEffort: efforts[workout.uuid.uuidString]
                 )
             }
-            .filter { $0.distanceKm > 0 }
             .sorted { $0.date > $1.date }
     }
 
@@ -455,10 +459,29 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
     }
 
     private func runningWorkouts(since start: Date) async throws -> [HKWorkout] {
-        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            HKQuery.predicateForWorkouts(with: .running),
+        try await workouts(since: start, activity: .running)
+    }
+
+    /// Mapea la actividad de Salud al tipo de la app. `nil` = actividad que no modelamos
+    /// (ciclismo, natación, etc.): se ignora al importar.
+    private func trainingType(for activity: HKWorkoutActivityType) -> TrainingType? {
+        switch activity {
+        case .running: return .running
+        case .walking: return .walking
+        case .hiking: return .hiking
+        case .traditionalStrengthTraining, .functionalStrengthTraining,
+             .crossTraining, .highIntensityIntervalTraining: return .crossfit
+        default: return nil
+        }
+    }
+
+    /// Workouts desde `start`. Si `activity` es `nil`, todos los tipos (se filtran luego).
+    private func workouts(since start: Date, activity: HKWorkoutActivityType?) async throws -> [HKWorkout] {
+        var subpredicates = [
             HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
-        ])
+        ]
+        if let activity { subpredicates.append(HKQuery.predicateForWorkouts(with: activity)) }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: subpredicates)
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKSampleQuery(
                 sampleType: .workoutType(),
