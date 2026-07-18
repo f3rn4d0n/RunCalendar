@@ -44,7 +44,7 @@ struct CalendarView: View {
                 title: session.title,
                 subtitle: session.type.displayName,
                 icon: session.type.systemImage,
-                marker: .training,
+                marker: .forTraining(session.type),
                 payload: .training(session)
             )
         }
