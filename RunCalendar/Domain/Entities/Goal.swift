@@ -66,6 +66,25 @@ struct Goal: Identifiable, Equatable, Sendable {
         }
     }
 
+    /// Etiqueta pequeña junto al número héroe ("21K", "VO₂max", "Peso").
+    var heroTag: String {
+        switch type {
+        case .raceTime: return distance?.displayName ?? "Carrera"
+        case .vo2max:   return "VO₂max"
+        case .weight:   return "Peso"
+        }
+    }
+
+    /// Número protagonista de la meta (grande).
+    var heroValue: String { Goal.format(targetValue, type: type) }
+
+    /// Días restantes hasta la fecha límite (nil si no tiene o ya pasó).
+    func daysLeft(from now: Date = Date()) -> Int? {
+        guard let deadline else { return nil }
+        let days = Calendar.current.dateComponents([.day], from: now, to: deadline).day ?? 0
+        return days >= 0 ? days : nil
+    }
+
     /// Formatea un valor según el tipo (para "actual"/"meta").
     static func format(_ value: Double, type: GoalType) -> String {
         switch type {
@@ -93,6 +112,16 @@ struct Goal: Identifiable, Equatable, Sendable {
     static func trim(_ value: Double) -> String {
         value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
     }
+}
+
+/// Confianza cualitativa de lograr una meta (nunca un % inventado). `nil` = sin datos.
+enum GoalConfidence: String, Sendable, Equatable {
+    case achieved = "Lograda"
+    case high = "Alta"
+    case medium = "Media"
+    case low = "Baja"
+
+    var label: String { rawValue }
 }
 
 /// Meta sugerida (valor + fecha + por qué), como punto de partida editable.

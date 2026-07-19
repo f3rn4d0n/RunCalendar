@@ -18,6 +18,7 @@ final class GoalsViewModel {
     private let updateGoal: UpdateGoalUseCase
     private let deleteGoal: DeleteGoalUseCase
     private let assessProgress: AssessGoalProgressUseCase
+    private let assessConfidence: AssessGoalConfidenceUseCase
     private let recommendGoal: RecommendGoalUseCase
     private let fetchAthleteMetrics: FetchAthleteMetricsUseCase
     /// Fuentes del valor "actual" para el progreso.
@@ -34,6 +35,7 @@ final class GoalsViewModel {
         updateGoal: UpdateGoalUseCase,
         deleteGoal: DeleteGoalUseCase,
         assessProgress: AssessGoalProgressUseCase,
+        assessConfidence: AssessGoalConfidenceUseCase,
         recommendGoal: RecommendGoalUseCase,
         fetchAthleteMetrics: FetchAthleteMetricsUseCase,
         racesViewModel: RacesViewModel,
@@ -45,6 +47,7 @@ final class GoalsViewModel {
         self.updateGoal = updateGoal
         self.deleteGoal = deleteGoal
         self.assessProgress = assessProgress
+        self.assessConfidence = assessConfidence
         self.recommendGoal = recommendGoal
         self.fetchAthleteMetrics = fetchAthleteMetrics
         self.racesViewModel = racesViewModel
@@ -70,6 +73,41 @@ final class GoalsViewModel {
     /// Progreso de una meta contra el dato actual disponible.
     func progress(for goal: Goal) -> GoalProgress {
         assessProgress(goal, current: currentValue(for: goal))
+    }
+
+    /// Confianza cualitativa de lograr la meta (nil = sin datos suficientes).
+    func confidence(for goal: Goal) -> GoalConfidence? {
+        assessConfidence(goal, current: currentValue(for: goal), records: records())
+    }
+
+    /// Frase de "coach" que explica, con datos reales, qué tan alcanzable es la meta. `nil` sin datos.
+    func coachInsight(for goal: Goal) -> String? {
+        guard let conf = confidence(for: goal) else { return nil }
+        if conf == .achieved { return "¡Meta lograda! Mantén el hábito para no perderla." }
+
+        let tone: String
+        let prob: String
+        switch conf {
+        case .high:   tone = "alcanzable";            prob = "alta"
+        case .medium: tone = "exigente pero posible"; prob = "media"
+        default:      tone = "muy exigente";          prob = "baja"
+        }
+
+        var facts: [String] = []
+        if let vo2 = metrics.vo2max { facts.append("un VO₂max de \(Goal.trim(vo2))") }
+        if goal.type == .raceTime, let distance = goal.distance,
+           let pr = records().first(where: { $0.distance != distance }) ?? records().first {
+            facts.append("un PR de \(Goal.formatTime(pr.best.timeSeconds)) en \(pr.distance.displayName)")
+        }
+        let factsClause = facts.isEmpty ? "" : "Con \(facts.joined(separator: " y ")), "
+        let weeksClause = goal.daysLeft().map { " en ~\(max(1, $0 / 7)) semanas" } ?? ""
+
+        return "Tu objetivo es \(tone). \(factsClause)estimamos una probabilidad \(prob) de lograrlo"
+            + "\(weeksClause), si mantienes la consistencia."
+    }
+
+    private func records() -> [PersonalRecord] {
+        PersonalRecords.compute(races: racesViewModel.races, sessions: trainingViewModel.sessions)
     }
 
     /// Valor actual del atleta para la meta. `nil` si aún no hay dato.

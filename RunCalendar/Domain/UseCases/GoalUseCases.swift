@@ -104,6 +104,53 @@ struct RecommendGoalUseCase: Sendable {
     }
 }
 
+/// Confianza cualitativa (Alta/Media/Baja) de lograr una meta, con heurísticas defendibles —
+/// nunca un % inventado. Tiempo: qué tan exigente es el objetivo vs. lo que Riegel predice desde
+/// tu PR. Peso/VO₂max: si el ritmo de cambio necesario hasta la fecha es realista. `nil` = sin datos.
+struct AssessGoalConfidenceUseCase: Sendable {
+    func callAsFunction(_ goal: Goal, current: Double?, records: [PersonalRecord], now: Date = Date()) -> GoalConfidence? {
+        if let current, (goal.type.higherIsBetter ? current >= goal.targetValue : current <= goal.targetValue) {
+            return .achieved
+        }
+        switch goal.type {
+        case .raceTime: return raceConfidence(goal, records: records)
+        case .vo2max:   return rateConfidence(current: current, target: goal.targetValue, deadline: goal.deadline,
+                                              now: now, higherBetter: true, easy: 0.3, mid: 0.55)  // puntos/semana
+        case .weight:   return rateConfidence(current: current, target: goal.targetValue, deadline: goal.deadline,
+                                              now: now, higherBetter: false, easy: 0.5, mid: 0.75) // kg/semana
+        }
+    }
+
+    /// Compara el objetivo con el tiempo que Riegel predice desde tu mejor PR.
+    private func raceConfidence(_ goal: Goal, records: [PersonalRecord]) -> GoalConfidence? {
+        guard let distance = goal.distance, let targetKm = distance.standardDistanceKm,
+              let base = (records.first { $0.distance != distance } ?? records.first),
+              let baseKm = base.distance.standardDistanceKm else { return nil }
+        let predicted = Double(base.best.timeSeconds) * pow(targetKm / baseKm, 1.06)
+        let ratio = goal.targetValue / predicted   // >1 = objetivo más lento (más fácil) que tu nivel
+        switch ratio {
+        case 0.99...:      return .high
+        case 0.95..<0.99:  return .medium
+        default:           return .low
+        }
+    }
+
+    /// ¿Es realista el ritmo de cambio necesario hasta la fecha?
+    private func rateConfidence(current: Double?, target: Double, deadline: Date?, now: Date,
+                                higherBetter: Bool, easy: Double, mid: Double) -> GoalConfidence? {
+        guard let current, let deadline else { return nil }
+        let weeks = max(1, deadline.timeIntervalSince(now) / (7 * 86400))
+        let change = higherBetter ? (target - current) : (current - target)
+        guard change > 0 else { return .high }
+        let perWeek = change / weeks
+        switch perWeek {
+        case ..<easy:      return .high
+        case easy..<mid:   return .medium
+        default:           return .low
+        }
+    }
+}
+
 /// Calcula el progreso de una meta contra su valor actual (`current`), agnóstico de la fuente.
 /// `current` nil = aún no hay dato (p. ej. sin PR para esa distancia, o métrica no cableada).
 struct AssessGoalProgressUseCase: Sendable {
