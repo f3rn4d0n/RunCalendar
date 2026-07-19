@@ -40,16 +40,16 @@ struct DeleteGoalUseCase: Sendable {
 struct RecommendGoalUseCase: Sendable {
     func callAsFunction(
         type: GoalType, distance: RaceDiscipline?,
-        records: [PersonalRecord], metrics: AthleteMetrics?
+        records: [PersonalRecord], metrics: AthleteMetrics?, now: Date = Date()
     ) -> GoalRecommendation? {
         switch type {
-        case .raceTime: return raceTime(distance: distance, records: records)
-        case .vo2max:   return vo2max(metrics: metrics)
-        case .weight:   return weight(metrics: metrics)
+        case .raceTime: return raceTime(distance: distance, records: records, now: now)
+        case .vo2max:   return vo2max(metrics: metrics, now: now)
+        case .weight:   return weight(metrics: metrics, now: now)
         }
     }
 
-    private func raceTime(distance: RaceDiscipline?, records: [PersonalRecord]) -> GoalRecommendation? {
+    private func raceTime(distance: RaceDiscipline?, records: [PersonalRecord], now: Date) -> GoalRecommendation? {
         guard let distance, let targetKm = distance.standardDistanceKm, !records.isEmpty else { return nil }
         // Base: un PR de otra distancia (predicción Riegel) o el de la misma (mejora del 3%).
         let base = records.first { $0.distance != distance } ?? records.first
@@ -58,35 +58,49 @@ struct RecommendGoalUseCase: Sendable {
         let target = base.distance == distance ? predicted * 0.97 : predicted
         return GoalRecommendation(
             targetValue: target.rounded(),
-            rationale: "Basado en tu PR de \(base.distance.displayName) (\(Goal.formatTime(base.best.timeSeconds)))."
+            deadline: weeksFromNow(12, now),   // bloque de entrenamiento estándar
+            rationale: "Basado en tu PR de \(base.distance.displayName) "
+                + "(\(Goal.formatTime(base.best.timeSeconds))). Bloque de ~12 semanas."
         )
     }
 
-    private func vo2max(metrics: AthleteMetrics?) -> GoalRecommendation? {
+    private func vo2max(metrics: AthleteMetrics?, now: Date) -> GoalRecommendation? {
         guard let current = metrics?.vo2max else { return nil }
         let target = (current + 3).rounded()
         return GoalRecommendation(
             targetValue: target,
-            rationale: "De \(Goal.trim(current)) a \(Goal.trim(target)): +3 en 8–12 semanas es realista."
+            deadline: weeksFromNow(12, now),
+            rationale: "De \(Goal.trim(current)) a \(Goal.trim(target)): +3 en ~12 semanas es realista."
         )
     }
 
-    private func weight(metrics: AthleteMetrics?) -> GoalRecommendation? {
+    private func weight(metrics: AthleteMetrics?, now: Date) -> GoalRecommendation? {
         guard let current = metrics?.weightKg else { return nil }
+        let target: Double
+        let note: String
         if let h = metrics?.heightM, h > 0 {
             let bmi = current / (h * h)
             guard bmi > 24.9 else {
-                return GoalRecommendation(targetValue: current.rounded(),
+                return GoalRecommendation(targetValue: current.rounded(), deadline: weeksFromNow(8, now),
                                           rationale: "Tu IMC ya está en rango saludable; enfócate en mantener.")
             }
             let healthy = 23.0 * h * h        // objetivo IMC 23 (medio del rango saludable)
             let safeFloor = current * 0.92    // no más de ~8% de baja por meta (seguro)
-            let target = max(healthy, safeFloor).rounded()
-            return GoalRecommendation(targetValue: target,
-                                      rationale: "Hacia un IMC saludable (~23), sin pasar de ~8% de baja.")
+            target = max(healthy, safeFloor).rounded()
+            note = "Hacia un IMC saludable (~23), sin pasar de ~8% de baja"
+        } else {
+            target = (current * 0.95).rounded()
+            note = "Baja conservadora (~5%); agrega tu estatura en Salud para una meta por IMC"
         }
-        return GoalRecommendation(targetValue: (current * 0.95).rounded(),
-                                  rationale: "Baja conservadora (~5%). Agrega tu estatura en Salud para una meta por IMC.")
+        // Plazo a un ritmo seguro de ~0.5 kg/semana (mín. 4 semanas).
+        let weeks = max(4, Int(((current - target) / 0.5).rounded(.up)))
+        return GoalRecommendation(targetValue: target, deadline: weeksFromNow(weeks, now),
+                                  rationale: "\(note) (~\(weeks) sem a 0.5 kg/sem).")
+    }
+
+    /// Fecha `weeks` semanas después de `now`.
+    private func weeksFromNow(_ weeks: Int, _ now: Date) -> Date? {
+        Calendar.current.date(byAdding: .day, value: weeks * 7, to: now)
     }
 }
 

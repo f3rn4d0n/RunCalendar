@@ -24,7 +24,8 @@ Seis pestañas: **Carreras**, **Calendario**, **Entrenar**, **Objetivos**, **Con
   (barra + "actual / faltan / ¡logrado!").
 - **Sugerir meta** (sin IA): recomienda un objetivo realista y editable con fórmulas estándar —
   **Riegel** para tiempos (desde tu PR en otra distancia), VO₂max actual +3, y peso hacia **IMC
-  saludable** con tu estatura (acotado a una baja segura). Con su porqué.
+  saludable** con tu estatura (acotado a una baja segura). Incluye **fecha objetivo sugerida**
+  (una meta sin plazo no es accionable): peso a 0.5 kg/sem, tiempo/VO₂max ~12 semanas. Con su porqué.
 - CRUD con formulario por tipo (parseo `mm:ss`), fecha límite opcional. Fase 1 de la visión.
 
 ### 🏁 Carreras

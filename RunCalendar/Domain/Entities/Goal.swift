@@ -95,9 +95,11 @@ struct Goal: Identifiable, Equatable, Sendable {
     }
 }
 
-/// Meta sugerida (valor + por qué), como punto de partida editable.
+/// Meta sugerida (valor + fecha + por qué), como punto de partida editable.
+/// Una meta sin fecha no es accionable, por eso la recomendación también propone plazo.
 struct GoalRecommendation: Equatable, Sendable {
     let targetValue: Double
+    let deadline: Date?
     let rationale: String
 }
 

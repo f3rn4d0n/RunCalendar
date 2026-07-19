@@ -115,6 +115,10 @@ struct GoalFormView: View {
         case .raceTime: timeText = Goal.formatTime(Int(rec.targetValue))
         case .vo2max, .weight: valueText = Goal.trim(rec.targetValue)
         }
+        if let date = rec.deadline {
+            hasDeadline = true
+            deadline = date
+        }
         suggestion = rec.rationale
     }
 
