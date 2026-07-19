@@ -97,7 +97,7 @@ final class AppContainer {
         )
     }
 
-    func makeHealthViewModel(userID: String) -> HealthViewModel {
+    func makeHealthViewModel(userID: String, trainingViewModel: TrainingViewModel) -> HealthViewModel {
         HealthViewModel(
             userID: userID,
             fetchSummary: FetchFitnessSummaryUseCase(repository: healthRepository),
@@ -109,7 +109,9 @@ final class AppContainer {
             assessWorkload: AssessWorkloadUseCase(),
             fetchFitnessTrend: FetchFitnessTrendUseCase(repository: healthRepository),
             saveCheckIn: SaveRecoveryCheckInUseCase(repository: recoveryLogRepository),
-            fetchCheckIns: FetchRecoveryCheckInsUseCase(repository: recoveryLogRepository)
+            fetchCheckIns: FetchRecoveryCheckInsUseCase(repository: recoveryLogRepository),
+            computeTrainingLoad: ComputeTrainingLoadUseCase(),
+            trainingViewModel: trainingViewModel
         )
     }
 }

@@ -26,7 +26,9 @@ struct MainTabView: View {
             racesViewModel: races,
             trainingViewModel: trainings
         ))
-        _healthViewModel = State(initialValue: container.makeHealthViewModel(userID: user.id))
+        _healthViewModel = State(initialValue: container.makeHealthViewModel(
+            userID: user.id, trainingViewModel: trainings
+        ))
     }
 
     var body: some View {
@@ -60,6 +62,8 @@ struct MainTabView: View {
         }
         .onChange(of: trainingViewModel.sessions) { _, _ in
             Task { await remindersViewModel.refresh() }
+            // La carga de las sesiones alimenta recuperación/ACWR: recalcula si ya hay datos.
+            Task { await healthViewModel.reloadIfLoaded() }
         }
         // Los streams se arrancan aquí, en el contenedor que vive toda la sesión.
         // Si se arrancaran en las pestañas, el TabView cancela el .task de la pestaña
