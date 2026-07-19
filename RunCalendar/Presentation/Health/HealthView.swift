@@ -274,14 +274,18 @@ struct HealthView: View {
     @ViewBuilder
     private func recoverySection(_ r: RecoveryEstimate) -> some View {
         Section {
-            HStack(spacing: 14) {
-                Image(systemName: r.level.systemImage)
-                    .font(.system(size: 30))
-                    .foregroundStyle(recoveryColor(r.level))
-                    .frame(width: 44)
+            HStack(spacing: 16) {
+                ProgressRing(progress: recoveryFraction(r.level),
+                             color: recoveryColor(r.level), lineWidth: 7, size: 66) {
+                    Text(r.remainingHours > 0 ? r.remainingText.replacingOccurrences(of: "~", with: "") : "Listo")
+                        .font(.marker(r.remainingHours > 0 ? 15 : 13))
+                        .foregroundStyle(recoveryColor(r.level))
+                        .lineLimit(1).minimumScaleFactor(0.5)
+                        .frame(width: 46)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(r.level.rawValue).font(.mHeadline)
-                    Text(r.remainingHours > 0 ? "Listo en \(r.remainingText)" : "Listo para entrenar")
+                    Text(r.remainingHours > 0 ? "para estar listo" : "Listo para entrenar")
                         .font(.mSubheadline).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -327,6 +331,15 @@ struct HealthView: View {
         case .recovered: return Neon.green
         case .partial:   return Neon.gold
         case .fatigued:  return Neon.orange
+        }
+    }
+
+    /// Llenado del anillo según el nivel (cualitativo: no tenemos un % exacto de recuperación).
+    private func recoveryFraction(_ level: RecoveryLevel) -> Double {
+        switch level {
+        case .recovered: return 1.0
+        case .partial:   return 0.6
+        case .fatigued:  return 0.3
         }
     }
 

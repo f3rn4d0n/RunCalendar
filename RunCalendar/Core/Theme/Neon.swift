@@ -13,6 +13,11 @@ enum Neon {
     static let pink   = adaptive(light: 0xD14E86, dark: 0xFF6FA8)
     static let gold   = adaptive(light: 0xB7841E, dark: 0xFFD166)
 
+    // Superficies del Kit (dark = identidad insignia; light armonizado).
+    static let background      = adaptive(light: 0xF3F5FA, dark: 0x0A0C10) // fondo de pantalla
+    static let surface         = adaptive(light: 0xFFFFFF, dark: 0x14171D) // card
+    static let surfaceElevated = adaptive(light: 0xF3F5FA, dark: 0x1A1E26) // card sobre card / casillas
+
     /// Degradado para botones primarios (azul → púrpura, del Kit).
     static let buttonGradient = LinearGradient(
         colors: [

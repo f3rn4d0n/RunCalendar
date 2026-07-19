@@ -40,8 +40,10 @@ struct GoalsView: View {
                         }
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
             }
+            .background(Neon.background.ignoresSafeArea())
             .navigationTitle("Objetivos")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -90,7 +92,7 @@ struct GoalHeroCard: View {
                 Text(goal.heroTag)
                     .font(.mFootnote).fontWeight(.bold)
                     .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+                    .background(Neon.surfaceElevated, in: RoundedRectangle(cornerRadius: 9))
                 Text(goal.heroValue)
                     .font(.marker(44))
                     .lineLimit(1).minimumScaleFactor(0.6)
@@ -129,7 +131,7 @@ struct GoalHeroCard: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
+        .background(Neon.surface, in: RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Color.primary.opacity(0.06)))
     }
 }
@@ -150,7 +152,7 @@ struct GoalStatTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12).padding(.horizontal, 14)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
+        .background(Neon.surfaceElevated, in: RoundedRectangle(cornerRadius: 14))
     }
 }
 
@@ -176,7 +178,7 @@ struct GoalConfidenceTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12).padding(.horizontal, 14)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
+        .background(Neon.surfaceElevated, in: RoundedRectangle(cornerRadius: 14))
     }
 }
 

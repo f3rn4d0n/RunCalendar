@@ -320,8 +320,10 @@ no por pantalla.
   `#3D8BFF`, `green` `#34D399` (esmeralda), `teal` `#2DD4CE`, `orange` `#FF9F45`, `purple`
   `#A78BFA`, `pink` `#FF6FA8`, `gold` `#FFD166` (dark, identidad insignia) + variantes `light`
   armonizadas. Degradados `buttonGradient` (azul→púrpura) y `logoGradient` (arcoíris de branding).
-  **Cambia aquí y se propaga a toda la app.** Pendiente del Kit: superficies dark-first (cards
-  `#14171D` sobre `#0A0C10`); el cuerpo usa SF en vez de Inter (decisión: nativo, cero peso).
+  **Cambia aquí y se propaga a toda la app.** Superficies del Kit (`Neon.background`/`surface`/
+  `surfaceElevated`, dark-first, adaptables). El cuerpo usa SF en vez de Inter (nativo, cero peso).
+- **`ProgressRing`** (`Core/Components`): anillo del Kit (pista tenue + arco de color, contenido al
+  centro). Reutilizable — hoy en la recuperación de Condición; luego ACWR/readiness.
 - **Tono**: oscuro-primero, acentos neón, mucho espacio en blanco, datos siempre **rotulados con
   unidades** (nunca un número pelón).
 
