@@ -20,8 +20,11 @@ Seis pestañas: **Carreras**, **Calendario**, **Entrenar**, **Objetivos**, **Con
 
 ### 🎯 Objetivos
 - Metas del atleta: **tiempo por distancia**, **VO₂max** y **peso** (entidad `Goal`).
-- **Progreso vs. datos reales**: las metas de tiempo se miden contra tus **PRs** (barra +
-  "actual / faltan"). VO₂max y peso (de HealthKit) se cablean en el siguiente paso.
+- **Progreso vs. datos reales**: tiempo vs. tus **PRs**, VO₂max y peso vs. tus datos de **Salud**
+  (barra + "actual / faltan / ¡logrado!").
+- **Sugerir meta** (sin IA): recomienda un objetivo realista y editable con fórmulas estándar —
+  **Riegel** para tiempos (desde tu PR en otra distancia), VO₂max actual +3, y peso hacia **IMC
+  saludable** con tu estatura (acotado a una baja segura). Con su porqué.
 - CRUD con formulario por tipo (parseo `mm:ss`), fecha límite opcional. Fase 1 de la visión.
 
 ### 🏁 Carreras
@@ -415,7 +418,7 @@ la IA pueda razonar — por eso la IA es la **última** fase, no la primera.
 
 | Fase | Qué | Notas |
 |------|-----|-------|
-| **1. Objetivos** 🚧 | Entidad `Goal` + CRUD + tab con progreso. **Hecho:** metas de tiempo vs. PRs. **Falta:** "actual" de VO₂max/peso desde HealthKit | Marco del que cuelga todo; también abre el rediseño de navegación |
+| **1. Objetivos** ✅ | Entidad `Goal` + CRUD + tab con progreso (tiempo vs. PRs, VO₂max/peso vs. Salud) y **"Sugerir meta"** (Riegel/IMC, sin IA) | Marco del que cuelga todo; también abre el rediseño de navegación |
 | **2. Review dominical** | Check-in semanal (peso, cintura, energía, hambre, fotos) al estilo del Manual | **Victoria temprana**: reusa el patrón de check-ins (`recoveryLogs`); gancho de hábito alto |
 | **3. Plan estructurado** | Plantilla semanal recurrente (p. ej. Mar/Jue/Dom + técnica); el import de Salud marca adherencia (planificado vs. `completed`) | Conecta con lo ya existente |
 | **4. Nutrición** | **Solo objetivos + adherencia (checkbox)**: macros/kcal objetivo, hidratación, ¿cumpliste hoy? — **no** food-logger | Dominio nuevo; acotado a propósito para no volverse contador de calorías |

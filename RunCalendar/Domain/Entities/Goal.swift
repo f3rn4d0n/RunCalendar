@@ -95,6 +95,12 @@ struct Goal: Identifiable, Equatable, Sendable {
     }
 }
 
+/// Meta sugerida (valor + por qué), como punto de partida editable.
+struct GoalRecommendation: Equatable, Sendable {
+    let targetValue: Double
+    let rationale: String
+}
+
 /// Progreso de una meta contra el valor actual (de PRs, VO₂max o peso).
 struct GoalProgress: Equatable, Sendable {
     let achieved: Bool

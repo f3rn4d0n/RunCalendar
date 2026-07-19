@@ -18,9 +18,14 @@ final class GoalsViewModel {
     private let updateGoal: UpdateGoalUseCase
     private let deleteGoal: DeleteGoalUseCase
     private let assessProgress: AssessGoalProgressUseCase
+    private let recommendGoal: RecommendGoalUseCase
+    private let fetchAthleteMetrics: FetchAthleteMetricsUseCase
     /// Fuentes del valor "actual" para el progreso.
     private let racesViewModel: RacesViewModel
     private let trainingViewModel: TrainingViewModel
+
+    /// Datos actuales del atleta (de Salud), para progreso de VO₂max/peso y recomendaciones.
+    private(set) var metrics: AthleteMetrics = .empty
 
     init(
         userID: String,
@@ -29,6 +34,8 @@ final class GoalsViewModel {
         updateGoal: UpdateGoalUseCase,
         deleteGoal: DeleteGoalUseCase,
         assessProgress: AssessGoalProgressUseCase,
+        recommendGoal: RecommendGoalUseCase,
+        fetchAthleteMetrics: FetchAthleteMetricsUseCase,
         racesViewModel: RacesViewModel,
         trainingViewModel: TrainingViewModel
     ) {
@@ -38,6 +45,8 @@ final class GoalsViewModel {
         self.updateGoal = updateGoal
         self.deleteGoal = deleteGoal
         self.assessProgress = assessProgress
+        self.recommendGoal = recommendGoal
+        self.fetchAthleteMetrics = fetchAthleteMetrics
         self.racesViewModel = racesViewModel
         self.trainingViewModel = trainingViewModel
     }
@@ -45,9 +54,17 @@ final class GoalsViewModel {
     func start() async {
         guard !hasStarted else { return }
         hasStarted = true
+        metrics = (try? await fetchAthleteMetrics()) ?? .empty
         for await goals in observeGoals(userID: userID) {
             self.goals = goals
         }
+    }
+
+    /// Meta sugerida (editable) para un tipo/distancia, con datos reales.
+    func recommendation(type: GoalType, distance: RaceDiscipline?) -> GoalRecommendation? {
+        let records = PersonalRecords.compute(races: racesViewModel.races,
+                                              sessions: trainingViewModel.sessions)
+        return recommendGoal(type: type, distance: distance, records: records, metrics: metrics)
     }
 
     /// Progreso de una meta contra el dato actual disponible.
@@ -63,8 +80,8 @@ final class GoalsViewModel {
             let records = PersonalRecords.compute(races: racesViewModel.races,
                                                   sessions: trainingViewModel.sessions)
             return records.first { $0.distance == distance }.map { Double($0.best.timeSeconds) }
-        case .vo2max, .weight:
-            return nil   // ponytail: se cablea desde HealthKit en el siguiente PR
+        case .vo2max: return metrics.vo2max
+        case .weight: return metrics.weightKg
         }
     }
 

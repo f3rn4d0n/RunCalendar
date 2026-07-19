@@ -19,6 +19,12 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         if let resting = HKQuantityType.quantityType(forIdentifier: .restingHeartRate) {
             types.insert(resting)
         }
+        if let weight = HKQuantityType.quantityType(forIdentifier: .bodyMass) {
+            types.insert(weight)
+        }
+        if let height = HKQuantityType.quantityType(forIdentifier: .height) {
+            types.insert(height)
+        }
         if let heartRate = HKQuantityType.quantityType(forIdentifier: .heartRate) {
             types.insert(heartRate)
         }
@@ -338,6 +344,14 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
                 )
             }
             .sorted { $0.date > $1.date }
+    }
+
+    func fetchAthleteMetrics() async throws -> AthleteMetrics {
+        guard isAvailable() else { return .empty }
+        let vo2 = try? await mostRecentQuantity(.vo2Max, unit: vo2Unit)
+        let weight = try? await mostRecentQuantity(.bodyMass, unit: .gramUnit(with: .kilo))
+        let height = try? await mostRecentQuantity(.height, unit: .meter())
+        return AthleteMetrics(vo2max: vo2, weightKg: weight, heightM: height, ageYears: currentAge())
     }
 
     /// Esfuerzo percibido (RPE 1–10) que el usuario registró en el reloj, por UUID de workout.

@@ -33,6 +33,63 @@ struct DeleteGoalUseCase: Sendable {
     }
 }
 
+/// Sugiere una meta realista con fórmulas deportivas estándar (sin IA), como punto de partida.
+/// - Tiempo: fórmula de Riegel desde tu mejor PR (equivalente en otra distancia, o −3% en la misma).
+/// - VO₂max: tu actual + una mejora realista de bloque (~3 puntos).
+/// - Peso: hacia IMC saludable (~23) con tu estatura, acotado a ~8% de baja; sin estatura, −5%.
+struct RecommendGoalUseCase: Sendable {
+    func callAsFunction(
+        type: GoalType, distance: RaceDiscipline?,
+        records: [PersonalRecord], metrics: AthleteMetrics?
+    ) -> GoalRecommendation? {
+        switch type {
+        case .raceTime: return raceTime(distance: distance, records: records)
+        case .vo2max:   return vo2max(metrics: metrics)
+        case .weight:   return weight(metrics: metrics)
+        }
+    }
+
+    private func raceTime(distance: RaceDiscipline?, records: [PersonalRecord]) -> GoalRecommendation? {
+        guard let distance, let targetKm = distance.standardDistanceKm, !records.isEmpty else { return nil }
+        // Base: un PR de otra distancia (predicción Riegel) o el de la misma (mejora del 3%).
+        let base = records.first { $0.distance != distance } ?? records.first
+        guard let base, let baseKm = base.distance.standardDistanceKm else { return nil }
+        let predicted = Double(base.best.timeSeconds) * pow(targetKm / baseKm, 1.06)
+        let target = base.distance == distance ? predicted * 0.97 : predicted
+        return GoalRecommendation(
+            targetValue: target.rounded(),
+            rationale: "Basado en tu PR de \(base.distance.displayName) (\(Goal.formatTime(base.best.timeSeconds)))."
+        )
+    }
+
+    private func vo2max(metrics: AthleteMetrics?) -> GoalRecommendation? {
+        guard let current = metrics?.vo2max else { return nil }
+        let target = (current + 3).rounded()
+        return GoalRecommendation(
+            targetValue: target,
+            rationale: "De \(Goal.trim(current)) a \(Goal.trim(target)): +3 en 8–12 semanas es realista."
+        )
+    }
+
+    private func weight(metrics: AthleteMetrics?) -> GoalRecommendation? {
+        guard let current = metrics?.weightKg else { return nil }
+        if let h = metrics?.heightM, h > 0 {
+            let bmi = current / (h * h)
+            guard bmi > 24.9 else {
+                return GoalRecommendation(targetValue: current.rounded(),
+                                          rationale: "Tu IMC ya está en rango saludable; enfócate en mantener.")
+            }
+            let healthy = 23.0 * h * h        // objetivo IMC 23 (medio del rango saludable)
+            let safeFloor = current * 0.92    // no más de ~8% de baja por meta (seguro)
+            let target = max(healthy, safeFloor).rounded()
+            return GoalRecommendation(targetValue: target,
+                                      rationale: "Hacia un IMC saludable (~23), sin pasar de ~8% de baja.")
+        }
+        return GoalRecommendation(targetValue: (current * 0.95).rounded(),
+                                  rationale: "Baja conservadora (~5%). Agrega tu estatura en Salud para una meta por IMC.")
+    }
+}
+
 /// Calcula el progreso de una meta contra su valor actual (`current`), agnóstico de la fuente.
 /// `current` nil = aún no hay dato (p. ej. sin PR para esa distancia, o métrica no cableada).
 struct AssessGoalProgressUseCase: Sendable {

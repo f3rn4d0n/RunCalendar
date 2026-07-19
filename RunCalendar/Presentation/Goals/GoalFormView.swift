@@ -14,6 +14,7 @@ struct GoalFormView: View {
     @State private var hasDeadline = false
     @State private var deadline = Date()
     @State private var notes = ""
+    @State private var suggestion: String?
 
     /// Distancias con tiempo objetivo (las estándar).
     private static let distances: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
@@ -52,6 +53,13 @@ struct GoalFormView: View {
                     case .weight:
                         TextField("Peso objetivo en kg (p. ej. 78)", text: $valueText)
                             .keyboardType(.decimalPad)
+                    }
+
+                    Button(action: suggest) {
+                        Label("Sugerir meta", systemImage: "wand.and.stars")
+                    }
+                    if let suggestion {
+                        Text(suggestion).font(.mCaption).foregroundStyle(.secondary)
                     }
                 }
 
@@ -95,6 +103,19 @@ struct GoalFormView: View {
         hasDeadline = goal.deadline != nil
         deadline = goal.deadline ?? Date()
         notes = goal.notes
+    }
+
+    /// Rellena la meta con la recomendación (editable) y muestra el porqué.
+    private func suggest() {
+        guard let rec = viewModel.recommendation(type: type, distance: type == .raceTime ? distance : nil) else {
+            suggestion = "Aún no hay datos para sugerir. Registra carreras o tus datos en Salud."
+            return
+        }
+        switch type {
+        case .raceTime: timeText = Goal.formatTime(Int(rec.targetValue))
+        case .vo2max, .weight: valueText = Goal.trim(rec.targetValue)
+        }
+        suggestion = rec.rationale
     }
 
     private func save() async {
