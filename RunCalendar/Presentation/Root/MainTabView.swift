@@ -12,6 +12,7 @@ struct MainTabView: View {
     @State private var profileViewModel: ProfileViewModel
     @State private var remindersViewModel: RemindersViewModel
     @State private var healthViewModel: HealthViewModel
+    @State private var goalsViewModel: GoalsViewModel
 
     init(container: AppContainer, user: AppUser, authViewModel: AuthViewModel) {
         self.container = container
@@ -29,6 +30,9 @@ struct MainTabView: View {
         _healthViewModel = State(initialValue: container.makeHealthViewModel(
             userID: user.id, trainingViewModel: trainings
         ))
+        _goalsViewModel = State(initialValue: container.makeGoalsViewModel(
+            userID: user.id, racesViewModel: races, trainingViewModel: trainings
+        ))
     }
 
     var body: some View {
@@ -43,6 +47,9 @@ struct MainTabView: View {
             }
             Tab("Entrenar", systemImage: "figure.run") {
                 TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel)
+            }
+            Tab("Objetivos", systemImage: "target") {
+                GoalsView(viewModel: goalsViewModel)
             }
             Tab("Condición", systemImage: "heart.text.square") {
                 HealthView(viewModel: healthViewModel, racesViewModel: racesViewModel)
@@ -71,6 +78,7 @@ struct MainTabView: View {
         .task { await racesViewModel.start() }
         .task { await trainingViewModel.start() }
         .task { await profileViewModel.start() }
+        .task { await goalsViewModel.start() }
         // Observadores de Salud (HKObserverQuery): re-sincronizan solo cuando
         // HealthKit reporta datos nuevos, sin recargar en cada aparición.
         .task { await trainingViewModel.observeHealthUpdates() }
