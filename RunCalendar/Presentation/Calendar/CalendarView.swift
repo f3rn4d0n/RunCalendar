@@ -76,6 +76,7 @@ struct CalendarView: View {
                 }
                 .padding(.vertical)
             }
+            .background(Neon.background.ignoresSafeArea())
             .navigationTitle("Calendario")
         }
     }
