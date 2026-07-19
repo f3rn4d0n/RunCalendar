@@ -8,10 +8,11 @@ struct RaceReadinessRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: readiness.level.systemImage)
-                .font(.system(size: 30))
-                .foregroundStyle(color)
-                .frame(width: 44)
+            ProgressRing(progress: readiness.progressFraction, color: color, lineWidth: 5, size: 46) {
+                Text("\(Int(readiness.progressFraction * 100))")
+                    .font(.marker(14)).foregroundStyle(color)
+                    .lineLimit(1).minimumScaleFactor(0.5)
+            }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(race.name).font(.mHeadline).lineLimit(1)

@@ -42,4 +42,7 @@ struct WorkloadRatio: Equatable, Sendable {
     let note: String
 
     var ratioText: String { ratio.formatted(.number.precision(.fractionLength(1))) + "×" }
+
+    /// Llenado del anillo: 1.5× (o más) llena el aro; el color ya distingue la zona.
+    var ringFraction: Double { min(ratio / 1.5, 1) }
 }

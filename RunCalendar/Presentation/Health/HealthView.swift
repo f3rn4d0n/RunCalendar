@@ -232,20 +232,14 @@ struct HealthView: View {
     @ViewBuilder
     private func workloadSection(_ w: WorkloadRatio) -> some View {
         Section {
-            HStack(spacing: 14) {
-                Image(systemName: w.zone.systemImage)
-                    .font(.system(size: 30))
-                    .foregroundStyle(workloadColor(w.zone))
-                    .frame(width: 44)
+            HStack(spacing: 16) {
+                ProgressRing(progress: w.ringFraction, color: workloadColor(w.zone), lineWidth: 7, size: 66) {
+                    Text(w.ratioText).font(.marker(15))
+                        .foregroundStyle(workloadColor(w.zone))
+                        .lineLimit(1).minimumScaleFactor(0.5).frame(width: 46)
+                }
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(w.ratioText).font(.mTitle3.bold())
-                        Text(w.zone.title)
-                            .font(.mCaption2.weight(.semibold))
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(workloadColor(w.zone).opacity(0.15), in: Capsule())
-                            .foregroundStyle(workloadColor(w.zone))
-                    }
+                    Text(w.zone.title).font(.mHeadline).foregroundStyle(workloadColor(w.zone))
                     Text("Esta semana \(w.acuteMinutes) min · promedio \(w.weeklyAverageMinutes) min/sem")
                         .font(.mSubheadline).foregroundStyle(.secondary)
                 }
