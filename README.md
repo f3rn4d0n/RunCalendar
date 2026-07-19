@@ -26,6 +26,9 @@ Seis pestañas: **Carreras**, **Calendario**, **Entrenar**, **Objetivos**, **Con
   **Riegel** para tiempos (desde tu PR en otra distancia), VO₂max actual +3, y peso hacia **IMC
   saludable** con tu estatura (acotado a una baja segura). Incluye **fecha objetivo sugerida**
   (una meta sin plazo no es accionable): peso a 0.5 kg/sem, tiempo/VO₂max ~12 semanas. Con su porqué.
+- **Vista "misión"** (rediseño): cada meta es una tarjeta con número héroe, barra de progreso
+  clara, **"faltan X días"**, **confianza cualitativa** (Alta/Media/Baja, heurística Riegel/ritmo —
+  no un % inventado) y **Coach Insight** narrativo con tus datos reales.
 - CRUD con formulario por tipo (parseo `mm:ss`), fecha límite opcional. Fase 1 de la visión.
 
 ### 🏁 Carreras
