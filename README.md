@@ -25,6 +25,9 @@ Cuatro pestañas: **Carreras**, **Calendario**, **Entrenar** y **Condición**.
 - Detalle con **mapa de la ruta** (si la carrera se corrió y tiene GPS).
 - **Readiness por carrera**: qué tan listo estás para cada distancia, consciente de la
   fecha (una 5K esta semana vs. una 42K la próxima).
+- **Recordatorios locales** (Perfil → Recordatorios): avisos de carrera (anticipado, víspera,
+  día del evento), **entrega de kit** (víspera y día mismo, con lugar y hora), y de
+  entrenamientos (a la hora, y un aviso de los que dejaste pendientes). Sin backend.
 
 ### 📅 Calendario
 - Vista mensual con carreras y entrenamientos.
@@ -265,12 +268,11 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
 búsqueda de ubicación + "Cómo llegar", Condición completa (recuperación, ACWR, VO₂max, tendencias,
 PRs), readiness por carrera, RPE por sesión + esfuerzo del Watch, calibración **segmentada**
 (por HRV/sueño/carga), **carga de recuperación/ACWR ponderada por RPE**, distancia 15K,
-caminata/senderismo.
+caminata/senderismo, recordatorios locales (carreras, kit con lugar/hora, entrenamientos + pendientes).
 
 **Pendiente:**
 
 - [ ] **Widget de cuenta regresiva** (WidgetKit) — espera membresía de pago (App Groups).
 - [ ] Target de **Apple Watch** (watchOS).
-- [ ] **Notificaciones / recordatorios** de carreras y entrega de kits.
 - [ ] **Catálogo de carreras** compartido entre usuarios.
 - [ ] Sincronización con **Apple Calendar** (EventKit).
