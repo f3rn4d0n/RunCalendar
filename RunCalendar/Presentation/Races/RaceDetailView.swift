@@ -91,14 +91,19 @@ struct RaceDetailView: View {
                 if let distance = race.distanceKm {
                     row("Distancia", "\(distance.formatted()) km", icon: "ruler")
                 }
-                Button {
-                    Task {
-                        calendarMessage = await viewModel.addRaceToCalendar(race)
-                            ? "Se agregó la carrera a tu calendario."
-                            : "No se pudo agregar. Revisa el permiso de Calendario en Ajustes."
+                if viewModel.isInCalendar(race) {
+                    Label("Ya en tu calendario", systemImage: "calendar.badge.checkmark")
+                        .foregroundStyle(.secondary)
+                } else {
+                    Button {
+                        Task {
+                            calendarMessage = await viewModel.addRaceToCalendar(race)
+                                ? "Se agregó la carrera a tu calendario."
+                                : "No se pudo agregar. Revisa el permiso de Calendario en Ajustes."
+                        }
+                    } label: {
+                        Label("Añadir al calendario", systemImage: "calendar.badge.plus")
                     }
-                } label: {
-                    Label("Añadir al calendario", systemImage: "calendar.badge.plus")
                 }
             }
 
@@ -202,14 +207,19 @@ struct RaceDetailView: View {
                         NavigateButton(coordinate: coordinate, label: "Cómo llegar a la entrega")
                     }
                     if kit.date != nil {
-                        Button {
-                            Task {
-                                calendarMessage = await viewModel.addKitPickupToCalendar(race)
-                                    ? "Se agregó la entrega de kit a tu calendario."
-                                    : "No se pudo agregar. Revisa el permiso de Calendario en Ajustes."
+                        if viewModel.isKitInCalendar(race) {
+                            Label("Ya en tu calendario", systemImage: "calendar.badge.checkmark")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Button {
+                                Task {
+                                    calendarMessage = await viewModel.addKitPickupToCalendar(race)
+                                        ? "Se agregó la entrega de kit a tu calendario."
+                                        : "No se pudo agregar. Revisa el permiso de Calendario en Ajustes."
+                                }
+                            } label: {
+                                Label("Añadir la entrega al calendario", systemImage: "calendar.badge.plus")
                             }
-                        } label: {
-                            Label("Añadir la entrega al calendario", systemImage: "calendar.badge.plus")
                         }
                     }
                 }
