@@ -113,6 +113,7 @@ final class AppContainer {
             deleteGoal: DeleteGoalUseCase(repository: goalRepository),
             assessProgress: AssessGoalProgressUseCase(),
             assessConfidence: AssessGoalConfidenceUseCase(),
+            assessPace: AssessGoalPaceUseCase(),
             recommendGoal: RecommendGoalUseCase(),
             fetchAthleteMetrics: FetchAthleteMetricsUseCase(repository: healthRepository),
             racesViewModel: racesViewModel,
