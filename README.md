@@ -337,10 +337,25 @@ no por pantalla.
 - **Cards educativas** en Condición: cada métrica explica importancia + rango + valoración
   (es una preferencia de producto, no adorno).
 
+### Dirección de rediseño (en curso)
+
+La UI actual usa `Form`/`List` agrupado por defecto → se siente "cuadrada" y genérica. El rediseño
+la mueve de **"llenar un formulario" a "crear una misión"**, con más carácter de la identidad `Neon`.
+Patrones objetivo (empezando por **Objetivos** como buque insignia, luego al resto de tabs):
+
+- **Número protagonista (hero)**: el dato clave enorme (p. ej. `21K · 1:59:59`), no una fila más.
+- **"Faltan 84 días"** en vez de una fecha suelta (el cerebro entiende mejor el tiempo restante).
+- **Coach Insight**: explica el *porqué* con datos reales (`VO₂max 51 · 35 km esta semana · PR 5K 27:00
+  · ~12 sem de prep`), en vez de una línea escondida tipo "basado en tu PR…".
+- **Confianza cualitativa** (Alta / Media / Baja) con sus razones — **nunca un % inventado** (finge
+  precisión y erosiona confianza; mismo principio que la calibración).
+- **Cards reutilizables** (fondo, esquinas, sombra) + número héroe extraídos a `Core`, para que el
+  look aplique en **toda** la app, no pantalla por pantalla.
+
 ### Al mejorar UI/UX
 
-Reusa la tabla de arriba antes de crear componentes nuevos; respeta la paleta `Neon` (no
-colores sueltos) y las fuentes `.m*`; y recuerda que un cambio de estilo debe verse en **todos
+Reusa la tabla y los patrones de arriba antes de crear componentes nuevos; respeta la paleta `Neon`
+(no colores sueltos) y las fuentes `.m*`; y recuerda que un cambio de estilo debe verse en **todos
 los tabs**, no en una pantalla.
 
 ---
@@ -415,18 +430,38 @@ técnica + hidratación → nutrición/macros → seguimiento) — hoy hecho a m
 La base de métricas fiables ya existe; falta la estructura (objetivos, plan, nutrición) sobre la que
 la IA pueda razonar — por eso la IA es la **última** fase, no la primera.
 
+**No competimos contra Strava/Garmin; competimos contra el papel.** La app es el **dashboard**; el
+[Manual](docs/ejemplo-manual-atleta.md) es la **fuente de conocimiento/metodología**. Cada mañana el
+atleta debería abrir la app y encontrar respuesta a **cuatro preguntas** (que definen la nav objetivo
+*Objetivos → Plan → Hoy → Progreso*):
+
+1. ¿Cuál es mi objetivo principal ahora?
+2. ¿Qué debo hacer hoy para acercarme?
+3. ¿Cómo voy respecto al plan?
+4. ¿Qué aprendí esta semana?
+
+**Modelo de "Campañas" (capa de UX que une Fases 1–3):** en vez de perseguir un número suelto, un
+**Proyecto/Campaña** (p. ej. *"Primer Medio Maratón"*) agrupa el **objetivo principal** (21K en 2:00)
++ sus **misiones** — checklist accionable (correr 40 km esta semana, 3 fartlek, bajar a 80 kg, dormir
+8 h × 7, meal prep dominical…). Persigues pequeñas victorias, no un número lejano. Las misiones **salen
+del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cuando exista el plan.
+
 **Plan por fases (hacia la visión):**
 
 | Fase | Qué | Notas |
 |------|-----|-------|
 | **1. Objetivos** ✅ | Entidad `Goal` + CRUD + tab con progreso (tiempo vs. PRs, VO₂max/peso vs. Salud) y **"Sugerir meta"** (Riegel/IMC, sin IA) | Marco del que cuelga todo; también abre el rediseño de navegación |
 | **2. Review dominical** | Check-in semanal (peso, cintura, energía, hambre, fotos) al estilo del Manual | **Victoria temprana**: reusa el patrón de check-ins (`recoveryLogs`); gancho de hábito alto |
-| **3. Plan estructurado** | Plantilla semanal recurrente (p. ej. Mar/Jue/Dom + técnica); el import de Salud marca adherencia (planificado vs. `completed`) | Conecta con lo ya existente |
+| **3. Plan + Campañas** | Plantilla semanal recurrente (Mar/Jue/Dom + técnica) → **misiones** de la Campaña; el import de Salud marca adherencia (planificado vs. `completed`) | Habilita el modelo de "Campañas" y responde "¿qué hago hoy?" |
 | **4. Nutrición** | **Solo objetivos + adherencia (checkbox)**: macros/kcal objetivo, hidratación, ¿cumpliste hoy? — **no** food-logger | Dominio nuevo; acotado a propósito para no volverse contador de calorías |
 | **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app** |
 
 > **Reestructura UX asociada:** pasar de tabs por *tipo de dato* (Carreras/Calendario/Entrenar/Condición)
-> a tabs por *ciclo del atleta*: **Objetivos → Plan → Hoy → Progreso**. La Fase 1 la habilita.
+> a tabs por *ciclo del atleta*: **Objetivos → Plan → Hoy → Progreso** (las 4 preguntas). La Fase 1 la habilita.
+>
+> **Rediseño visual (transversal, en curso):** de "formulario" a "misión" — número héroe, "faltan X días",
+> Coach Insight, confianza cualitativa, cards reutilizables. Empieza por **Objetivos** y se rueda al resto.
+> Detalle y patrones en [Diseño / UI → Dirección de rediseño](#dirección-de-rediseño-en-curso).
 >
 > Boceto de colecciones para estas fases: ver [Modelo de datos futuro](#modelo-de-datos-futuro-fases-1-4-tentativo).
 
