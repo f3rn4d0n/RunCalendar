@@ -471,6 +471,9 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         case .hiking: return .hiking
         case .traditionalStrengthTraining, .functionalStrengthTraining,
              .crossTraining, .highIntensityIntervalTraining: return .crossfit
+        // "Otro" del Apple Watch (donde caben CrossFit y demás): se importa como "Otro"
+        // con lo que traiga (FC, esfuerzo, duración); el usuario puede reetiquetarlo.
+        case .other: return .other
         default: return nil
         }
     }
