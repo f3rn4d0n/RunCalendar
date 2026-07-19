@@ -7,10 +7,12 @@ struct ReadinessDetailView: View {
     var body: some View {
         List {
             Section {
-                HStack(spacing: 12) {
-                    Image(systemName: readiness.level.systemImage)
-                        .font(.system(size: 36))
-                        .foregroundStyle(levelColor)
+                HStack(spacing: 16) {
+                    ProgressRing(progress: readiness.progressFraction, color: levelColor, lineWidth: 8, size: 72) {
+                        Text("\(Int(readiness.progressFraction * 100))%")
+                            .font(.marker(16)).foregroundStyle(levelColor)
+                            .lineLimit(1).minimumScaleFactor(0.5).frame(width: 52)
+                    }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(readiness.distance.displayName).font(.mTitle3)
                         Text(readiness.level.rawValue).foregroundStyle(.secondary)

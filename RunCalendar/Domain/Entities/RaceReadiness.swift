@@ -42,4 +42,10 @@ struct RaceReadiness: Identifiable, Equatable, Sendable {
     let recommendations: [String]
 
     var id: String { distance.rawValue }
+
+    /// Preparación 0–1: promedio del avance en carrera larga y en volumen semanal vs. lo recomendado.
+    var progressFraction: Double {
+        func ratio(_ current: Double, _ target: Double) -> Double { target > 0 ? min(current / target, 1) : 1 }
+        return (ratio(currentLongRunKm, recommendedLongRunKm) + ratio(currentWeeklyKm, recommendedWeeklyKm)) / 2
+    }
 }

@@ -323,7 +323,8 @@ no por pantalla.
   **Cambia aquí y se propaga a toda la app.** Superficies del Kit (`Neon.background`/`surface`/
   `surfaceElevated`, dark-first, adaptables). El cuerpo usa SF en vez de Inter (nativo, cero peso).
 - **`ProgressRing`** (`Core/Components`): anillo del Kit (pista tenue + arco de color, contenido al
-  centro). Reutilizable — hoy en la recuperación de Condición; luego ACWR/readiness.
+  centro). Reutilizable — en **recuperación**, **ACWR** (fracción `ratio/1.5×`) y **readiness**
+  (% = promedio de avance en carrera larga y volumen vs. lo recomendado).
 - **Tono**: oscuro-primero, acentos neón, mucho espacio en blanco, datos siempre **rotulados con
   unidades** (nunca un número pelón).
 
