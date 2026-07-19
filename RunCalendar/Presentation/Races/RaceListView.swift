@@ -112,8 +112,11 @@ struct RaceListView: View {
                             }
                         }
                     }
+                    .scrollContentBackground(.hidden)
+                    .listRowBackground(Neon.surface)
                 }
             }
+            .background(Neon.background.ignoresSafeArea())
             .navigationTitle("Carreras")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { filterMenu }

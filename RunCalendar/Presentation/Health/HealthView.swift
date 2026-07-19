@@ -42,6 +42,7 @@ struct HealthView: View {
                     }
                 }
             }
+            .background(Neon.background.ignoresSafeArea())
             .navigationTitle("Condición")
             .task { await viewModel.onAppear() }
         }
@@ -122,6 +123,8 @@ struct HealthView: View {
                 Text("Toca una distancia para ver qué mejorar. Estimado orientativo, no es consejo médico.")
             }
         }
+        .scrollContentBackground(.hidden)
+        .listRowBackground(Neon.surface)
         .refreshable { await viewModel.load() }
     }
 

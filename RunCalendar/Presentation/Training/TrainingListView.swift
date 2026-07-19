@@ -68,8 +68,11 @@ struct TrainingListView: View {
                             }
                         }
                     }
+                    .scrollContentBackground(.hidden)
+                    .listRowBackground(Neon.surface)
                 }
             }
+            .background(Neon.background.ignoresSafeArea())
             .navigationTitle("Entrenamiento")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {

@@ -321,7 +321,8 @@ no por pantalla.
   `#A78BFA`, `pink` `#FF6FA8`, `gold` `#FFD166` (dark, identidad insignia) + variantes `light`
   armonizadas. Degradados `buttonGradient` (azul→púrpura) y `logoGradient` (arcoíris de branding).
   **Cambia aquí y se propaga a toda la app.** Superficies del Kit (`Neon.background`/`surface`/
-  `surfaceElevated`, dark-first, adaptables). El cuerpo usa SF en vez de Inter (nativo, cero peso).
+  `surfaceElevated`, dark-first, adaptables) aplicadas en **todas las pestañas** (fondo `Neon.background`
+  + `scrollContentBackground(.hidden)` + filas `Neon.surface`). El cuerpo usa SF en vez de Inter (nativo, cero peso).
 - **`ProgressRing`** (`Core/Components`): anillo del Kit (pista tenue + arco de color, contenido al
   centro). Reutilizable — en **recuperación**, **ACWR** (fracción `ratio/1.5×`) y **readiness**
   (% = promedio de avance en carrera larga y volumen vs. lo recomendado).
