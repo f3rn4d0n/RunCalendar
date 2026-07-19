@@ -7,15 +7,16 @@ kits, fecha), tu **programa de entrenamiento** (CrossFit y carrera) y tu **condi
 Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Auth + Firestore).
 
 > **¿Eres otra IA o dev retomando el proyecto?** Empieza por [Funcionalidades](#funcionalidades)
-> (qué existe hoy), luego [Notas para desarrolladores](#notas-para-desarrolladores--ia)
+> (qué existe hoy) y el [Mapa del código](#mapa-del-código-para-retomar-rápido) (dónde vive qué +
+> cableado de ViewModels), luego [Notas para desarrolladores](#notas-para-desarrolladores--ia)
 > (convenciones y trampas) y [Troubleshooting](#troubleshooting). El [Roadmap](#roadmap-y-backlog)
-> tiene lo pendiente.
+> tiene la visión y lo pendiente.
 
 ---
 
 ## Funcionalidades
 
-Cuatro pestañas: **Carreras**, **Calendario**, **Entrenar** y **Condición**.
+Cinco pestañas: **Carreras**, **Calendario**, **Entrenar**, **Condición** y **Perfil**.
 
 ### 🏁 Carreras
 - Alta/edición de carreras: nombre, fecha, costo, entrega de kit, prioridad.
@@ -36,9 +37,12 @@ Cuatro pestañas: **Carreras**, **Calendario**, **Entrenar** y **Condición**.
 - Vista mensual con carreras y entrenamientos.
 
 ### 🏋️ Entrenar
-- Entrenamientos de **carrera** y **CrossFit** (WOD), con duración, distancia, ritmo objetivo.
+- Entrenamientos de **carrera**, **CrossFit** (WOD), **caminata**, **senderismo** y **otro**,
+  con duración, distancia y ritmo objetivo (las de distancia). Tipos en `TrainingType`.
 - **Importación automática desde Apple Salud** al abrir la app (+ pull-to-refresh), con
-  dedup (evita duplicar lo que ya registró el Apple Watch). Importa **todo el historial**.
+  dedup (evita duplicar lo que ya registró el Apple Watch). Importa **todo el historial** y
+  mapea el tipo de actividad de Salud (correr, caminar, senderismo, fuerza→CrossFit) al tipo
+  de la app; las actividades no modeladas (ciclismo, natación) no se importan.
 - **Mapa de ruta** interactivo por entrenamiento: animación del recorrido, velocidad,
   ritmo cardiaco por zona, distancia, y **splits** por km. Clima del día del entreno.
 - **RPE por sesión** (esfuerzo 1–10) + **carga de sesión** (RPE × minutos). El RPE se
@@ -60,6 +64,11 @@ Cuatro pestañas: **Carreras**, **Calendario**, **Entrenar** y **Condición**.
   ponderada por **esfuerzo (RPE)** — una sesión intensa pesa más que una suave de igual duración.
 - **Récords personales** por distancia y velocidad promedio.
 - Cards **educativas** por métrica (qué es, rangos por edad, tu valoración).
+
+### 👤 Perfil
+- Datos del usuario y **cierre de sesión**.
+- **Recordatorios**: preferencias de las notificaciones locales (carreras, entrega de kit,
+  entrenamientos). Ver `RemindersSettingsView` / `RemindersViewModel`.
 
 ---
 
@@ -186,13 +195,31 @@ La pestaña **Condición** lee entrenamientos y datos de forma física de Salud.
 ```
 users/{uid}                          # perfil
 users/{uid}/races/{raceId}           # carreras
-users/{uid}/trainings/{id}           # entrenamientos (CrossFit / carrera; incluye rpe)
+users/{uid}/trainings/{id}           # entrenamientos (cualquier TrainingType; incluye rpe)
 users/{uid}/recoveryLogs/{yyyy-MM-dd} # check-in diario de recuperación (para calibrar)
 ```
 
 > **HealthKit no vive en Firestore.** VO₂max, HRV, FC, workouts y rutas se leen del
 > dispositivo en cada sesión (nunca se suben). Lo único que persiste de Condición son los
 > **check-ins** (`recoveryLogs`). Por eso Condición solo funciona en iPhone/Watch, no en Mac.
+
+### Modelo de datos futuro (fases 1–4, tentativo)
+
+Boceto para que las fases de la visión se implementen con estructura consistente. Todo cuelga
+de `users/{uid}/…` y hereda las mismas reglas de seguridad. **Aún no existe** — es guía de diseño.
+
+```
+users/{uid}/goals/{goalId}          # meta: tipo (peso|tiempo|vo2max), target, fecha límite   (fase 1)
+users/{uid}/plan/{planId}           # plantilla del plan (semanas, días)                       (fase 2)
+users/{uid}/plan/{planId}/days/{d}  # día planificado: tipo, descripción (p. ej. 8×1'/2')       (fase 2)
+users/{uid}/bodyLogs/{yyyy-MM-dd}   # review: peso, cintura, energía, hambre, fotos(ref)        (fase 3)
+users/{uid}/nutrition/{profileId}   # objetivos: kcal, macros, hidratación; adherencia diaria   (fase 4)
+```
+
+Notas: la **adherencia** del plan (fase 2) sale de cruzar el día planificado con las
+`TrainingSession.completed` que ya importa Salud; el **review corporal** (fase 3) reusa el patrón
+de `recoveryLogs`; la **nutrición** (fase 4) se acota a *objetivos + adherencia (checkbox)*, no a
+un registro de alimentos.
 
 ---
 
@@ -207,6 +234,103 @@ RunCalendar/
 ├── Presentation/   # Auth · Races · Training · Calendar · Health · Root (vistas + ViewModels)
 └── Resources/      # Assets, entitlements, GoogleService-Info.plist (lo pones tú)
 ```
+
+---
+
+## Mapa del código (para retomar rápido)
+
+Índice de "dónde vive qué", para no buscar a ciegas.
+
+### Entrada y wiring
+- `App/…App.swift` (`@main`) → `AppDelegate` (init de Firebase) → `RootView` (gate de auth) → `MainTabView`.
+- `App/DI/AppContainer.swift` — **composition root**: crea repos, services y los `makeXxxViewModel(...)`.
+- `Presentation/Root/MainTabView.swift` — **dueño de todos los ViewModels**; monta los 5 tabs, arranca
+  los streams de Firestore (`.task { … start() }`) y los observadores de Salud (`HKObserverQuery`).
+
+### ViewModels (`@Observable`, en `Presentation/*/`) y sus dependencias cruzadas
+> El acoplamiento entre ViewModels **no es obvio** y es fácil tropezar: varios reciben a otros por constructor.
+
+| ViewModel | Rol | Recibe |
+|-----------|-----|--------|
+| `AuthViewModel` | Login / sesión | — |
+| `RacesViewModel` | Carreras (stream Firestore) | — |
+| `TrainingViewModel` | Entrenamientos + import de Salud | — |
+| `HealthViewModel` | Condición | **`TrainingViewModel`** (sus `sessions` alimentan la carga de recuperación/ACWR) |
+| `RemindersViewModel` | Agenda notificaciones locales | **`RacesViewModel` + `TrainingViewModel`** |
+| `ProfileViewModel` | Perfil | — |
+
+### Dominio (`Domain/Entities/`) — sustantivos clave
+- **Carreras**: `Race`, `RaceDiscipline` (5/10/15/21/42K, Trail, Otra), `RaceStatus`, `RaceReadiness`.
+- **Entrenamiento**: `TrainingSession` + `TrainingType` (Carrera/CrossFit/Caminata/Senderismo/Otro),
+  `HealthWorkout` (lo que se lee de Salud antes de importar). Ojo: `effortMinutes` (duración×RPE/5) y
+  `sessionLoad` (RPE×min) viven en `TrainingSession`.
+- **Condición**: `RecoverySnapshot`/`RecoveryEstimate`/`RecoveryTrend` (`Recovery.swift`),
+  `RecoveryCheckIn`, `RecoveryCalibration`, `WorkloadInput`/`WorkloadRatio`/`WorkloadZone`
+  (`Workload.swift`), `FitnessSummary`, `FitnessTrend`, `WorkoutRoute`, `RaceWeather`.
+- **Otros**: `AppUser`, `UserProfile`, `ReminderPreferences`, `CalendarEvent`.
+
+### Casos de uso (`Domain/UseCases/`)
+Uno por responsabilidad (SRP), agrupados por archivo (`HealthUseCases.swift`, `RaceUseCases.swift`,
+`TrainingUseCases.swift`, `AuthUseCases.swift`, …). Patrón: `Fetch*` (lee del repo) y `Assess*`/`Compute*`
+(lógica pura). Los de carga/condición: `FetchRecovery`/`AssessRecovery`, `FetchWorkload`/`AssessWorkload`,
+`AssessReadiness`, `ComputeTrainingLoad`, `FetchFitnessSummary`/`FetchFitnessTrend`.
+
+### Data (`Data/`)
+- **Repos** `Firestore*Repository` implementan los protocolos de `Domain/Repositories`.
+- **Services**: `HealthKitService` (todas las queries de Salud), `EventKitService` (Calendario),
+  `OpenMeteoService` (clima REST), `LocalNotificationService`, `GoogleSignInService`.
+- **DTOs** en `Data/DTO` mapean Firestore ↔ entidades.
+
+### Core (`Core/`)
+Transversal: `Theme/Neon.swift` (paleta adaptable claro/oscuro), fuentes (`.mCaption`, `.mTitle3`…),
+`Haptics`, `Log`. **Todo cambio de color/tipografía va aquí** para que aplique a toda la app.
+
+---
+
+## Diseño / UI
+
+Identidad visual y piezas reutilizables, para que cualquiera (o una IA) rediseñe **coherente**
+con lo que ya existe. Todo lo transversal vive en `Core/` — **cambios de estilo se hacen ahí**,
+no por pantalla.
+
+### Identidad
+
+- **Tipografía de rótulo: Permanent Marker** (`Font.marker` / estilos `.mLargeTitle … .mCaption2`
+  en `Core/Theme/Fonts.swift`). Da el aire "deportivo/hecho a mano". Escala con Dynamic Type.
+  Los tamaños son algo menores que los del sistema porque la fuente es más ancha.
+- **Paleta `Neon`** (`Core/Theme/Neon.swift`): `accent` (azul), `green`, `teal`, `orange`,
+  `purple`, `pink`, `gold`. **Adaptable claro/oscuro** (cada color tiene variante `light`/`dark`).
+  Degradados `buttonGradient` (botones primarios) y `logoGradient` (branding).
+- **Tono**: oscuro-primero, acentos neón, mucho espacio en blanco, datos siempre **rotulados con
+  unidades** (nunca un número pelón).
+
+### Componentes reutilizables
+
+| Pieza | Dónde | Uso |
+|-------|-------|-----|
+| `EmptyStateView(icon,title,message)` | `Core/Components` | Estado vacío consistente |
+| `NeonButtonStyle` | `Core/Theme` | Botón primario (degradado, esquina 12) |
+| `MetricRow` + `MetricInfoCard` | `Presentation/Health` | Fila de métrica con **card educativa** (qué es, rangos, tu valoración) |
+| `chartSelectionMark(...)` | `Presentation/Health/ChartSupport` | Tooltip de selección para Swift Charts |
+| `RPEPromptCard` | `Presentation/Training` | Card discreta descartable (patrón "pendiente de completar") |
+| `RecoveryAccuracyChart` / `*TrendChart` | `Presentation/Health` | Gráficas interactivas (`chartXSelection`) |
+| chips (`chip(...)`) | Detalle de carrera/entreno | Etiquetas de estado (Completado, Prioritario) |
+| `Haptics` | `Core/Utils` | Feedback al guardar/confirmar |
+
+### Patrones de interacción
+
+- **Listas** como base; **pull-to-refresh** para recargar (carreras, entrenamientos).
+- **Swipe actions** (eliminar / marcar hecho) en filas.
+- **Sheets** para formularios de alta/edición; **`confirmationDialog`** para duplicados/decisiones.
+- **Cards descartables** para avisos no bloqueantes (ver `RPEPromptCard`).
+- **Cards educativas** en Condición: cada métrica explica importancia + rango + valoración
+  (es una preferencia de producto, no adorno).
+
+### Al mejorar UI/UX
+
+Reusa la tabla de arriba antes de crear componentes nuevos; respeta la paleta `Neon` (no
+colores sueltos) y las fuentes `.m*`; y recuerda que un cambio de estilo debe verse en **todos
+los tabs**, no en una pantalla.
 
 ---
 
@@ -239,6 +363,10 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   `Secrets.xcconfig` (ambos gitignored).
 - **Cuenta de Apple gratis**: sin App Groups, WeatherKit ni capabilities de pago. Por eso el
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
+- **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
+  **español**. Mantén esa división.
+- **No hay target de tests**: la verificación es `xcodebuild … build` (BUILD SUCCEEDED) + correr la app.
+  No intentes `xcodebuild test` ni asumas un suite; la lógica no trivial deja un check propio si aplica.
 - **Convenciones de código**:
   - ViewModels `@Observable`; la UI solo conoce **casos de uso** (nunca Firebase directo).
   - Cada caso de uso = una responsabilidad, recibe su repositorio por **protocolo**.
@@ -266,6 +394,30 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
 ---
 
 ## Roadmap y backlog
+
+**Visión (objetivo final):** que RunCalendar sea la app del **atleta serio** que quiere mejorar con
+**métricas fiables** — no solo registrar, sino *entrenar con propósito*. El endgame es un **modelo de
+IA** que, sobre tus objetivos, tu plan, tu adherencia y tus tendencias reales, genere **planes de
+entrenamiento y de alimentación personalizados** y te entregue **reportes por correo**. El artefacto
+objetivo es un [Manual del Atleta Híbrido](docs/ejemplo-manual-atleta.md) (objetivos → carrera +
+técnica + hidratación → nutrición/macros → seguimiento) — hoy hecho a mano; la app debería generarlo.
+La base de métricas fiables ya existe; falta la estructura (objetivos, plan, nutrición) sobre la que
+la IA pueda razonar — por eso la IA es la **última** fase, no la primera.
+
+**Plan por fases (hacia la visión):**
+
+| Fase | Qué | Notas |
+|------|-----|-------|
+| **1. Objetivos** | Entidad de metas (peso, tiempos por distancia, VO₂max) con progreso vs. PRs/readiness actuales | Marco del que cuelga todo; también abre el rediseño de navegación |
+| **2. Review dominical** | Check-in semanal (peso, cintura, energía, hambre, fotos) al estilo del Manual | **Victoria temprana**: reusa el patrón de check-ins (`recoveryLogs`); gancho de hábito alto |
+| **3. Plan estructurado** | Plantilla semanal recurrente (p. ej. Mar/Jue/Dom + técnica); el import de Salud marca adherencia (planificado vs. `completed`) | Conecta con lo ya existente |
+| **4. Nutrición** | **Solo objetivos + adherencia (checkbox)**: macros/kcal objetivo, hidratación, ¿cumpliste hoy? — **no** food-logger | Dominio nuevo; acotado a propósito para no volverse contador de calorías |
+| **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app** |
+
+> **Reestructura UX asociada:** pasar de tabs por *tipo de dato* (Carreras/Calendario/Entrenar/Condición)
+> a tabs por *ciclo del atleta*: **Objetivos → Plan → Hoy → Progreso**. La Fase 1 la habilita.
+>
+> Boceto de colecciones para estas fases: ver [Modelo de datos futuro](#modelo-de-datos-futuro-fases-1-4-tentativo).
 
 **Hecho** (resumen): importación auto de Salud (todos los tipos, incl. "Otro") + rutas + splits,
 búsqueda de ubicación + "Cómo llegar", Condición completa (recuperación, ACWR, VO₂max, tendencias,
