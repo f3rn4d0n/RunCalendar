@@ -104,6 +104,34 @@ struct RecommendGoalUseCase: Sendable {
     }
 }
 
+/// Desglosa el ritmo semanal esperado para llegar a la meta a tiempo (repartido, no de golpe).
+/// `nil` si falta el dato actual, no hay fecha, o ya se alcanzó.
+struct AssessGoalPaceUseCase: Sendable {
+    func callAsFunction(type: GoalType, target: Double, current: Double?, deadline: Date?, now: Date = Date()) -> GoalPace? {
+        guard let current, let deadline else { return nil }
+        let weeks = deadline.timeIntervalSince(now) / (7 * 86_400)
+        let change = abs(current - target)
+        guard weeks >= 1, change > 0.01 else { return nil }
+        let perWeek = change / weeks
+        let wk = Int(weeks.rounded())
+
+        func f(_ x: Double) -> String { String(format: "%.1f", x) }
+
+        switch type {
+        case .weight:
+            let pct = current > 0 ? perWeek / current * 100 : 0
+            return GoalPace(weekly: "≈ \(f(perWeek)) kg por semana (\(f(pct))%)",
+                            summary: "≈ \(f(perWeek * 4.345)) kg/mes · llegas en ~\(wk) semanas")
+        case .vo2max:
+            return GoalPace(weekly: "≈ +\(f(perWeek)) puntos por semana",
+                            summary: "de \(Goal.trim(current)) a \(Goal.trim(target)) en ~\(wk) semanas")
+        case .raceTime:
+            return GoalPace(weekly: "acortar ≈ \(Int(perWeek.rounded())) s por semana",
+                            summary: "\(Goal.formatTime(Int(change))) menos en ~\(wk) semanas")
+        }
+    }
+}
+
 /// Confianza cualitativa (Alta/Media/Baja) de lograr una meta, con heurísticas defendibles —
 /// nunca un % inventado. Tiempo: qué tan exigente es el objetivo vs. lo que Riegel predice desde
 /// tu PR. Peso/VO₂max: si el ritmo de cambio necesario hasta la fecha es realista. `nil` = sin datos.

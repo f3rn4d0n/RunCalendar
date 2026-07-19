@@ -29,6 +29,13 @@ struct GoalFormView: View {
         }
     }
 
+    /// Ritmo semanal esperado — reactivo a la meta y la fecha (se recalcula al editarlas).
+    private var pace: GoalPace? {
+        guard let target = parsedTarget, hasDeadline else { return nil }
+        return viewModel.expectedPace(type: type, distance: type == .raceTime ? distance : nil,
+                                      target: target, deadline: deadline)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -72,6 +79,14 @@ struct GoalFormView: View {
                 } footer: {
                     Text(suggestion
                         ?? "Te proponemos una meta y una fecha realistas con tus datos (PRs, VO₂max, peso).")
+                }
+
+                if let pace {
+                    Section("Progreso esperado") {
+                        Label(pace.weekly, systemImage: "chart.line.uptrend.xyaxis")
+                            .foregroundStyle(Neon.accent)
+                        Text(pace.summary).font(.mCaption).foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("Notas") {

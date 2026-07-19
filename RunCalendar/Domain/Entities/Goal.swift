@@ -132,6 +132,12 @@ struct GoalRecommendation: Equatable, Sendable {
     let rationale: String
 }
 
+/// Ritmo esperado para llegar a la meta a tiempo (para no intentar todo de golpe).
+struct GoalPace: Equatable, Sendable {
+    let weekly: String    // "≈ 0.5 kg por semana (0.6%)"
+    let summary: String   // "≈ 2.2 kg/mes · llegas en ~12 semanas"
+}
+
 /// Progreso de una meta contra el valor actual (de PRs, VO₂max o peso).
 struct GoalProgress: Equatable, Sendable {
     let achieved: Bool

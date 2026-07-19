@@ -19,6 +19,7 @@ final class GoalsViewModel {
     private let deleteGoal: DeleteGoalUseCase
     private let assessProgress: AssessGoalProgressUseCase
     private let assessConfidence: AssessGoalConfidenceUseCase
+    private let assessPace: AssessGoalPaceUseCase
     private let recommendGoal: RecommendGoalUseCase
     private let fetchAthleteMetrics: FetchAthleteMetricsUseCase
     /// Fuentes del valor "actual" para el progreso.
@@ -36,6 +37,7 @@ final class GoalsViewModel {
         deleteGoal: DeleteGoalUseCase,
         assessProgress: AssessGoalProgressUseCase,
         assessConfidence: AssessGoalConfidenceUseCase,
+        assessPace: AssessGoalPaceUseCase,
         recommendGoal: RecommendGoalUseCase,
         fetchAthleteMetrics: FetchAthleteMetricsUseCase,
         racesViewModel: RacesViewModel,
@@ -48,6 +50,7 @@ final class GoalsViewModel {
         self.deleteGoal = deleteGoal
         self.assessProgress = assessProgress
         self.assessConfidence = assessConfidence
+        self.assessPace = assessPace
         self.recommendGoal = recommendGoal
         self.fetchAthleteMetrics = fetchAthleteMetrics
         self.racesViewModel = racesViewModel
@@ -112,15 +115,24 @@ final class GoalsViewModel {
 
     /// Valor actual del atleta para la meta. `nil` si aún no hay dato.
     private func currentValue(for goal: Goal) -> Double? {
-        switch goal.type {
+        currentValue(type: goal.type, distance: goal.distance)
+    }
+
+    private func currentValue(type: GoalType, distance: RaceDiscipline?) -> Double? {
+        switch type {
         case .raceTime:
-            guard let distance = goal.distance else { return nil }
-            let records = PersonalRecords.compute(races: racesViewModel.races,
-                                                  sessions: trainingViewModel.sessions)
-            return records.first { $0.distance == distance }.map { Double($0.best.timeSeconds) }
+            guard let distance else { return nil }
+            return records().first { $0.distance == distance }.map { Double($0.best.timeSeconds) }
         case .vo2max: return metrics.vo2max
         case .weight: return metrics.weightKg
         }
+    }
+
+    /// Ritmo semanal esperado para una meta (tipo/distancia/valor/fecha), con el dato actual real.
+    /// Reactivo: la vista lo recalcula al cambiar la meta o la fecha.
+    func expectedPace(type: GoalType, distance: RaceDiscipline?, target: Double, deadline: Date?) -> GoalPace? {
+        assessPace(type: type, target: target,
+                   current: currentValue(type: type, distance: distance), deadline: deadline)
     }
 
     func save(_ goal: Goal, isNew: Bool) async -> Bool {
