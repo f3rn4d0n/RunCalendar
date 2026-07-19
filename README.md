@@ -22,6 +22,9 @@ Cuatro pestañas: **Carreras**, **Calendario**, **Entrenar** y **Condición**.
 - **Ubicación con búsqueda** (MapKit `MKLocalSearch`): busca por nombre, dirección o
   `lat,long`; vista previa en mapa; recuerda el texto previo al editar.
 - Botón **"Cómo llegar"** que abre Apple Maps, Google Maps o Waze.
+- **Añadir al Calendario** (carrera y entrega de kit) como eventos con coordenadas
+  (→ mapa y tiempo de viaje del sistema), URL de inscripción y alarma. Acceso solo-escritura
+  (privado); dedupe best-effort ("Ya en tu calendario").
 - Detalle con **mapa de la ruta** (si la carrera se corrió y tiene GPS).
 - **Readiness por carrera**: qué tan listo estás para cada distancia, consciente de la
   fecha (una 5K esta semana vs. una 42K la próxima).
@@ -268,11 +271,11 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
 búsqueda de ubicación + "Cómo llegar", Condición completa (recuperación, ACWR, VO₂max, tendencias,
 PRs), readiness por carrera, RPE por sesión + esfuerzo del Watch, calibración **segmentada**
 (por HRV/sueño/carga), **carga de recuperación/ACWR ponderada por RPE**, distancia 15K,
-caminata/senderismo, recordatorios locales (carreras, kit con lugar/hora, entrenamientos + pendientes).
+caminata/senderismo, recordatorios locales (carreras, kit con lugar/hora, entrenamientos + pendientes),
+exportar carreras/kit al Calendario (EventKit, con coordenadas/URL/alarma).
 
 **Pendiente:**
 
 - [ ] **Widget de cuenta regresiva** (WidgetKit) — espera membresía de pago (App Groups).
 - [ ] Target de **Apple Watch** (watchOS).
 - [ ] **Catálogo de carreras** compartido entre usuarios.
-- [ ] Sincronización con **Apple Calendar** (EventKit).

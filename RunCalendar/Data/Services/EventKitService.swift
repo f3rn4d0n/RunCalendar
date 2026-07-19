@@ -1,5 +1,6 @@
 import Foundation
 import EventKit
+import CoreLocation
 
 /// Implementación de `CalendarRepository` sobre EventKit.
 /// Pide acceso **solo de escritura** (iOS 17+): agregar eventos sin leer el calendario.
@@ -23,6 +24,17 @@ final class EventKitService: CalendarRepository {
         ekEvent.endDate = event.endDate
         ekEvent.location = event.location
         ekEvent.notes = event.notes
+        ekEvent.url = event.url
+
+        // Ubicación con coordenadas: habilita mapa y alertas de tiempo de viaje del sistema.
+        if let lat = event.latitude, let lon = event.longitude {
+            let structured = EKStructuredLocation(title: event.location ?? event.title)
+            structured.geoLocation = CLLocation(latitude: lat, longitude: lon)
+            ekEvent.structuredLocation = structured
+        }
+        if let minutes = event.alarmMinutesBefore {
+            ekEvent.addAlarm(EKAlarm(relativeOffset: -Double(minutes * 60)))
+        }
 
         do {
             try store.save(ekEvent, span: .thisEvent)

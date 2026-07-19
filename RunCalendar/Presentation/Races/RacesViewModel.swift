@@ -34,6 +34,11 @@ final class RacesViewModel {
     var errorMessage: String?
     private var hasStarted = false
 
+    /// Claves de eventos ya agregados al Calendario (dedupe best-effort: el acceso solo-escritura
+    /// no permite verificar contra el calendario real). Persistido en UserDefaults.
+    private(set) var calendarKeys: Set<String> =
+        Set(UserDefaults.standard.stringArray(forKey: "calendarAddedKeys") ?? [])
+
     let userID: String
     private let observeRaces: ObserveRacesUseCase
     private let addRace: AddRaceUseCase
@@ -147,6 +152,11 @@ final class RacesViewModel {
         }
     }
 
+    /// ¿La carrera ya se agregó al calendario? (best-effort, ver `calendarKeys`).
+    func isInCalendar(_ race: Race) -> Bool { calendarKeys.contains("race-\(race.id)") }
+    /// ¿La entrega de kit ya se agregó al calendario?
+    func isKitInCalendar(_ race: Race) -> Bool { calendarKeys.contains("kit-\(race.id)") }
+
     /// Agrega la carrera al calendario del sistema. Devuelve si tuvo éxito.
     func addRaceToCalendar(_ race: Race) async -> Bool {
         var notes = race.notes
@@ -159,8 +169,12 @@ final class RacesViewModel {
             startDate: race.date,
             endDate: race.date.addingTimeInterval(2 * 3600),
             location: locationText(race.location),
-            notes: notes.isEmpty ? nil : notes
-        ))
+            notes: notes.isEmpty ? nil : notes,
+            latitude: race.location.latitude,
+            longitude: race.location.longitude,
+            url: race.registrationURL,
+            alarmMinutesBefore: 24 * 60   // aviso la víspera a la misma hora
+        ), key: "race-\(race.id)")
     }
 
     /// Agrega la entrega de kit al calendario. `false` si el kit no tiene fecha.
@@ -171,19 +185,28 @@ final class RacesViewModel {
             startDate: date,
             endDate: date.addingTimeInterval(3600),
             location: kit.location.flatMap(locationText),
-            notes: kit.notes.isEmpty ? nil : kit.notes
-        ))
+            notes: kit.notes.isEmpty ? nil : kit.notes,
+            latitude: kit.location?.latitude,
+            longitude: kit.location?.longitude,
+            alarmMinutesBefore: 120       // 2 h antes de recoger
+        ), key: "kit-\(race.id)")
     }
 
-    private func add(_ event: CalendarEvent) async -> Bool {
+    private func add(_ event: CalendarEvent, key: String) async -> Bool {
         do {
             try await addToCalendar(event)
+            rememberCalendarKey(key)
             Haptics.success()
             return true
         } catch {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    private func rememberCalendarKey(_ key: String) {
+        calendarKeys.insert(key)
+        UserDefaults.standard.set(Array(calendarKeys), forKey: "calendarAddedKeys")
     }
 
     /// Texto de ubicación "Nombre, Dirección" (omite lo vacío).
