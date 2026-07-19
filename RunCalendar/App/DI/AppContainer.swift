@@ -16,6 +16,7 @@ final class AppContainer {
     private let weatherRepository: WeatherRepository
     private let calendarRepository: CalendarRepository
     private let recoveryLogRepository: RecoveryLogRepository
+    private let goalRepository: GoalRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
@@ -27,7 +28,8 @@ final class AppContainer {
         // Open-Meteo hoy; cambiar por WeatherKitService al publicar (mismo protocolo).
         weatherRepository: WeatherRepository = OpenMeteoService(),
         calendarRepository: CalendarRepository = EventKitService(),
-        recoveryLogRepository: RecoveryLogRepository = FirestoreRecoveryLogRepository()
+        recoveryLogRepository: RecoveryLogRepository = FirestoreRecoveryLogRepository(),
+        goalRepository: GoalRepository = FirestoreGoalRepository()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
@@ -38,6 +40,7 @@ final class AppContainer {
         self.weatherRepository = weatherRepository
         self.calendarRepository = calendarRepository
         self.recoveryLogRepository = recoveryLogRepository
+        self.goalRepository = goalRepository
     }
 
     // MARK: - ViewModels
@@ -92,6 +95,23 @@ final class AppContainer {
     ) -> RemindersViewModel {
         RemindersViewModel(
             scheduler: reminderScheduler,
+            racesViewModel: racesViewModel,
+            trainingViewModel: trainingViewModel
+        )
+    }
+
+    func makeGoalsViewModel(
+        userID: String,
+        racesViewModel: RacesViewModel,
+        trainingViewModel: TrainingViewModel
+    ) -> GoalsViewModel {
+        GoalsViewModel(
+            userID: userID,
+            observeGoals: ObserveGoalsUseCase(repository: goalRepository),
+            addGoal: AddGoalUseCase(repository: goalRepository),
+            updateGoal: UpdateGoalUseCase(repository: goalRepository),
+            deleteGoal: DeleteGoalUseCase(repository: goalRepository),
+            assessProgress: AssessGoalProgressUseCase(),
             racesViewModel: racesViewModel,
             trainingViewModel: trainingViewModel
         )

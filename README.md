@@ -16,7 +16,13 @@ Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Au
 
 ## Funcionalidades
 
-Cinco pestañas: **Carreras**, **Calendario**, **Entrenar**, **Condición** y **Perfil**.
+Seis pestañas: **Carreras**, **Calendario**, **Entrenar**, **Objetivos**, **Condición** y **Perfil**.
+
+### 🎯 Objetivos
+- Metas del atleta: **tiempo por distancia**, **VO₂max** y **peso** (entidad `Goal`).
+- **Progreso vs. datos reales**: las metas de tiempo se miden contra tus **PRs** (barra +
+  "actual / faltan"). VO₂max y peso (de HealthKit) se cablean en el siguiente paso.
+- CRUD con formulario por tipo (parseo `mm:ss`), fecha límite opcional. Fase 1 de la visión.
 
 ### 🏁 Carreras
 - Alta/edición de carreras: nombre, fecha, costo, entrega de kit, prioridad.
@@ -197,6 +203,7 @@ users/{uid}                          # perfil
 users/{uid}/races/{raceId}           # carreras
 users/{uid}/trainings/{id}           # entrenamientos (cualquier TrainingType; incluye rpe)
 users/{uid}/recoveryLogs/{yyyy-MM-dd} # check-in diario de recuperación (para calibrar)
+users/{uid}/goals/{goalId}           # objetivos del atleta (tiempo/VO₂max/peso)  (fase 1)
 ```
 
 > **HealthKit no vive en Firestore.** VO₂max, HRV, FC, workouts y rutas se leen del
@@ -209,7 +216,7 @@ Boceto para que las fases de la visión se implementen con estructura consistent
 de `users/{uid}/…` y hereda las mismas reglas de seguridad. **Aún no existe** — es guía de diseño.
 
 ```
-users/{uid}/goals/{goalId}          # meta: tipo (peso|tiempo|vo2max), target, fecha límite   (fase 1)
+users/{uid}/goals/{goalId}          # ✅ fase 1 (ya existe): tipo, targetValue, startValue, distance, deadline
 users/{uid}/plan/{planId}           # plantilla del plan (semanas, días)                       (fase 2)
 users/{uid}/plan/{planId}/days/{d}  # día planificado: tipo, descripción (p. ej. 8×1'/2')       (fase 2)
 users/{uid}/bodyLogs/{yyyy-MM-dd}   # review: peso, cintura, energía, hambre, fotos(ref)        (fase 3)
@@ -408,7 +415,7 @@ la IA pueda razonar — por eso la IA es la **última** fase, no la primera.
 
 | Fase | Qué | Notas |
 |------|-----|-------|
-| **1. Objetivos** | Entidad de metas (peso, tiempos por distancia, VO₂max) con progreso vs. PRs/readiness actuales | Marco del que cuelga todo; también abre el rediseño de navegación |
+| **1. Objetivos** 🚧 | Entidad `Goal` + CRUD + tab con progreso. **Hecho:** metas de tiempo vs. PRs. **Falta:** "actual" de VO₂max/peso desde HealthKit | Marco del que cuelga todo; también abre el rediseño de navegación |
 | **2. Review dominical** | Check-in semanal (peso, cintura, energía, hambre, fotos) al estilo del Manual | **Victoria temprana**: reusa el patrón de check-ins (`recoveryLogs`); gancho de hábito alto |
 | **3. Plan estructurado** | Plantilla semanal recurrente (p. ej. Mar/Jue/Dom + técnica); el import de Salud marca adherencia (planificado vs. `completed`) | Conecta con lo ya existente |
 | **4. Nutrición** | **Solo objetivos + adherencia (checkbox)**: macros/kcal objetivo, hidratación, ¿cumpliste hoy? — **no** food-logger | Dominio nuevo; acotado a propósito para no volverse contador de calorías |
