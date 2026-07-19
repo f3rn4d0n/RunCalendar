@@ -7,15 +7,17 @@ extension Font {
         .custom("PermanentMarker", size: size, relativeTo: textStyle)
     }
 
-    // Equivalentes en Permanent Marker de los estilos semánticos del sistema.
-    // Tamaños algo menores que los del sistema porque la fuente es más ancha.
+    // Tipografía del UI Kit: Permanent Marker se reserva para **títulos grandes** y **números
+    // destacados** (estos últimos vía `marker(_:)` explícito, p. ej. el número héroe de una meta).
+    // El cuerpo, filas, descripciones y captions usan la **fuente del sistema** (San Francisco),
+    // que es limpia y muy cercana a Inter — sin bundlear una fuente extra.
     static var mLargeTitle: Font { marker(30, relativeTo: .largeTitle) }
     static var mTitle3: Font { marker(18, relativeTo: .title3) }
-    static var mHeadline: Font { marker(16, relativeTo: .headline) }
-    static var mBody: Font { marker(16, relativeTo: .body) }
-    static var mCallout: Font { marker(15, relativeTo: .callout) }
-    static var mSubheadline: Font { marker(14, relativeTo: .subheadline) }
-    static var mFootnote: Font { marker(12, relativeTo: .footnote) }
-    static var mCaption: Font { marker(11, relativeTo: .caption) }
-    static var mCaption2: Font { marker(10, relativeTo: .caption2) }
+    static var mHeadline: Font { .headline }
+    static var mBody: Font { .body }
+    static var mCallout: Font { .callout }
+    static var mSubheadline: Font { .subheadline }
+    static var mFootnote: Font { .footnote }
+    static var mCaption: Font { .caption }
+    static var mCaption2: Font { .caption2 }
 }

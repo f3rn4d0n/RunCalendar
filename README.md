@@ -309,14 +309,19 @@ no por pantalla.
 
 ### Identidad
 
-- **Tipografía de rótulo: Permanent Marker** (`Font.marker` / estilos `.mLargeTitle … .mCaption2`
-  en `Core/Theme/Fonts.swift`). Da el aire "deportivo/hecho a mano". Escala con Dynamic Type.
-  Los tamaños son algo menores que los del sistema porque la fuente es más ancha.
+- **Dos tipografías** (`Core/Theme/Fonts.swift`), como el UI Kit:
+  - **Permanent Marker** (`Font.marker(_:)`) solo para **títulos grandes** (`.mLargeTitle`, `.mTitle3`)
+    y **números destacados** (número héroe de una meta, splits, etc. — vía `.marker(size)` explícito).
+    Da el aire "deportivo/hecho a mano" sin saturar.
+  - **Fuente del sistema (San Francisco)** para cuerpo, filas, descripciones y captions
+    (`.mHeadline … .mCaption2` mapean a los estilos nativos). Limpia, cercana a Inter, Dynamic Type.
+    Se eligió SF sobre bundlear Inter (nativo, cero peso; ~95% del look del Kit).
 - **Paleta `Neon`** (`Core/Theme/Neon.swift`): valores del **RunCalendar UI Kit** — `accent`
   `#3D8BFF`, `green` `#34D399` (esmeralda), `teal` `#2DD4CE`, `orange` `#FF9F45`, `purple`
   `#A78BFA`, `pink` `#FF6FA8`, `gold` `#FFD166` (dark, identidad insignia) + variantes `light`
   armonizadas. Degradados `buttonGradient` (azul→púrpura) y `logoGradient` (arcoíris de branding).
-  **Cambia aquí y se propaga a toda la app.** Pendiente del Kit: superficies dark-first + Inter.
+  **Cambia aquí y se propaga a toda la app.** Pendiente del Kit: superficies dark-first (cards
+  `#14171D` sobre `#0A0C10`); el cuerpo usa SF en vez de Inter (decisión: nativo, cero peso).
 - **Tono**: oscuro-primero, acentos neón, mucho espacio en blanco, datos siempre **rotulados con
   unidades** (nunca un número pelón).
 
