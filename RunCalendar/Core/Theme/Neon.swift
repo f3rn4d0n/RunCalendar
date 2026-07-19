@@ -4,32 +4,33 @@ import UIKit
 /// Paleta neón adaptable de la app. Cada color tiene una variante para modo claro
 /// (más profunda/saturada, legible sobre blanco) y otra para modo oscuro (con brillo).
 enum Neon {
-    static let accent = adaptive(light: 0x0A6CF0, dark: 0x1FB2FF) // azul neón
-    static let green  = adaptive(light: 0x4E9A2F, dark: 0x9EE64B)
-    static let teal   = adaptive(light: 0x009E86, dark: 0x2BE7C7)
-    static let orange = adaptive(light: 0xE9720B, dark: 0xFF9A3D)
-    static let purple = adaptive(light: 0x8A2BE2, dark: 0xC15CFF)
-    static let pink   = adaptive(light: 0xC71585, dark: 0xFF4FA3)
-    static let gold   = adaptive(light: 0xB8860B, dark: 0xFFC53D)
+    // Valores del RunCalendar UI Kit: dark = identidad insignia; light = tono armonizado, legible.
+    static let accent = adaptive(light: 0x2E6FE6, dark: 0x3D8BFF) // azul periwinkle
+    static let green  = adaptive(light: 0x0E9E6A, dark: 0x34D399) // esmeralda
+    static let teal   = adaptive(light: 0x0FA9A2, dark: 0x2DD4CE)
+    static let orange = adaptive(light: 0xD97A22, dark: 0xFF9F45)
+    static let purple = adaptive(light: 0x7C5CE0, dark: 0xA78BFA)
+    static let pink   = adaptive(light: 0xD14E86, dark: 0xFF6FA8)
+    static let gold   = adaptive(light: 0xB7841E, dark: 0xFFD166)
 
-    /// Degradado neón para botones primarios (azul → púrpura → magenta).
+    /// Degradado para botones primarios (azul → púrpura, del Kit).
     static let buttonGradient = LinearGradient(
         colors: [
-            Color(red: 0.10, green: 0.70, blue: 1.00), // azul neón
-            Color(red: 0.55, green: 0.35, blue: 1.00), // púrpura
-            Color(red: 1.00, green: 0.20, blue: 0.65)  // magenta
+            Color(red: 0.239, green: 0.545, blue: 1.000), // #3D8BFF
+            Color(red: 0.655, green: 0.545, blue: 0.980)  // #A78BFA
         ],
-        startPoint: .leading,
-        endPoint: .trailing
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
     )
 
-    /// Degradado neón multicolor, inspirado en el app icon (magenta → naranja → amarillo → cian).
+    /// Degradado neón multicolor de branding (rosa → naranja → oro → verde → azul, del Kit).
     static let logoGradient = LinearGradient(
-        colors: [
-            Color(red: 1.00, green: 0.16, blue: 0.60), // magenta neón
-            Color(red: 1.00, green: 0.48, blue: 0.10), // naranja
-            Color(red: 1.00, green: 0.85, blue: 0.10), // amarillo
-            Color(red: 0.10, green: 0.80, blue: 1.00)  // cian
+        stops: [
+            .init(color: Color(red: 1.000, green: 0.435, blue: 0.659), location: 0.00), // #FF6FA8
+            .init(color: Color(red: 1.000, green: 0.624, blue: 0.271), location: 0.35), // #FF9F45
+            .init(color: Color(red: 1.000, green: 0.820, blue: 0.400), location: 0.55), // #FFD166
+            .init(color: Color(red: 0.204, green: 0.827, blue: 0.600), location: 0.75), // #34D399
+            .init(color: Color(red: 0.239, green: 0.545, blue: 1.000), location: 1.00)  // #3D8BFF
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
