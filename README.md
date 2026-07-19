@@ -312,9 +312,11 @@ no por pantalla.
 - **Tipografía de rótulo: Permanent Marker** (`Font.marker` / estilos `.mLargeTitle … .mCaption2`
   en `Core/Theme/Fonts.swift`). Da el aire "deportivo/hecho a mano". Escala con Dynamic Type.
   Los tamaños son algo menores que los del sistema porque la fuente es más ancha.
-- **Paleta `Neon`** (`Core/Theme/Neon.swift`): `accent` (azul), `green`, `teal`, `orange`,
-  `purple`, `pink`, `gold`. **Adaptable claro/oscuro** (cada color tiene variante `light`/`dark`).
-  Degradados `buttonGradient` (botones primarios) y `logoGradient` (branding).
+- **Paleta `Neon`** (`Core/Theme/Neon.swift`): valores del **RunCalendar UI Kit** — `accent`
+  `#3D8BFF`, `green` `#34D399` (esmeralda), `teal` `#2DD4CE`, `orange` `#FF9F45`, `purple`
+  `#A78BFA`, `pink` `#FF6FA8`, `gold` `#FFD166` (dark, identidad insignia) + variantes `light`
+  armonizadas. Degradados `buttonGradient` (azul→púrpura) y `logoGradient` (arcoíris de branding).
+  **Cambia aquí y se propaga a toda la app.** Pendiente del Kit: superficies dark-first + Inter.
 - **Tono**: oscuro-primero, acentos neón, mucho espacio en blanco, datos siempre **rotulados con
   unidades** (nunca un número pelón).
 
