@@ -12,6 +12,8 @@ struct RecoveryCheckIn: Identifiable, Equatable, Sendable {
     let hrv: Double?
     let baselineHRV: Double?
     let sleepHours: Double?
+    /// Carga reciente (minutos-esfuerzo, 72 h) ese día. Base para calibrar por carga.
+    let loadMinutes: Int?
 
     var id: Date { date }
 
