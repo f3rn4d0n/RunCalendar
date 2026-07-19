@@ -6,6 +6,8 @@ enum TrainingType: String, CaseIterable, Identifiable, Sendable {
     case running = "Carrera"
     case walking = "Caminata"
     case hiking = "Senderismo"
+    /// Actividad de Salud que no mapea a un tipo concreto (p. ej. "Otro" del Apple Watch).
+    case other = "Otro"
 
     var id: String { rawValue }
     var displayName: String { rawValue }
@@ -15,6 +17,7 @@ enum TrainingType: String, CaseIterable, Identifiable, Sendable {
         case .running: return "figure.run"
         case .walking: return "figure.walk"
         case .hiking: return "figure.hiking"
+        case .other: return "figure.mixed.cardio"
         }
     }
 
@@ -22,7 +25,7 @@ enum TrainingType: String, CaseIterable, Identifiable, Sendable {
     var tracksDistance: Bool {
         switch self {
         case .running, .walking, .hiking: return true
-        case .crossfit: return false
+        case .crossfit, .other: return false
         }
     }
 }
