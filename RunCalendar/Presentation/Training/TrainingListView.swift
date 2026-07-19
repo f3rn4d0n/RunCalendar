@@ -7,6 +7,7 @@ struct TrainingListView: View {
     @State private var filter: TrainingType?
     @State private var onlyPriority = false
     @State private var isCreating = false
+    @State private var rpePromptDismissed = false
 
     private var filtered: [TrainingSession] {
         var result = filter.map(viewModel.sessions(of:)) ?? viewModel.sessions
@@ -33,6 +34,15 @@ struct TrainingListView: View {
                     )
                 } else {
                     List {
+                        if !rpePromptDismissed, !viewModel.sessionsNeedingRPE.isEmpty {
+                            Section {
+                                RPEPromptCard(
+                                    sessions: viewModel.sessionsNeedingRPE,
+                                    onRate: { session, rpe in Task { await viewModel.rate(session, rpe: rpe) } },
+                                    onDismiss: { rpePromptDismissed = true }
+                                )
+                            }
+                        }
                         ForEach(filtered) { session in
                             NavigationLink {
                                 TrainingDetailView(

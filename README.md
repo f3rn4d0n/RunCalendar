@@ -37,7 +37,8 @@ Cuatro pestañas: **Carreras**, **Calendario**, **Entrenar** y **Condición**.
   ritmo cardiaco por zona, distancia, y **splits** por km. Clima del día del entreno.
 - **RPE por sesión** (esfuerzo 1–10) + **carga de sesión** (RPE × minutos). El RPE se
   **lee automáticamente del Apple Watch** (`workoutEffortScore`, iOS 18+) al importar;
-  las ya importadas se rellenan solas (backfill idempotente).
+  las ya importadas se rellenan solas (backfill idempotente). Si un entrenamiento reciente
+  quedó **sin RPE**, una card discreta en Entrenar te invita a calificarlo de un toque.
 - Detalle de **solo lectura** (editar es explícito).
 
 ### ❤️ Condición (Apple Salud / HealthKit)
@@ -268,7 +269,6 @@ caminata/senderismo.
 
 **Pendiente:**
 
-- [ ] **Prompt activo de RPE** al abrir si un workout llegó sin esfuerzo del reloj.
 - [ ] **Widget de cuenta regresiva** (WidgetKit) — espera membresía de pago (App Groups).
 - [ ] Target de **Apple Watch** (watchOS).
 - [ ] **Notificaciones / recordatorios** de carreras y entrega de kits.
