@@ -152,6 +152,15 @@ struct AssessRecoveryUseCase: Sendable {
 }
 
 /// Trae las carreras recientes de Salud para sugerir importarlas.
+/// Datos actuales del atleta (VO₂max, peso, estatura, edad) para metas y recomendaciones.
+struct FetchAthleteMetricsUseCase: Sendable {
+    private let repository: HealthRepository
+    init(repository: HealthRepository) { self.repository = repository }
+    func callAsFunction() async throws -> AthleteMetrics {
+        try await repository.fetchAthleteMetrics()
+    }
+}
+
 struct FetchRecentWorkoutsUseCase: Sendable {
     private let repository: HealthRepository
     init(repository: HealthRepository) { self.repository = repository }
