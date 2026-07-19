@@ -54,13 +54,6 @@ struct GoalFormView: View {
                         TextField("Peso objetivo en kg (p. ej. 78)", text: $valueText)
                             .keyboardType(.decimalPad)
                     }
-
-                    Button(action: suggest) {
-                        Label("Sugerir meta", systemImage: "wand.and.stars")
-                    }
-                    if let suggestion {
-                        Text(suggestion).font(.mCaption).foregroundStyle(.secondary)
-                    }
                 }
 
                 Section {
@@ -68,6 +61,17 @@ struct GoalFormView: View {
                     if hasDeadline {
                         DatePicker("Para", selection: $deadline, displayedComponents: .date)
                     }
+                }
+
+                Section {
+                    Button(action: suggest) {
+                        Label("Sugerir meta y fecha", systemImage: "wand.and.stars")
+                    }
+                    .buttonStyle(NeonButtonStyle())
+                    .listRowBackground(Color.clear)
+                } footer: {
+                    Text(suggestion
+                        ?? "Te proponemos una meta y una fecha realistas con tus datos (PRs, VO₂max, peso).")
                 }
 
                 Section("Notas") {
