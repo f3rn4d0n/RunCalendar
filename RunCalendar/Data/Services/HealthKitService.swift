@@ -397,9 +397,10 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         _ = await requestAuthorization()
         let dayStart = Calendar.current.startOfDay(for: date)
         let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) ?? date
-        let runs = try await runningWorkouts(since: dayStart)
-            .filter { $0.startDate < dayEnd }
-        Log.health.info("fetchRoute: \(runs.count, privacy: .public) corridas el \(dayStart, privacy: .public) (busco ~\(distanceKm ?? -1, privacy: .public) km)")
+        // Ruta de cualquier actividad con GPS (correr / caminar / senderismo), no solo correr.
+        let runs = try await workouts(since: dayStart, activity: nil)
+            .filter { $0.startDate < dayEnd && (trainingType(for: $0.workoutActivityType)?.tracksDistance ?? false) }
+        Log.health.info("fetchRoute: \(runs.count, privacy: .public) actividades con distancia el \(dayStart, privacy: .public) (busco ~\(distanceKm ?? -1, privacy: .public) km)")
         guard let workout = bestMatch(runs, distanceKm: distanceKm) else {
             Log.health.info("fetchRoute: sin corrida ese día → nil")
             return nil
