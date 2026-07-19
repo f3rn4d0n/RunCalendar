@@ -18,6 +18,7 @@ enum RecoveryCheckInDTO {
         dict["hrv"] = checkIn.hrv
         dict["baselineHRV"] = checkIn.baselineHRV
         dict["sleepHours"] = checkIn.sleepHours
+        dict["loadMinutes"] = checkIn.loadMinutes
         return dict
     }
 
@@ -30,7 +31,8 @@ enum RecoveryCheckInDTO {
             predictedRemainingHours: data["predictedRemainingHours"] as? Int ?? 0,
             hrv: data["hrv"] as? Double,
             baselineHRV: data["baselineHRV"] as? Double,
-            sleepHours: data["sleepHours"] as? Double
+            sleepHours: data["sleepHours"] as? Double,
+            loadMinutes: data["loadMinutes"] as? Int
         )
     }
 

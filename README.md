@@ -46,8 +46,9 @@ Cuatro pestañas: **Carreras**, **Calendario**, **Entrenar** y **Condición**.
   **HRV (SDNN)**, **FC en reposo**, **carga reciente** (ponderada por RPE) y **sueño**.
 - **Check-in diario** "¿cómo te sientes?" (1–5) + gráfica **"¿acierta el modelo?"**
   (sentido vs. predicho).
-- **Calibración**: aprende el sesgo de tus check-ins y ajusta las horas de recuperación a
-  tu cuerpo (se activa con ~2 semanas de registros).
+- **Calibración (segmentada)**: aprende de tus check-ins no solo un sesgo global sino cuánto se
+  desvía el modelo en **condiciones adversas** (HRV baja, sueño corto, carga alta) y corrige
+  extra los días que aplican. Se activa con ~2 semanas de registros.
 - **Carga de entrenamiento (ACWR)**: ratio agudo:crónico con zonas (óptimo / riesgo),
   ponderada por **esfuerzo (RPE)** — una sesión intensa pesa más que una suave de igual duración.
 - **Récords personales** por distancia y velocidad promedio.
@@ -244,6 +245,11 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   - La recuperación es un **modelo heurístico** en `AssessRecoveryUseCase`: horas base por carga
     × factores de HRV/FC/sueño × **factor de calibración**. Todas las constantes son
     calibrables (marcadas `ponytail:`).
+  - **Calibración** (`RecoveryCalibration`): modelo **aditivo** aprendido de los check-ins —
+    sesgo global `b0` + offsets por condición adversa (HRV baja, sueño corto, carga alta),
+    resueltos para las condiciones de hoy. Robusto e interpretable; una regresión continua
+    sería el paso a v3 con muchos más registros. El check-in guarda `loadMinutes` para el
+    segmento de carga (los previos a esta versión quedan sin él, en `nil`).
 - **Puente RPE → recuperación/ACWR**: la carga sale de las `TrainingSession` (que ya incluyen lo
   importado de Salud), ponderada por esfuerzo vía `effortMinutes` (duración × RPE/5; RPE 5 =
   minutos crudos). `ComputeTrainingLoadUseCase` deriva la carga de 72 h (recuperación) y 7 d/28 d
@@ -256,12 +262,12 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
 
 **Hecho** (resumen): importación auto de Salud (todos los tipos, incl. "Otro") + rutas + splits,
 búsqueda de ubicación + "Cómo llegar", Condición completa (recuperación, ACWR, VO₂max, tendencias,
-PRs), readiness por carrera, RPE por sesión + esfuerzo del Watch + calibración, **carga de
-recuperación/ACWR ponderada por RPE**, distancia 15K, caminata/senderismo.
+PRs), readiness por carrera, RPE por sesión + esfuerzo del Watch, calibración **segmentada**
+(por HRV/sueño/carga), **carga de recuperación/ACWR ponderada por RPE**, distancia 15K,
+caminata/senderismo.
 
 **Pendiente:**
 
-- [ ] **Calibración v2**: regresión sobre HRV/sueño/carga en vez de un factor de sesgo global.
 - [ ] **Prompt activo de RPE** al abrir si un workout llegó sin esfuerzo del reloj.
 - [ ] **Widget de cuenta regresiva** (WidgetKit) — espera membresía de pago (App Groups).
 - [ ] Target de **Apple Watch** (watchOS).

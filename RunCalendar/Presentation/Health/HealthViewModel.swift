@@ -130,19 +130,13 @@ final class HealthViewModel {
             let summary = try await fetchSummary()
             // Check-ins primero: alimentan la calibración de la recuperación.
             await loadTodayCheckIn()
-            let calibration = RecoveryCalibration(checkIns: recentCheckIns)
 
             // Carga desde las sesiones registradas (RPE × min). Si aún no hay sesiones
             // (arranque en frío antes del snapshot de Firestore), cae a los minutos de HealthKit.
             let sessions = trainingViewModel.sessions
             let sessionLoad = sessions.isEmpty ? nil : computeTrainingLoad(sessions)
 
-            let recovery = try await fetchRecovery().map { snapshot -> RecoveryEstimate in
-                let s = sessionLoad.map {
-                    snapshot.withLoad(minutes: $0.recentLoadMinutes, hoursSinceLast: $0.hoursSinceLastWorkout)
-                } ?? snapshot
-                return assessRecovery(s, calibration: calibration)
-            }
+            let recovery = try await fetchRecovery().map { makeRecovery(from: $0, sessionLoad: sessionLoad) }
             let recoveryTrend = (try? await fetchRecoveryTrend()) ?? nil
             let workloadInput: WorkloadInput?
             if let sessionLoad {
@@ -165,6 +159,24 @@ final class HealthViewModel {
         }
     }
 
+    /// Arma el estimado de recuperación: sustituye la carga por la de las sesiones (si hay) y
+    /// aplica la calibración v2, resuelta para las condiciones (HRV/sueño/carga) de hoy.
+    private func makeRecovery(from snapshot: RecoverySnapshot,
+                             sessionLoad: ComputeTrainingLoadUseCase.Load?) -> RecoveryEstimate {
+        let s = sessionLoad.map {
+            snapshot.withLoad(minutes: $0.recentLoadMinutes, hoursSinceLast: $0.hoursSinceLastWorkout)
+        } ?? snapshot
+        let hrvDeviation: Double?
+        if let hrv = s.currentHRV, let base = s.baselineHRV, base > 0 { hrvDeviation = hrv / base - 1 }
+        else { hrvDeviation = nil }
+        let calibration = RecoveryCalibration(
+            checkIns: recentCheckIns,
+            today: .init(hrvDeviation: hrvDeviation, sleepHours: s.lastNightSleepHours,
+                         loadMinutes: s.recentLoadMinutes)
+        )
+        return assessRecovery(s, calibration: calibration)
+    }
+
     private func loadTodayCheckIn() async {
         let recent = (try? await fetchCheckIns(userID: userID)) ?? []
         recentCheckIns = recent
@@ -176,13 +188,16 @@ final class HealthViewModel {
     func submitCheckIn(feeling: Int) async {
         let recovery: RecoveryEstimate?
         if case .loaded(let data) = state { recovery = data.recovery } else { recovery = nil }
+        let sessions = trainingViewModel.sessions
+        let loadMinutes = sessions.isEmpty ? nil : computeTrainingLoad(sessions).recentLoadMinutes
         let checkIn = RecoveryCheckIn(
             date: Calendar.current.startOfDay(for: Date()),
             feeling: feeling,
             predictedRemainingHours: recovery?.remainingHours ?? 0,
             hrv: recovery?.currentHRV,
             baselineHRV: recovery?.baselineHRV,
-            sleepHours: recovery?.sleepHours
+            sleepHours: recovery?.sleepHours,
+            loadMinutes: loadMinutes
         )
         do {
             try await saveCheckIn(checkIn, userID: userID)
@@ -196,24 +211,28 @@ final class HealthViewModel {
     }
 
 #if DEBUG
-    /// Debug: siembra check-ins sintéticos en memoria (sesgo positivo: te sentiste mejor de
-    /// lo previsto) para ver la calibración sin esperar días. No toca Firestore; al reiniciar
-    /// la app se pierde y vuelven los datos reales.
+    /// Debug: siembra check-ins sintéticos en memoria para ver la calibración v2 sin esperar
+    /// días. Un tercio son "días duros" (poco sueño + carga alta + te sentiste peor), para que
+    /// el segmento se active si hoy también es día duro. No toca Firestore; se pierde al reiniciar.
     func seedDemoCheckIns() async {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
         recentCheckIns = (1...18).reversed().map { day in
-            RecoveryCheckIn(
+            let hardDay = day % 3 == 0
+            return RecoveryCheckIn(
                 date: cal.date(byAdding: .day, value: -day, to: today) ?? today,
-                feeling: 5,                    // te sentiste fresco…
-                predictedRemainingHours: 30,   // …pero el modelo pedía ~1 día (modelFeeling 2)
-                hrv: nil, baselineHRV: nil, sleepHours: nil
+                feeling: hardDay ? 2 : 5,       // peor en día duro, fresco el resto
+                predictedRemainingHours: 20,    // modelFeeling 3
+                hrv: nil, baselineHRV: nil,
+                sleepHours: hardDay ? 5.5 : 8,
+                loadMinutes: hardDay ? 420 : 120
             )
         }
-        let calibration = RecoveryCalibration(checkIns: recentCheckIns)
         guard case .loaded(let data) = state else { return }
+        let sessions = trainingViewModel.sessions
+        let sessionLoad = sessions.isEmpty ? nil : computeTrainingLoad(sessions)
         let snapshot = (try? await fetchRecovery()) ?? nil
-        let recovery = snapshot.map { assessRecovery($0, calibration: calibration) } ?? data.recovery
+        let recovery = snapshot.map { makeRecovery(from: $0, sessionLoad: sessionLoad) } ?? data.recovery
         state = .loaded(HealthLoaded(
             summary: data.summary,
             readiness: data.readiness,
