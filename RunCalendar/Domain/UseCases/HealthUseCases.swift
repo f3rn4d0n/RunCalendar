@@ -190,6 +190,43 @@ struct FetchWorkloadUseCase: Sendable {
     }
 }
 
+/// Deriva la carga de entrenamiento en "minutos-esfuerzo" (duración × RPE/5) de las sesiones
+/// completadas, para recuperación (72 h) y ACWR (7 d / 28 d). Reemplaza los minutos crudos de
+/// HealthKit para que el RPE (del Watch o manual) module la intensidad.
+// ponytail: la carga sale de las TrainingSession (que ya incluyen lo importado de Salud). Las
+// actividades de Salud que no modelamos (ciclismo, natación) no cuentan aquí; si importan,
+// mapearlas a un tipo o sumarlas aparte.
+struct ComputeTrainingLoadUseCase: Sendable {
+    struct Load: Sendable {
+        let recentLoadMinutes: Int      // 72 h (recuperación)
+        let hoursSinceLastWorkout: Double?
+        let workload: WorkloadInput     // 7 d / 28 d (ACWR)
+    }
+
+    func callAsFunction(_ sessions: [TrainingSession], now: Date = Date()) -> Load {
+        let completed = sessions.filter { $0.completed && $0.date <= now }
+
+        func effortMinutes(sinceHours hours: Double) -> Int {
+            let cutoff = now.addingTimeInterval(-hours * 3600)
+            let total = completed
+                .filter { $0.date >= cutoff }
+                .compactMap(\.effortMinutes)
+                .reduce(0, +)
+            return Int(total.rounded())
+        }
+
+        let lastEnd = completed.map(\.date).max()
+        return Load(
+            recentLoadMinutes: effortMinutes(sinceHours: 72),
+            hoursSinceLastWorkout: lastEnd.map { now.timeIntervalSince($0) / 3600 },
+            workload: WorkloadInput(
+                acuteMinutes: effortMinutes(sinceHours: 7 * 24),
+                chronicMinutes: effortMinutes(sinceHours: 28 * 24)
+            )
+        )
+    }
+}
+
 /// Calcula la relación carga aguda:crónica (ACWR) y su zona. `nil` si aún no hay base
 /// de 4 semanas para comparar.
 struct AssessWorkloadUseCase: Sendable {

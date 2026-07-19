@@ -50,6 +50,10 @@ final class HealthViewModel {
     private let fetchFitnessTrend: FetchFitnessTrendUseCase
     private let saveCheckIn: SaveRecoveryCheckInUseCase
     private let fetchCheckIns: FetchRecoveryCheckInsUseCase
+    private let computeTrainingLoad: ComputeTrainingLoadUseCase
+    /// Fuente de las sesiones registradas: su RPE × minutos alimenta la carga de
+    /// recuperación y ACWR (en vez de los minutos crudos de HealthKit).
+    private let trainingViewModel: TrainingViewModel
 
     init(
         userID: String,
@@ -62,7 +66,9 @@ final class HealthViewModel {
         assessWorkload: AssessWorkloadUseCase,
         fetchFitnessTrend: FetchFitnessTrendUseCase,
         saveCheckIn: SaveRecoveryCheckInUseCase,
-        fetchCheckIns: FetchRecoveryCheckInsUseCase
+        fetchCheckIns: FetchRecoveryCheckInsUseCase,
+        computeTrainingLoad: ComputeTrainingLoadUseCase,
+        trainingViewModel: TrainingViewModel
     ) {
         self.userID = userID
         self.fetchSummary = fetchSummary
@@ -75,6 +81,8 @@ final class HealthViewModel {
         self.fetchFitnessTrend = fetchFitnessTrend
         self.saveCheckIn = saveCheckIn
         self.fetchCheckIns = fetchCheckIns
+        self.computeTrainingLoad = computeTrainingLoad
+        self.trainingViewModel = trainingViewModel
         // Arranca cargando (no en "conectar"): HealthKit no re-muestra la hoja de
         // permisos si el usuario ya respondió, así que cargamos directo.
         self.state = fetchSummary.isAvailable ? .loading : .unavailable
@@ -107,6 +115,12 @@ final class HealthViewModel {
         }
     }
 
+    /// Recalcula si ya hay datos cargados (p. ej. al cambiar las sesiones de entrenamiento,
+    /// cuya carga alimenta la recuperación y el ACWR). No dispara la carga inicial ni permisos.
+    func reloadIfLoaded() async {
+        if case .loaded = state { await load() }
+    }
+
     /// Recarga el resumen (asume autorización ya solicitada).
     func load() async {
         guard fetchSummary.isAvailable else { state = .unavailable; return }
@@ -117,9 +131,26 @@ final class HealthViewModel {
             // Check-ins primero: alimentan la calibración de la recuperación.
             await loadTodayCheckIn()
             let calibration = RecoveryCalibration(checkIns: recentCheckIns)
-            let recovery = try await fetchRecovery().map { assessRecovery($0, calibration: calibration) }
+
+            // Carga desde las sesiones registradas (RPE × min). Si aún no hay sesiones
+            // (arranque en frío antes del snapshot de Firestore), cae a los minutos de HealthKit.
+            let sessions = trainingViewModel.sessions
+            let sessionLoad = sessions.isEmpty ? nil : computeTrainingLoad(sessions)
+
+            let recovery = try await fetchRecovery().map { snapshot -> RecoveryEstimate in
+                let s = sessionLoad.map {
+                    snapshot.withLoad(minutes: $0.recentLoadMinutes, hoursSinceLast: $0.hoursSinceLastWorkout)
+                } ?? snapshot
+                return assessRecovery(s, calibration: calibration)
+            }
             let recoveryTrend = (try? await fetchRecoveryTrend()) ?? nil
-            let workload = try await fetchWorkload().flatMap(assessWorkload.callAsFunction)
+            let workloadInput: WorkloadInput?
+            if let sessionLoad {
+                workloadInput = sessionLoad.workload
+            } else {
+                workloadInput = try await fetchWorkload()
+            }
+            let workload = workloadInput.flatMap(assessWorkload.callAsFunction)
             let fitnessTrend = (try? await fetchFitnessTrend()) ?? nil
             state = .loaded(HealthLoaded(
                 summary: summary,

@@ -43,12 +43,13 @@ Cuatro pestañas: **Carreras**, **Calendario**, **Entrenar** y **Condición**.
 ### ❤️ Condición (Apple Salud / HealthKit)
 - **Resumen de forma**: VO₂max, FC en reposo, tendencia de fitness (Swift Charts interactivas).
 - **Recuperación estimada** (orientativa, no médica): horas hasta estar recuperado a partir de
-  **HRV (SDNN)**, **FC en reposo**, **carga reciente** y **sueño**.
+  **HRV (SDNN)**, **FC en reposo**, **carga reciente** (ponderada por RPE) y **sueño**.
 - **Check-in diario** "¿cómo te sientes?" (1–5) + gráfica **"¿acierta el modelo?"**
   (sentido vs. predicho).
 - **Calibración**: aprende el sesgo de tus check-ins y ajusta las horas de recuperación a
   tu cuerpo (se activa con ~2 semanas de registros).
-- **Carga de entrenamiento (ACWR)**: ratio agudo:crónico con zonas (óptimo / riesgo).
+- **Carga de entrenamiento (ACWR)**: ratio agudo:crónico con zonas (óptimo / riesgo),
+  ponderada por **esfuerzo (RPE)** — una sesión intensa pesa más que una suave de igual duración.
 - **Récords personales** por distancia y velocidad promedio.
 - Cards **educativas** por métrica (qué es, rangos por edad, tu valoración).
 
@@ -243,25 +244,25 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   - La recuperación es un **modelo heurístico** en `AssessRecoveryUseCase`: horas base por carga
     × factores de HRV/FC/sueño × **factor de calibración**. Todas las constantes son
     calibrables (marcadas `ponytail:`).
-- **Puente RPE ↔ recuperación (pendiente conocido)**: hoy la carga de la recuperación/ACWR usa
-  los **minutos de HealthKit**, no el `sessionLoad` (RPE × min) de las `TrainingSession`.
-  Unir ambos requiere puentear `TrainingViewModel` → flujo de Salud; es el siguiente escalón
-  natural de la calibración.
+- **Puente RPE → recuperación/ACWR**: la carga sale de las `TrainingSession` (que ya incluyen lo
+  importado de Salud), ponderada por esfuerzo vía `effortMinutes` (duración × RPE/5; RPE 5 =
+  minutos crudos). `ComputeTrainingLoadUseCase` deriva la carga de 72 h (recuperación) y 7 d/28 d
+  (ACWR); `HealthViewModel` la inyecta con `RecoverySnapshot.withLoad(...)` y recalcula al cambiar
+  las sesiones (`reloadIfLoaded`). Sin sesiones (arranque en frío) cae a los minutos de HealthKit.
 
 ---
 
 ## Roadmap y backlog
 
-**Hecho** (resumen): importación auto de Salud + rutas + splits, búsqueda de ubicación +
-"Cómo llegar", Condición completa (recuperación, ACWR, VO₂max, tendencias, PRs), readiness por
-carrera, RPE por sesión + esfuerzo del Watch + calibración.
+**Hecho** (resumen): importación auto de Salud (todos los tipos, incl. "Otro") + rutas + splits,
+búsqueda de ubicación + "Cómo llegar", Condición completa (recuperación, ACWR, VO₂max, tendencias,
+PRs), readiness por carrera, RPE por sesión + esfuerzo del Watch + calibración, **carga de
+recuperación/ACWR ponderada por RPE**, distancia 15K, caminata/senderismo.
 
 **Pendiente:**
 
-- [ ] **Puente RPE → recuperación/ACWR**: usar `sessionLoad` (RPE × min) como input de carga.
 - [ ] **Calibración v2**: regresión sobre HRV/sueño/carga en vez de un factor de sesgo global.
 - [ ] **Prompt activo de RPE** al abrir si un workout llegó sin esfuerzo del reloj.
-- [ ] **Más tipos de entrenamiento** (hoy solo carrera y CrossFit).
 - [ ] **Widget de cuenta regresiva** (WidgetKit) — espera membresía de pago (App Groups).
 - [ ] Target de **Apple Watch** (watchOS).
 - [ ] **Notificaciones / recordatorios** de carreras y entrega de kits.

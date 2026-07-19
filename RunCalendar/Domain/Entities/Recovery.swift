@@ -16,6 +16,18 @@ struct RecoverySnapshot: Sendable {
     let hoursSinceLastWorkout: Double?
     /// Horas dormidas la última noche (Salud), si las hay.
     let lastNightSleepHours: Double?
+
+    /// Copia con la carga y el tiempo desde el último entreno sustituidos (p. ej. desde las
+    /// sesiones registradas, para que el RPE module la recuperación). El resto de campos de
+    /// Salud (HRV, FC, sueño) se conservan.
+    func withLoad(minutes: Int, hoursSinceLast: Double?) -> RecoverySnapshot {
+        RecoverySnapshot(
+            currentHRV: currentHRV, baselineHRV: baselineHRV,
+            restingHR: restingHR, baselineRestingHR: baselineRestingHR,
+            recentLoadMinutes: minutes, hoursSinceLastWorkout: hoursSinceLast,
+            lastNightSleepHours: lastNightSleepHours
+        )
+    }
 }
 
 /// Nivel de recuperación estimado.

@@ -257,7 +257,8 @@ struct HealthView: View {
             Text("Carga de entrenamiento")
         } footer: {
             Text("Relación carga aguda:crónica (ACWR): tu semana vs. tu promedio de 4 semanas. "
-                + "Considera todos tus entrenamientos de Salud, no solo carreras.")
+                + "Usa tus entrenamientos registrados, ponderados por esfuerzo (RPE): una sesión "
+                + "intensa pesa más que una suave de la misma duración.")
         }
     }
 

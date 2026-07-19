@@ -63,6 +63,14 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         return rpe * durationMin
     }
 
+    /// Minutos ajustados por esfuerzo: duración × (RPE/5). RPE 5 (moderado) = minutos crudos,
+    /// así los umbrales de recuperación/ACWR siguen válidos; sin RPE cae a minutos crudos.
+    /// `nil` si no hay duración. Base para que la intensidad module la carga.
+    var effortMinutes: Double? {
+        guard let durationMin else { return nil }
+        return Double(durationMin) * Double(rpe ?? 5) / 5.0
+    }
+
     init(
         id: String = UUID().uuidString,
         date: Date,
