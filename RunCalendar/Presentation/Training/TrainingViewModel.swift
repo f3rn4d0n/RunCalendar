@@ -77,6 +77,23 @@ final class TrainingViewModel {
         sessions.filter { $0.type == type }
     }
 
+    /// Sesiones completadas recientes (≤14 días) con duración pero sin RPE: candidatas a
+    /// calificar el esfuerzo. Alimentan carga/recuperación, por eso vale la pena pedirlo.
+    /// ponytail: ventana de 14 días para no pedir RPE de todo el historial importado.
+    var sessionsNeedingRPE: [TrainingSession] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? .distantPast
+        return sessions
+            .filter { $0.completed && $0.rpe == nil && $0.durationMin != nil && $0.date >= cutoff }
+            .sorted { $0.date > $1.date }
+    }
+
+    /// Calificación rápida del esfuerzo: fija el RPE de una sesión existente.
+    func rate(_ session: TrainingSession, rpe: Int) async {
+        var updated = session
+        updated.rpe = rpe
+        _ = await save(updated, isNew: false)
+    }
+
     /// Carreras de Salud que aún no tienen un entrenamiento parecido registrado.
     var importableWorkouts: [HealthWorkout] {
         recentWorkouts.filter { workout in
