@@ -76,6 +76,9 @@ struct MainTabView: View {
         .task { await trainingViewModel.start() }
         .task { await profileViewModel.start() }
         .task { await goalsViewModel.start() }
+        // Carga inicial de Condición aquí (no solo en la tab Progreso): la card de
+        // recuperación de "Hoy" la necesita aunque nunca abras Progreso.
+        .task { await healthViewModel.onAppear() }
         // Observadores de Salud (HKObserverQuery): re-sincronizan solo cuando
         // HealthKit reporta datos nuevos, sin recargar en cada aparición.
         .task { await trainingViewModel.observeHealthUpdates() }

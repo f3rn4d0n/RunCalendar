@@ -182,11 +182,27 @@ struct HoyView: View {
                     }
                     Spacer()
                 }
+            } else if healthViewModel.isLoading {
+                recoverySkeleton
             } else {
                 Text("Conecta Apple Salud en Progreso para ver tu recuperación.")
                     .font(.mSubheadline).foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// Skeleton mientras carga la condición: misma silueta que la card real, atenuada.
+    private var recoverySkeleton: some View {
+        HStack(spacing: 14) {
+            Circle().fill(Color.primary.opacity(0.08)).frame(width: 58, height: 58)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Recuperado").font(.mHeadline)
+                Text("para estar listo").font(.mCaption).foregroundStyle(.secondary)
+            }
+            .redacted(reason: .placeholder)
+            Spacer()
+        }
+        .shimmering()
     }
 
     private var accessLinks: some View {

@@ -41,6 +41,12 @@ final class HealthViewModel {
         return nil
     }
 
+    /// ¿La condición sigue cargando? (para el skeleton en "Hoy", sin bloquear la navegación).
+    var isLoading: Bool {
+        if case .loading = state { return true }
+        return false
+    }
+
     private(set) var todayCheckIn: RecoveryCheckIn?
     /// Check-ins recientes (cronológicos) para la gráfica "sentido vs predicho".
     private(set) var recentCheckIns: [RecoveryCheckIn] = []
