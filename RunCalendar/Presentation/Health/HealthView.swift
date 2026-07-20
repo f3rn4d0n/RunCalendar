@@ -5,6 +5,7 @@ import SwiftUI
 struct HealthView: View {
     @State var viewModel: HealthViewModel
     let racesViewModel: RacesViewModel
+    @State var goalsViewModel: GoalsViewModel
     @State private var editingCheckIn = false
 
     /// Carreras objetivo para la preparación: todas las prioritarias próximas.
@@ -73,6 +74,7 @@ struct HealthView: View {
             }
 
             checkInSection
+            bodyReviewSection
 
             if viewModel.recentCheckIns.count >= 3 {
                 RecoveryAccuracyChart(checkIns: viewModel.recentCheckIns)
@@ -157,6 +159,29 @@ struct HealthView: View {
             } footer: {
                 Text("Toca una carrera para ver qué mejorar antes del evento.")
             }
+        }
+    }
+
+    /// Review dominical (Fase 2). Vive junto al check-in diario: ambos son "cómo voy".
+    @ViewBuilder
+    private var bodyReviewSection: some View {
+        Section {
+            NavigationLink {
+                WeightLogView(viewModel: goalsViewModel)
+            } label: {
+                HStack {
+                    Label("Cuerpo y review semanal", systemImage: "figure.walk")
+                    Spacer()
+                    if goalsViewModel.hasReviewThisWeek {
+                        Text("Hecho").font(.mCaption).foregroundStyle(Neon.green)
+                    } else {
+                        Text("Pendiente").font(.mCaption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } footer: {
+            Text("Peso, cintura, energía y hambre. Las medidas se guardan en Salud; "
+                + "la cintura detecta el progreso que la báscula esconde.")
         }
     }
 

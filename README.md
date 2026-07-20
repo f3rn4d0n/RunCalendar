@@ -93,6 +93,10 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   ponderada por **esfuerzo (RPE)** — una sesión intensa pesa más que una suave de igual duración.
 - **Récords personales** por distancia y velocidad promedio.
 - Cards **educativas** por métrica (qué es, rangos por edad, tu valoración).
+- **Review semanal** (fase 2): peso · cintura · energía · hambre. Las medidas se escriben en
+  **Salud**; energía y hambre van a `bodyLogs`. Card en *Hoy* los **domingos**, que desaparece
+  al registrarlo. La **cintura** detecta **recomposición** (peso estancado + cintura bajando) y
+  lo dice en el Coach Insight de la meta de peso: es progreso real que la báscula esconde.
 
 ### 👤 Perfil (avatar en *Hoy*)
 - Se abre desde el avatar de la barra superior en *Hoy* (ya no es tab). Datos del usuario y **cierre de sesión**.
@@ -227,11 +231,18 @@ users/{uid}/races/{raceId}           # carreras
 users/{uid}/trainings/{id}           # entrenamientos (cualquier TrainingType; incluye rpe)
 users/{uid}/recoveryLogs/{yyyy-MM-dd} # check-in diario de recuperación (para calibrar)
 users/{uid}/goals/{goalId}           # objetivos del atleta (tiempo/VO₂max/peso)  (fase 1)
+users/{uid}/bodyLogs/{yyyy-MM-dd}    # review semanal: energía y hambre (fase 2)
 ```
 
 > **HealthKit no vive en Firestore.** VO₂max, HRV, FC, workouts y rutas se leen del
 > dispositivo en cada sesión (nunca se suben). Lo único que persiste de Condición son los
-> **check-ins** (`recoveryLogs`). Por eso Condición solo funciona en iPhone/Watch, no en Mac.
+> **check-ins** (`recoveryLogs`) y el review semanal (`bodyLogs`). Por eso Condición solo
+> funciona en iPhone/Watch, no en Mac.
+>
+> **Peso y cintura son la única escritura de la app en Salud** (`bodyMass`,
+> `waistCircumference`). Se guardan ahí y no en Firestore: así el historial y la
+> sincronización con la app Salud salen gratis, y el progreso de la meta de peso —que ya
+> leía de Salud— se mueve solo. Por eso `bodyLogs` guarda **solo lo subjetivo**.
 
 ### Modelo de datos futuro (fases 1–4, tentativo)
 
@@ -242,7 +253,7 @@ de `users/{uid}/…` y hereda las mismas reglas de seguridad. **Aún no existe**
 users/{uid}/goals/{goalId}          # ✅ fase 1 (ya existe): tipo, targetValue, startValue, distance, deadline
 users/{uid}/plan/{planId}           # plantilla del plan (semanas, días)                       (fase 2)
 users/{uid}/plan/{planId}/days/{d}  # día planificado: tipo, descripción (p. ej. 8×1'/2')       (fase 2)
-users/{uid}/bodyLogs/{yyyy-MM-dd}   # review: peso, cintura, energía, hambre, fotos(ref)        (fase 3)
+users/{uid}/bodyLogs/{yyyy-MM-dd}   # ✅ fase 2: energía y hambre (peso/cintura viven en Salud)
 users/{uid}/nutrition/{profileId}   # objetivos: kcal, macros, hidratación; adherencia diaria   (fase 4)
 ```
 
@@ -298,6 +309,8 @@ RunCalendar/
 - **Condición**: `RecoverySnapshot`/`RecoveryEstimate`/`RecoveryTrend` (`Recovery.swift`),
   `RecoveryCheckIn`, `RecoveryCalibration`, `WorkloadInput`/`WorkloadRatio`/`WorkloadZone`
   (`Workload.swift`), `FitnessSummary`, `FitnessTrend`, `WorkoutRoute`, `RaceWeather`.
+- **Cuerpo** (fase 2): `BodyMeasure` (peso/cintura: unidad y rango válido), `MeasurementEntry`
+  (un registro leído de Salud), `BodyLog` (review semanal: energía, hambre, notas).
 - **Otros**: `AppUser`, `UserProfile`, `ReminderPreferences`, `CalendarEvent`.
 
 ### Casos de uso (`Domain/UseCases/`)
@@ -403,6 +416,7 @@ los tabs**, no en una pantalla.
 | **Sign in with Apple falla en dispositivo** | Cuenta gratis de Apple Developer no soporta la capability. Quita `com.apple.developer.applesignin` del entitlements **en local** (no lo commitees). |
 | **"Cannot find type…" en Xcode pero compila** | Ruido del índice de SourceKit en frío. Confía en `xcodebuild` (BUILD SUCCEEDED). |
 | **Archivo nuevo no compila** | XcodeGen no lo conoce: corre `xcodegen generate` (el `.xcodeproj` está gitignored). |
+| **"Salud no deja que Rumbo escriba…"** | Falta el permiso de **escritura** (no el de lectura: la medida aparece en ambos bloques). Salud › tu foto › Apps y servicios › Rumbo › bloque *escribir datos*. Si el bloque no existe, **borra y reinstala** la app: iOS no vuelve a mostrar la hoja una vez denegada. |
 
 ---
 
@@ -482,7 +496,7 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 | Fase | Qué | Notas |
 |------|-----|-------|
 | **1. Objetivos** ✅ | Entidad `Goal` + CRUD + tab con progreso (tiempo vs. PRs, VO₂max/peso vs. Salud) y **"Sugerir meta"** (Riegel/IMC, sin IA) | Marco del que cuelga todo; también abre el rediseño de navegación |
-| **2. Review dominical** | Check-in semanal (peso, cintura, energía, hambre, fotos) al estilo del Manual | **Victoria temprana**: reusa el patrón de check-ins (`recoveryLogs`); gancho de hábito alto |
+| **2. Review dominical** ✅ | Check-in semanal: peso y cintura (→ Salud) + energía y hambre (→ `bodyLogs`), con card en *Hoy* los domingos. **Fotos pendientes** (requieren Firebase Storage) | Reusa el patrón de `recoveryLogs`. La **cintura** detecta *recomposición*: peso estancado pero cintura bajando |
 | **3. Plan + Campañas** | Plantilla semanal recurrente (Mar/Jue/Dom + técnica) → **misiones** de la Campaña; el import de Salud marca adherencia (planificado vs. `completed`) | Habilita el modelo de "Campañas" y responde "¿qué hago hoy?" |
 | **4. Nutrición** | **Solo objetivos + adherencia (checkbox)**: macros/kcal objetivo, hidratación, ¿cumpliste hoy? — **no** food-logger | Dominio nuevo; acotado a propósito para no volverse contador de calorías |
 | **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app** |

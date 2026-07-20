@@ -22,8 +22,11 @@ final class GoalsViewModel {
     private let assessPace: AssessGoalPaceUseCase
     private let recommendGoal: RecommendGoalUseCase
     private let fetchAthleteMetrics: FetchAthleteMetricsUseCase
-    private let saveWeight: SaveWeightUseCase
-    private let fetchWeightHistory: FetchWeightHistoryUseCase
+    private let saveMeasure: SaveBodyMeasureUseCase
+    private let fetchMeasureHistory: FetchBodyMeasureHistoryUseCase
+    private let saveBodyLog: SaveBodyLogUseCase
+    private let fetchBodyLogs: FetchBodyLogsUseCase
+    private let assessRecomposition: AssessRecompositionUseCase
     /// Fuentes del valor "actual" para el progreso.
     private let racesViewModel: RacesViewModel
     private let trainingViewModel: TrainingViewModel
@@ -42,8 +45,11 @@ final class GoalsViewModel {
         assessPace: AssessGoalPaceUseCase,
         recommendGoal: RecommendGoalUseCase,
         fetchAthleteMetrics: FetchAthleteMetricsUseCase,
-        saveWeight: SaveWeightUseCase,
-        fetchWeightHistory: FetchWeightHistoryUseCase,
+        saveMeasure: SaveBodyMeasureUseCase,
+        fetchMeasureHistory: FetchBodyMeasureHistoryUseCase,
+        saveBodyLog: SaveBodyLogUseCase,
+        fetchBodyLogs: FetchBodyLogsUseCase,
+        assessRecomposition: AssessRecompositionUseCase,
         racesViewModel: RacesViewModel,
         trainingViewModel: TrainingViewModel
     ) {
@@ -57,8 +63,11 @@ final class GoalsViewModel {
         self.assessPace = assessPace
         self.recommendGoal = recommendGoal
         self.fetchAthleteMetrics = fetchAthleteMetrics
-        self.saveWeight = saveWeight
-        self.fetchWeightHistory = fetchWeightHistory
+        self.saveMeasure = saveMeasure
+        self.fetchMeasureHistory = fetchMeasureHistory
+        self.saveBodyLog = saveBodyLog
+        self.fetchBodyLogs = fetchBodyLogs
+        self.assessRecomposition = assessRecomposition
         self.racesViewModel = racesViewModel
         self.trainingViewModel = trainingViewModel
     }
@@ -66,63 +75,120 @@ final class GoalsViewModel {
     func start() async {
         guard !hasStarted else { return }
         hasStarted = true
-        await refreshWeight()
+        await refreshBody()
         for await goals in observeGoals(userID: userID) {
             self.goals = goals
         }
     }
 
-    // MARK: - Peso
+    // MARK: - Seguimiento corporal (peso, cintura y review dominical)
 
     /// Cada cuántos días pedir el peso. ponytail: constante; hazla preferencia si alguien la pide.
     static let weightLogIntervalDays = 2
 
-    /// Historial de peso leído de Salud (más reciente primero).
-    private(set) var weightHistory: [WeightEntry] = []
+    /// Historiales leídos de Salud (más reciente primero), por medida.
+    private(set) var history: [BodyMeasure: [MeasurementEntry]] = [:]
+    /// Reviews dominicales (de Firestore), más reciente primero.
+    private(set) var bodyLogs: [BodyLog] = []
     /// Día en el que descartaste la tarjeta de "registra tu peso" (vuelve al día siguiente).
     var weightPromptDismissedOn: Date?
+    /// Día en el que descartaste la tarjeta del review semanal.
+    var reviewPromptDismissedOn: Date?
 
-    var canLogWeight: Bool { saveWeight.isAvailable }
+    var canLogMeasures: Bool { saveMeasure.isAvailable }
 
     /// La meta de peso activa (solo hay sentido en tener una).
     var weightGoal: Goal? { goals.first { $0.type == .weight } }
 
-    /// Peso más reciente registrado (de Salud).
-    var latestWeight: WeightEntry? { weightHistory.first }
+    func history(for measure: BodyMeasure) -> [MeasurementEntry] { history[measure] ?? [] }
+
+    /// Registro más reciente de una medida (de Salud).
+    func latest(_ measure: BodyMeasure) -> MeasurementEntry? { history(for: measure).first }
+
+    /// Peso más reciente. Atajo, es el que más se consulta.
+    var latestWeight: MeasurementEntry? { latest(.weight) }
 
     /// ¿Toca registrar peso? Sí si hay meta de peso y el último registro es de hace
     /// `weightLogIntervalDays` días o más (o no hay ninguno), y no descartaste la tarjeta hoy.
     var needsWeightLog: Bool {
-        guard canLogWeight, weightGoal != nil else { return false }
+        guard canLogMeasures, weightGoal != nil else { return false }
         if let dismissed = weightPromptDismissedOn, Calendar.current.isDateInToday(dismissed) { return false }
         guard let last = latestWeight?.date else { return true }
-        let days = Calendar.current.dateComponents(
-            [.day],
-            from: Calendar.current.startOfDay(for: last),
-            to: Calendar.current.startOfDay(for: Date())
-        ).day ?? 0
-        return days >= Self.weightLogIntervalDays
+        return days(since: last) >= Self.weightLogIntervalDays
     }
 
-    /// Guarda el peso en Salud y refresca métricas e historial (así el progreso se mueve solo).
-    func logWeight(kg: Double, date: Date = Date()) async -> Bool {
+    /// ¿Toca el review semanal? Solo domingo, si no lo registraste ya esta semana
+    /// y no descartaste la tarjeta hoy. El domingo es el día del review en el Manual.
+    var needsWeeklyReview: Bool {
+        guard Calendar.current.component(.weekday, from: Date()) == 1 else { return false }
+        if let dismissed = reviewPromptDismissedOn, Calendar.current.isDateInToday(dismissed) { return false }
+        return !hasReviewThisWeek
+    }
+
+    /// ¿Ya hay un review en la semana en curso?
+    var hasReviewThisWeek: Bool {
+        guard let last = bodyLogs.first?.date else { return false }
+        return Calendar.current.isDate(last, equalTo: Date(), toGranularity: .weekOfYear)
+    }
+
+    /// Aviso de recomposición: peso estancado pero cintura bajando. `nil` si no aplica
+    /// o si faltan datos de alguna de las dos series.
+    var recomposition: AssessRecompositionUseCase.Trend? {
+        let trend = assessRecomposition(weights: history(for: .weight), waists: history(for: .waist))
+        return trend?.isRecomposition == true ? trend : nil
+    }
+
+    /// Guarda una medida en Salud y refresca (así el progreso de la meta se mueve solo).
+    func logMeasure(_ measure: BodyMeasure, value: Double, date: Date = Date()) async -> Bool {
         errorMessage = nil   // si ya diste el permiso, el reintento no debe seguir mostrando el error
         do {
-            try await saveWeight(kg: kg, date: date)
-            await refreshWeight()
+            try await saveMeasure(measure, value: value, date: date)
+            await refreshBody()
             Haptics.success()
             return true
         } catch {
-            // El error real (incluye la ruta de Ajustes cuando falta el permiso).
+            // El error real (incluye la ruta para activar el permiso en Salud).
             errorMessage = error.localizedDescription
             return false
         }
     }
 
-    /// Relee de Salud el peso actual y el historial.
-    func refreshWeight() async {
+    /// Guarda el review dominical completo: las medidas van a Salud y lo subjetivo a Firestore.
+    /// `weight`/`waist` en `nil` = no lo capturaste, se deja sin tocar.
+    func saveReview(weight: Double?, waist: Double?, energy: Int, hunger: Int,
+                    notes: String, date: Date = Date()) async -> Bool {
+        errorMessage = nil
+        do {
+            if let weight { try await saveMeasure(.weight, value: weight, date: date) }
+            if let waist { try await saveMeasure(.waist, value: waist, date: date) }
+            try await saveBodyLog(
+                BodyLog(date: date, energy: energy, hunger: hunger, notes: notes),
+                userID: userID
+            )
+            await refreshBody()
+            Haptics.success()
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    /// Relee de Salud las medidas y de Firestore los reviews.
+    func refreshBody() async {
         metrics = (try? await fetchAthleteMetrics()) ?? .empty
-        weightHistory = (try? await fetchWeightHistory()) ?? []
+        for measure in BodyMeasure.allCases {
+            history[measure] = (try? await fetchMeasureHistory(measure)) ?? []
+        }
+        bodyLogs = (try? await fetchBodyLogs(userID: userID)) ?? []
+    }
+
+    private func days(since date: Date) -> Int {
+        Calendar.current.dateComponents(
+            [.day],
+            from: Calendar.current.startOfDay(for: date),
+            to: Calendar.current.startOfDay(for: Date())
+        ).day ?? 0
     }
 
     /// Meta sugerida (editable) para un tipo/distancia, con datos reales.
@@ -144,6 +210,14 @@ final class GoalsViewModel {
 
     /// Frase de "coach" que explica, con datos reales, qué tan alcanzable es la meta. `nil` sin datos.
     func coachInsight(for goal: Goal) -> String? {
+        // La báscula estancada mientras la cintura baja es progreso real, no falta de él.
+        // Se dice antes que nada: es justo cuando la barra de progreso parece decir lo contrario.
+        if goal.type == .weight, let trend = recomposition {
+            let waist = String(format: "%.1f", abs(trend.waistDeltaCm))
+            return "Tu peso casi no se movió, pero tu cintura bajó \(waist) cm: estás ganando "
+                + "músculo mientras pierdes grasa. La báscula no lo ve; vas bien."
+        }
+
         guard let conf = confidence(for: goal) else { return nil }
         if conf == .achieved { return "¡Meta lograda! Mantén el hábito para no perderla." }
 

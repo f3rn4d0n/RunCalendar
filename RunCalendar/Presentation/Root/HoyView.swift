@@ -15,6 +15,7 @@ struct HoyView: View {
 
     @State private var showProfile = false
     @State private var showWeightSheet = false
+    @State private var showReviewSheet = false
 
     private var nextRace: Race? {
         let today = Calendar.current.startOfDay(for: Date())
@@ -31,6 +32,7 @@ struct HoyView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    reviewPromptCard
                     weightPromptCard
                     nextRaceCard
                     todayTrainingCard
@@ -55,12 +57,36 @@ struct HoyView: View {
                             goalsViewModel: goalsViewModel)
             }
             .sheet(isPresented: $showWeightSheet) {
-                WeightEntrySheet(viewModel: goalsViewModel)
+                MeasureEntrySheet(viewModel: goalsViewModel, measure: .weight)
+            }
+            .sheet(isPresented: $showReviewSheet) {
+                WeeklyReviewView(viewModel: goalsViewModel)
             }
         }
     }
 
     // MARK: - Cards
+
+    /// Review dominical (Fase 2): solo aparece los domingos y si aún no lo hiciste esta semana.
+    @ViewBuilder private var reviewPromptCard: some View {
+        if goalsViewModel.needsWeeklyReview {
+            DashCard(eyebrow: "Review de la semana", accent: Neon.purple) {
+                HStack(alignment: .top) {
+                    Text("Domingo de balance: peso, cintura, energía y hambre. Cinco campos que explican cómo fue tu semana.")
+                        .font(.mSubheadline).foregroundStyle(.secondary)
+                    Button {
+                        goalsViewModel.reviewPromptDismissedOn = Date()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Descartar")
+                }
+                Button("Hacer review") { showReviewSheet = true }
+                    .buttonStyle(NeonButtonStyle())
+            }
+        }
+    }
 
     /// Pide el peso solo si tienes una meta de peso y toca registrarlo (cada 2 días).
     /// Al guardar desaparece sola: el último registro pasa a ser de hoy.
@@ -68,9 +94,8 @@ struct HoyView: View {
         if goalsViewModel.needsWeightLog {
             DashCard(eyebrow: "Registra tu peso", accent: Neon.gold) {
                 HStack(alignment: .top) {
-                    Text(goalsViewModel.latestWeight.map {
-                        "Tu último registro fue el \($0.date.mediumString()) (\(Goal.trim($0.kg)) kg). "
-                            + "Pésate para ver cómo va tu meta."
+                    Text(goalsViewModel.latestWeight.map { (entry: MeasurementEntry) -> String in
+                        "Tu último registro fue el \(entry.date.mediumString()) (\(Goal.trim(entry.value)) kg). Pésate para ver cómo va tu meta."
                     } ?? "Aún no registras tu peso. El primero marca tu punto de partida.")
                         .font(.mSubheadline).foregroundStyle(.secondary)
                     Button {
