@@ -81,9 +81,7 @@ struct TrainingDetailView: View {
                     }
 
                     Section("Clima") {
-                        WeatherCardView(
-                            emptyMessage: "Sin ubicación GPS para consultar el clima de este entrenamiento."
-                        ) { await viewModel.weather(for: session) }
+                        WeatherCardView { await viewModel.weather(for: session) }
                     }
                 }
             } else if let wod = session.wod, !wod.isEmpty {

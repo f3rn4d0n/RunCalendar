@@ -68,18 +68,29 @@ final class RacesViewModel {
     /// Clima del día de la carrera. Si la carrera no tiene coordenadas (p. ej. una próxima
     /// que aún no se corre), geocodifica la dirección de la sección Ubicación al vuelo.
     /// `nil` si no se pudo ubicar o la API no devolvió datos.
-    func weather(for race: Race) async -> RaceWeather? {
+    func weather(for race: Race) async -> Result<RaceWeather, WeatherUnavailable> {
         var latitude = race.location.latitude
         var longitude = race.location.longitude
         if latitude == nil || longitude == nil, let coordinate = await geocode(race.location) {
             latitude = coordinate.latitude
             longitude = coordinate.longitude
         }
+        // Sin coordenadas hay dos motivos distintos, y la salida del usuario es distinta:
+        // capturar la ubicación, o corregir una dirección que no se pudo ubicar.
+        guard let latitude, let longitude else {
+            let hasAddress = !race.location.name.isEmpty || !race.location.address.isEmpty
+            let reference = race.location.address.isEmpty ? race.location.name : race.location.address
+            return .failure(hasAddress ? .unrecognizedAddress(reference) : .noLocation)
+        }
         do {
-            return try await fetchWeather(latitude: latitude, longitude: longitude, date: race.date)
+            guard let weather = try await fetchWeather(latitude: latitude, longitude: longitude,
+                                                       date: race.date) else {
+                return .failure(.noDataForDate)
+            }
+            return .success(weather)
         } catch {
             Log.races.error("weather: \(error.localizedDescription, privacy: .public)")
-            return nil
+            return .failure(.serviceUnreachable)
         }
     }
 
