@@ -58,8 +58,14 @@ struct RaceListView: View {
         }
     }
 
-    private var upcoming: [Race] { filteredRaces.filter { $0.status == .upcoming } }
-    private var completed: [Race] { filteredRaces.filter { $0.status == .completed } }
+    /// Una carrera es "pasada" si su fecha ya quedó atrás (el `status` guardado no se
+    /// actualiza solo, por eso la clasificación se hace por fecha, no solo por `status`).
+    private func isPast(_ race: Race) -> Bool {
+        race.date < Calendar.current.startOfDay(for: Date())
+    }
+
+    private var upcoming: [Race] { filteredRaces.filter { !isPast($0) && $0.status != .completed } }
+    private var completed: [Race] { filteredRaces.filter { isPast($0) || $0.status == .completed } }
 
     @ViewBuilder
     private func raceLink(_ race: Race) -> some View {
