@@ -1,8 +1,9 @@
-# RunCalendar 🏃‍♂️
+# Rumbo 🏃‍♂️
 
-> **Nota de marca:** el nombre *RunCalendar* quedó chico — la app dejó de ser un calendario de carreras
-> y hoy es un **coach personal del atleta híbrido**. Rename de marca **pendiente** (candidato: *Rumbo*);
-> los identificadores técnicos (bundle id, Firebase) se mantienen por ahora. Ver [Roadmap](#roadmap-y-backlog).
+> **Nombre:** la app se llama **Rumbo** (nombre de display, `CFBundleDisplayName`). El **repo, el target
+> Xcode, el scheme, el bundle id** (`com.fercho.runcalendar.app`) y **Firebase** siguen como *RunCalendar*
+> a propósito — el rename técnico es riesgoso (migrar Firebase) y no urgente (no publicado). Compila con
+> `-scheme RunCalendar`. No cambies esos identificadores sin migrar Firebase.
 
 App iPhone/Mac que es un **coach del atleta híbrido**: tus **objetivos** (con sugerencia y ritmo
 esperado), tu **entrenamiento** (carrera, CrossFit, caminata, senderismo — con import de Apple Salud,
@@ -508,9 +509,8 @@ rings) y **navegación por ciclo del atleta** (Hoy · Entrenar · Objetivos · P
 
 **Pendiente:**
 
-- [ ] **Renombrar la marca** — "RunCalendar" ya no describe la app (es un *coach del atleta híbrido*).
-  Cambiar solo el **nombre de marca/display**; **dejar** bundle id / Firebase (no publicado; el rename
-  técnico es riesgoso). Candidato sugerido: **Rumbo**.
+- [x] **Marca → "Rumbo"** (`CFBundleDisplayName` + branding). Identificadores técnicos (bundle id,
+  target, scheme, Firebase) se mantienen como *RunCalendar*. Rename técnico: opcional y riesgoso, sin prisa.
 - [ ] **Fases 2–5** de la visión (ver tabla): Review dominical → Plan + Campañas (tab **Plan**, "misiones
   del día" en Hoy) → Nutrición → IA + reportes por correo.
 - [ ] **Nuevos objetivos** auto-medibles (Tier 1): **volumen semanal**, **FC en reposo**, **tirada larga**.
