@@ -22,7 +22,7 @@ struct RemindersSettingsView: View {
                     set: { newValue in Task { await viewModel.setEnabled(newValue) } }
                 ))
                 if viewModel.permissionDenied {
-                    Text("Activa las notificaciones de RunCalendar en Ajustes para recibir recordatorios.")
+                    Text("Activa las notificaciones de Rumbo en Ajustes para recibir recordatorios.")
                         .font(.mFootnote)
                         .foregroundStyle(.secondary)
                 }

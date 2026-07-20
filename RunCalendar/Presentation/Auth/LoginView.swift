@@ -69,7 +69,7 @@ struct LoginView: View {
                 .font(.system(size: 72))
                 .foregroundStyle(Neon.logoGradient)
                 .shadow(color: Neon.accent.opacity(0.5), radius: 12)
-            Text("RunCalendar")
+            Text("Rumbo")
                 .font(.marker(40))
                 .foregroundStyle(Neon.logoGradient)
                 .shadow(color: Neon.accent.opacity(0.4), radius: 8)
