@@ -37,13 +37,16 @@ struct MainTabView: View {
 
     var body: some View {
         TabView {
-            Tab("Calendario", systemImage: "calendar") {
-                CalendarView(racesViewModel: racesViewModel, trainingViewModel: trainingViewModel,
-                             healthViewModel: healthViewModel)
-            }
-            Tab("Carreras", systemImage: "flag.checkered") {
-                RaceListView(viewModel: racesViewModel, trainingViewModel: trainingViewModel,
-                             healthViewModel: healthViewModel)
+            Tab("Hoy", systemImage: "sun.max") {
+                HoyView(
+                    racesViewModel: racesViewModel,
+                    trainingViewModel: trainingViewModel,
+                    healthViewModel: healthViewModel,
+                    user: user,
+                    authViewModel: authViewModel,
+                    profileViewModel: profileViewModel,
+                    remindersViewModel: remindersViewModel
+                )
             }
             Tab("Entrenar", systemImage: "figure.run") {
                 TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel)
@@ -51,16 +54,8 @@ struct MainTabView: View {
             Tab("Objetivos", systemImage: "target") {
                 GoalsView(viewModel: goalsViewModel)
             }
-            Tab("Condición", systemImage: "heart.text.square") {
+            Tab("Progreso", systemImage: "chart.line.uptrend.xyaxis") {
                 HealthView(viewModel: healthViewModel, racesViewModel: racesViewModel)
-            }
-            Tab("Perfil", systemImage: "person.crop.circle") {
-                ProfileView(
-                    user: user,
-                    authViewModel: authViewModel,
-                    viewModel: profileViewModel,
-                    remindersViewModel: remindersViewModel
-                )
             }
         }
         .task { await remindersViewModel.refresh() }

@@ -43,7 +43,7 @@ struct HealthView: View {
                 }
             }
             .background(Neon.background.ignoresSafeArea())
-            .navigationTitle("Condición")
+            .navigationTitle("Progreso")
             .task { await viewModel.onAppear() }
         }
     }
