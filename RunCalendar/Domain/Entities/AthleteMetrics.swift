@@ -6,6 +6,10 @@ struct AthleteMetrics: Sendable, Equatable {
     let weightKg: Double?
     let heightM: Double?
     let ageYears: Int?
+    /// FC en reposo (lpm), promediada a 7 días: el dato de un solo día es demasiado ruidoso
+    /// para medir una meta contra él.
+    let restingHR: Double?
 
-    static let empty = AthleteMetrics(vo2max: nil, weightKg: nil, heightM: nil, ageYears: nil)
+    static let empty = AthleteMetrics(vo2max: nil, weightKg: nil, heightM: nil,
+                                      ageYears: nil, restingHR: nil)
 }

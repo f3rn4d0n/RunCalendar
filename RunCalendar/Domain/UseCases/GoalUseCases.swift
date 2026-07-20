@@ -37,16 +37,67 @@ struct DeleteGoalUseCase: Sendable {
 /// - Tiempo: fórmula de Riegel desde tu mejor PR (equivalente en otra distancia, o −3% en la misma).
 /// - VO₂max: tu actual + una mejora realista de bloque (~3 puntos).
 /// - Peso: hacia IMC saludable (~23) con tu estatura, acotado a ~8% de baja; sin estatura, −5%.
+/// - Volumen semanal: +20% en 8 semanas (bien por debajo del techo de ~10% por semana).
+/// - Tirada larga: ~+1 km por semana durante 8 semanas, el ritmo que ya recomienda readiness.
+/// - FC en reposo: −3 lpm en 12 semanas; baja despacio y con un piso sensato.
 struct RecommendGoalUseCase: Sendable {
     func callAsFunction(
         type: GoalType, distance: RaceDiscipline?,
-        records: [PersonalRecord], metrics: AthleteMetrics?, now: Date = Date()
+        records: [PersonalRecord], metrics: AthleteMetrics?,
+        current: Double? = nil, now: Date = Date()
     ) -> GoalRecommendation? {
         switch type {
         case .raceTime: return raceTime(distance: distance, records: records, now: now)
         case .vo2max:   return vo2max(metrics: metrics, now: now)
         case .weight:   return weight(metrics: metrics, now: now)
+        case .weeklyVolume: return weeklyVolume(current: current, now: now)
+        case .longRun:      return longRun(current: current, now: now)
+        case .restingHR:    return restingHR(current: current ?? metrics?.restingHR, now: now)
         }
+    }
+
+    /// Subir volumen es la vía más común a la lesión: el techo aceptado es ~10% por semana,
+    /// así que +20% repartido en 8 semanas va sobrado de margen.
+    private func weeklyVolume(current: Double?, now: Date) -> GoalRecommendation? {
+        guard let current, current > 0 else { return nil }
+        let target = (current * 1.2).rounded()
+        return GoalRecommendation(
+            targetValue: target,
+            deadline: weeksFromNow(8, now),
+            rationale: "De \(Goal.trim(current)) a \(Goal.trim(target)) km/sem: +20% en ~8 semanas, "
+                + "muy por debajo del ~10% por semana que se considera seguro."
+        )
+    }
+
+    /// Mismo ritmo que ya recomienda `AssessReadinessUseCase`: 1–2 km por semana.
+    private func longRun(current: Double?, now: Date) -> GoalRecommendation? {
+        guard let current, current > 0 else { return nil }
+        let target = (current + 8).rounded()   // ~1 km/semana durante 8 semanas
+        return GoalRecommendation(
+            targetValue: target,
+            deadline: weeksFromNow(8, now),
+            rationale: "De \(Goal.trim(current)) a \(Goal.trim(target)) km sumando ~1 km por "
+                + "semana, que es el ritmo al que la tirada larga crece sin pasarte."
+        )
+    }
+
+    /// La FC en reposo baja despacio y tiene suelo fisiológico: −3 lpm en un bloque es
+    /// ambicioso pero posible, y no se recomienda bajar de 40.
+    private func restingHR(current: Double?, now: Date) -> GoalRecommendation? {
+        guard let current, current > 0 else { return nil }
+        guard current > 45 else {
+            return GoalRecommendation(
+                targetValue: current.rounded(), deadline: weeksFromNow(12, now),
+                rationale: "Tu FC en reposo ya es de atleta entrenado; la meta razonable es mantenerla."
+            )
+        }
+        let target = max(40, current - 3).rounded()
+        return GoalRecommendation(
+            targetValue: target,
+            deadline: weeksFromNow(12, now),
+            rationale: "De \(Goal.trim(current)) a \(Goal.trim(target)) lpm en ~12 semanas. "
+                + "Baja con volumen fácil constante y sueño, no con sesiones duras."
+        )
     }
 
     private func raceTime(distance: RaceDiscipline?, records: [PersonalRecord], now: Date) -> GoalRecommendation? {
@@ -128,6 +179,19 @@ struct AssessGoalPaceUseCase: Sendable {
         case .raceTime:
             return GoalPace(weekly: "acortar ≈ \(Int(perWeek.rounded())) s por semana",
                             summary: "\(Goal.formatTime(Int(change))) menos en ~\(wk) semanas")
+        case .weeklyVolume:
+            let pct = current > 0 ? perWeek / current * 100 : 0
+            return GoalPace(weekly: "≈ +\(f(perWeek)) km por semana (\(f(pct))%)",
+                            summary: "de \(Goal.trim(current)) a \(Goal.trim(target)) km/sem "
+                                + "en ~\(wk) semanas")
+        case .longRun:
+            return GoalPace(weekly: "≈ +\(f(perWeek)) km por semana en tu tirada larga",
+                            summary: "de \(Goal.trim(current)) a \(Goal.trim(target)) km "
+                                + "en ~\(wk) semanas")
+        case .restingHR:
+            return GoalPace(weekly: "≈ −\(f(perWeek)) lpm por semana",
+                            summary: "de \(Goal.trim(current)) a \(Goal.trim(target)) lpm "
+                                + "en ~\(wk) semanas")
         }
     }
 }
@@ -146,6 +210,15 @@ struct AssessGoalConfidenceUseCase: Sendable {
                                               now: now, higherBetter: true, easy: 0.3, mid: 0.55)  // puntos/semana
         case .weight:   return rateConfidence(current: current, target: goal.targetValue, deadline: goal.deadline,
                                               now: now, higherBetter: false, easy: 0.5, mid: 0.75) // kg/semana
+        // Volumen: el techo seguro es ~10% semanal; en km absolutos, subir >3 km/sem es agresivo.
+        case .weeklyVolume: return rateConfidence(current: current, target: goal.targetValue, deadline: goal.deadline,
+                                                  now: now, higherBetter: true, easy: 1.5, mid: 3.0)  // km/semana
+        // Tirada larga: 1–2 km por semana es el ritmo sano (mismo criterio que readiness).
+        case .longRun:      return rateConfidence(current: current, target: goal.targetValue, deadline: goal.deadline,
+                                                  now: now, higherBetter: true, easy: 1.0, mid: 2.0)  // km/semana
+        // FC en reposo: se mueve muy despacio; ~0.25 lpm/semana ya es un buen ritmo.
+        case .restingHR:    return rateConfidence(current: current, target: goal.targetValue, deadline: goal.deadline,
+                                                  now: now, higherBetter: false, easy: 0.25, mid: 0.5) // lpm/semana
         }
     }
 

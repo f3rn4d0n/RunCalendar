@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Alta/edición de un objetivo. Los campos cambian según el tipo (tiempo/VO₂max/peso).
+/// Alta/edición de un objetivo. Los campos cambian según el tipo (tiempo, VO₂max, peso,
+/// volumen semanal, FC en reposo, tirada larga).
 struct GoalFormView: View {
     @State var viewModel: GoalsViewModel
     let goal: Goal?
@@ -10,7 +11,7 @@ struct GoalFormView: View {
     @State private var type: GoalType = .raceTime
     @State private var distance: RaceDiscipline = .fiveK
     @State private var timeText = ""       // mm:ss
-    @State private var valueText = ""      // VO₂max o kg
+    @State private var valueText = ""      // cualquier meta numérica (kg, km, lpm, VO₂max)
     @State private var hasDeadline = false
     @State private var deadline = Date()
     @State private var notes = ""
@@ -21,7 +22,7 @@ struct GoalFormView: View {
     private var parsedStart: Double? {
         switch type {
         case .raceTime: return Goal.parseTime(startText).map(Double.init)
-        case .vo2max, .weight: return Double(startText.replacingOccurrences(of: ",", with: "."))
+        default:        return Double(startText.replacingOccurrences(of: ",", with: "."))
         }
     }
 
@@ -34,7 +35,7 @@ struct GoalFormView: View {
     private var parsedTarget: Double? {
         switch type {
         case .raceTime: return Goal.parseTime(timeText).map(Double.init)
-        case .vo2max, .weight: return Double(valueText.replacingOccurrences(of: ",", with: "."))
+        default:        return Double(valueText.replacingOccurrences(of: ",", with: "."))
         }
     }
 
@@ -56,19 +57,23 @@ struct GoalFormView: View {
                     }
                 }
 
-                Section("Meta") {
+                Section {
                     switch type {
                     case .raceTime:
                         Picker("Distancia", selection: $distance) {
                             ForEach(Self.distances) { Text($0.displayName).tag($0) }
                         }
-                        TextField("Tiempo objetivo (p. ej. 25:00)", text: $timeText)
-                    case .vo2max:
-                        TextField("VO₂max objetivo (p. ej. 55)", text: $valueText)
+                        TextField(type.inputHint, text: $timeText)
+                    default:
+                        TextField(type.inputHint, text: $valueText)
                             .keyboardType(.decimalPad)
-                    case .weight:
-                        TextField("Peso objetivo en kg (p. ej. 78)", text: $valueText)
-                            .keyboardType(.decimalPad)
+                    }
+                } header: {
+                    Text("Meta")
+                } footer: {
+                    if type.isAutoMeasured {
+                        Text("Se mide sola: la app la lee de tus entrenamientos y de Salud, "
+                            + "no tienes que registrar nada a mano.")
                     }
                 }
 
@@ -76,7 +81,7 @@ struct GoalFormView: View {
                     switch type {
                     case .raceTime:
                         TextField("Tiempo de partida (p. ej. 30:00)", text: $startText)
-                    case .vo2max, .weight:
+                    default:
                         TextField("Valor de partida", text: $startText)
                             .keyboardType(.decimalPad)
                     }
@@ -102,7 +107,7 @@ struct GoalFormView: View {
                     .listRowBackground(Color.clear)
                 } footer: {
                     Text(suggestion
-                        ?? "Te proponemos una meta y una fecha realistas con tus datos (PRs, VO₂max, peso).")
+                        ?? "Te proponemos una meta y una fecha realistas con tus datos (PRs, Salud y tus entrenamientos).")
                 }
 
                 if let pace {
@@ -141,7 +146,7 @@ struct GoalFormView: View {
         distance = goal.distance ?? .fiveK
         switch goal.type {
         case .raceTime: timeText = Goal.formatTime(Int(goal.targetValue))
-        case .vo2max, .weight: valueText = Goal.trim(goal.targetValue)
+        default:        valueText = Goal.trim(goal.targetValue)
         }
         if let start = goal.startValue {
             startText = goal.type == .raceTime ? Goal.formatTime(Int(start)) : Goal.trim(start)
@@ -159,7 +164,7 @@ struct GoalFormView: View {
         }
         switch type {
         case .raceTime: timeText = Goal.formatTime(Int(rec.targetValue))
-        case .vo2max, .weight: valueText = Goal.trim(rec.targetValue)
+        default:        valueText = Goal.trim(rec.targetValue)
         }
         if let date = rec.deadline {
             hasDeadline = true

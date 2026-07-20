@@ -359,7 +359,13 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         let vo2 = try? await mostRecentQuantity(.vo2Max, unit: vo2Unit)
         let weight = try? await mostRecentQuantity(.bodyMass, unit: .gramUnit(with: .kilo))
         let height = try? await mostRecentQuantity(.height, unit: .meter())
-        return AthleteMetrics(vo2max: vo2, weightKg: weight, heightM: height, ageYears: currentAge())
+        // Promedio de 7 días, no el último valor: la FC en reposo de un día suelto oscila
+        // demasiado (sueño, alcohol, estrés) para medir una meta contra ella.
+        let resting = try? await averageQuantity(.restingHeartRate,
+                                                 unit: HKUnit.count().unitDivided(by: .minute()),
+                                                 days: 7)
+        return AthleteMetrics(vo2max: vo2, weightKg: weight, heightM: height,
+                              ageYears: currentAge(), restingHR: resting)
     }
 
     func saveMeasure(_ measure: BodyMeasure, value: Double, date: Date) async throws {

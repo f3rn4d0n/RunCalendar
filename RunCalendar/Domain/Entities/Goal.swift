@@ -2,23 +2,68 @@ import Foundation
 
 /// Tipo de objetivo del atleta. El significado de `targetValue`/`startValue` depende del tipo.
 enum GoalType: String, CaseIterable, Identifiable, Sendable {
-    case raceTime = "Tiempo en carrera"   // segundos, para una distancia
-    case vo2max   = "VO₂max"              // ml/kg/min
-    case weight   = "Peso"                // kg
+    case raceTime     = "Tiempo en carrera"   // segundos, para una distancia
+    case vo2max       = "VO₂max"              // ml/kg/min
+    case weight       = "Peso"                // kg
+    case weeklyVolume = "Volumen semanal"     // km en los últimos 7 días
+    case restingHR    = "FC en reposo"        // lpm (promedio de 7 días)
+    case longRun      = "Tirada larga"        // km de la corrida más larga reciente
 
     var id: String { rawValue }
     var displayName: String { rawValue }
 
     var systemImage: String {
         switch self {
-        case .raceTime: return "stopwatch"
-        case .vo2max:   return "lungs.fill"
-        case .weight:   return "scalemass"
+        case .raceTime:     return "stopwatch"
+        case .vo2max:       return "lungs.fill"
+        case .weight:       return "scalemass"
+        case .weeklyVolume: return "calendar.badge.clock"
+        case .restingHR:    return "heart.fill"
+        case .longRun:      return "road.lanes"
         }
     }
 
-    /// ¿Un valor más alto es mejor? (VO₂max sube; tiempo y peso bajan.)
-    var higherIsBetter: Bool { self == .vo2max }
+    /// ¿Un valor más alto es mejor? Suben VO₂max, volumen y tirada larga;
+    /// bajan tiempo, peso y FC en reposo.
+    var higherIsBetter: Bool {
+        switch self {
+        case .vo2max, .weeklyVolume, .longRun: return true
+        case .raceTime, .weight, .restingHR:   return false
+        }
+    }
+
+    /// Unidad para mostrar junto al número (vacía cuando el formato ya la lleva implícita).
+    var unitLabel: String {
+        switch self {
+        case .raceTime:     return ""
+        case .vo2max:       return ""
+        case .weight:       return "kg"
+        case .weeklyVolume: return "km/sem"
+        case .restingHR:    return "lpm"
+        case .longRun:      return "km"
+        }
+    }
+
+    /// Se mide sola con datos que la app ya tiene (Salud o tus entrenamientos):
+    /// no hay que capturar nada a mano. Los "Tier 1" de la visión.
+    var isAutoMeasured: Bool {
+        switch self {
+        case .vo2max, .weeklyVolume, .restingHR, .longRun: return true
+        case .raceTime, .weight:                           return false
+        }
+    }
+
+    /// Texto de ayuda del formulario (qué significa exactamente el número).
+    var inputHint: String {
+        switch self {
+        case .raceTime:     return "Tiempo objetivo (p. ej. 25:00)"
+        case .vo2max:       return "VO₂max objetivo (p. ej. 55)"
+        case .weight:       return "Peso objetivo en kg (p. ej. 78)"
+        case .weeklyVolume: return "Km por semana (p. ej. 40)"
+        case .restingHR:    return "Pulsaciones en reposo (p. ej. 52)"
+        case .longRun:      return "Km de tu tirada más larga (p. ej. 21)"
+        }
+    }
 }
 
 /// Meta del atleta (peso, tiempo por distancia, VO₂max). Base de la Fase 1 de la visión.
@@ -62,7 +107,7 @@ struct Goal: Identifiable, Equatable, Sendable {
             let dist = distance?.displayName ?? "Carrera"
             return "\(dist) en \(Goal.formatTime(Int(targetValue)))"
         case .vo2max: return "VO₂max \(Goal.trim(targetValue))"
-        case .weight: return "Peso \(Goal.trim(targetValue)) kg"
+        default:      return "\(type.displayName) \(Goal.format(targetValue, type: type))"
         }
     }
 
@@ -70,8 +115,7 @@ struct Goal: Identifiable, Equatable, Sendable {
     var heroTag: String {
         switch type {
         case .raceTime: return distance?.displayName ?? "Carrera"
-        case .vo2max:   return "VO₂max"
-        case .weight:   return "Peso"
+        default:        return type.displayName
         }
     }
 
@@ -90,7 +134,7 @@ struct Goal: Identifiable, Equatable, Sendable {
         switch type {
         case .raceTime: return formatTime(Int(value))
         case .vo2max:   return trim(value)
-        case .weight:   return "\(trim(value)) kg"
+        default:        return "\(trim(value)) \(type.unitLabel)"
         }
     }
 

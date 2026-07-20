@@ -32,12 +32,18 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   responde "¿qué hago hoy?".
 
 ### 🎯 Objetivos
-- Metas del atleta: **tiempo por distancia**, **VO₂max** y **peso** (entidad `Goal`).
+- Metas del atleta (entidad `Goal`): **tiempo por distancia**, **VO₂max**, **peso**,
+  **volumen semanal**, **FC en reposo** y **tirada larga**.
+- **Auto-medibles** (Tier 1): VO₂max, volumen, FC en reposo y tirada larga se miden solas —
+  no capturas nada. Volumen (7 d) y tirada larga (ventana de 8 sem) salen de tus
+  **`TrainingSession`** (el mismo origen que la carga/ACWR, para que meta y carga nunca se
+  contradigan); FC en reposo, de Salud **promediada a 7 días** (el dato de un día es muy ruidoso).
 - **Progreso vs. datos reales**: tiempo vs. tus **PRs**, VO₂max y peso vs. tus datos de **Salud**
   (barra + "actual / faltan / ¡logrado!").
 - **Sugerir meta** (sin IA): recomienda un objetivo realista y editable con fórmulas estándar —
-  **Riegel** para tiempos (desde tu PR en otra distancia), VO₂max actual +3, y peso hacia **IMC
-  saludable** con tu estatura (acotado a una baja segura). Incluye **fecha objetivo sugerida**
+  **Riegel** para tiempos (desde tu PR en otra distancia), VO₂max actual +3, peso hacia **IMC
+  saludable** con tu estatura (acotado a una baja segura), volumen **+20% en 8 sem** (bajo el
+  techo de ~10%/sem), tirada larga **~+1 km/sem**, y FC en reposo **−3 lpm en 12 sem** (con piso). Incluye **fecha objetivo sugerida**
   (una meta sin plazo no es accionable): peso a 0.5 kg/sem, tiempo/VO₂max ~12 semanas. Con su porqué.
 - **Ritmo esperado** (`GoalPace`): con meta + fecha, muestra el desglose semanal (ej. *"≈ 0.5 kg
   por semana · ~12 semanas"*) para ir al ritmo correcto, no de golpe. **Reactivo** — se recalcula
@@ -527,7 +533,7 @@ rings) y **navegación por ciclo del atleta** (Hoy · Entrenar · Objetivos · P
   target, scheme, Firebase) se mantienen como *RunCalendar*. Rename técnico: opcional y riesgoso, sin prisa.
 - [ ] **Fases 2–5** de la visión (ver tabla): Review dominical → Plan + Campañas (tab **Plan**, "misiones
   del día" en Hoy) → Nutrición → IA + reportes por correo.
-- [ ] **Nuevos objetivos** auto-medibles (Tier 1): **volumen semanal**, **FC en reposo**, **tirada larga**.
+- [x] **Nuevos objetivos** auto-medibles (Tier 1): **volumen semanal**, **FC en reposo**, **tirada larga**.
 - [ ] **Registro de fuerza + PR de levantamiento** — la mitad "híbrida" (dominio nuevo: ejercicio × peso × reps).
 - [ ] **Decisión de diseño:** ¿comprometer **dark-only** ("oscuro-primero" del Kit) o mantener adaptable?
 - [ ] **Widget de cuenta regresiva** (WidgetKit) — espera membresía de pago (App Groups).
