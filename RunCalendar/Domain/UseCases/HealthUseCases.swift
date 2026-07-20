@@ -161,6 +161,28 @@ struct FetchAthleteMetricsUseCase: Sendable {
     }
 }
 
+/// Registra un peso en Salud (y así queda también en la app Salud).
+struct SaveWeightUseCase: Sendable {
+    private let repository: HealthRepository
+    init(repository: HealthRepository) { self.repository = repository }
+
+    var isAvailable: Bool { repository.isAvailable() }
+
+    func callAsFunction(kg: Double, date: Date = Date()) async throws {
+        try await repository.saveWeight(kg: kg, date: date)
+    }
+}
+
+/// Historial de peso (de Salud) para ver el progreso hacia la meta.
+struct FetchWeightHistoryUseCase: Sendable {
+    private let repository: HealthRepository
+    init(repository: HealthRepository) { self.repository = repository }
+
+    func callAsFunction(days: Int = 180) async throws -> [WeightEntry] {
+        try await repository.fetchWeightHistory(days: days)
+    }
+}
+
 struct FetchRecentWorkoutsUseCase: Sendable {
     private let repository: HealthRepository
     init(repository: HealthRepository) { self.repository = repository }

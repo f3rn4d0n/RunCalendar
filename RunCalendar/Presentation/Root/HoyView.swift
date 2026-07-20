@@ -6,6 +6,7 @@ struct HoyView: View {
     let racesViewModel: RacesViewModel
     let trainingViewModel: TrainingViewModel
     let healthViewModel: HealthViewModel
+    @State var goalsViewModel: GoalsViewModel
     // Perfil (se abre desde el avatar).
     let user: AppUser
     let authViewModel: AuthViewModel
@@ -13,6 +14,7 @@ struct HoyView: View {
     let remindersViewModel: RemindersViewModel
 
     @State private var showProfile = false
+    @State private var showWeightSheet = false
 
     private var nextRace: Race? {
         let today = Calendar.current.startOfDay(for: Date())
@@ -29,6 +31,7 @@ struct HoyView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    weightPromptCard
                     nextRaceCard
                     todayTrainingCard
                     recoveryCard
@@ -48,12 +51,41 @@ struct HoyView: View {
             }
             .sheet(isPresented: $showProfile) {
                 ProfileView(user: user, authViewModel: authViewModel,
-                            viewModel: profileViewModel, remindersViewModel: remindersViewModel)
+                            viewModel: profileViewModel, remindersViewModel: remindersViewModel,
+                            goalsViewModel: goalsViewModel)
+            }
+            .sheet(isPresented: $showWeightSheet) {
+                WeightEntrySheet(viewModel: goalsViewModel)
             }
         }
     }
 
     // MARK: - Cards
+
+    /// Pide el peso solo si tienes una meta de peso y toca registrarlo (cada 2 días).
+    /// Al guardar desaparece sola: el último registro pasa a ser de hoy.
+    @ViewBuilder private var weightPromptCard: some View {
+        if goalsViewModel.needsWeightLog {
+            DashCard(eyebrow: "Registra tu peso", accent: Neon.gold) {
+                HStack(alignment: .top) {
+                    Text(goalsViewModel.latestWeight.map {
+                        "Tu último registro fue el \($0.date.mediumString()) (\(Goal.trim($0.kg)) kg). "
+                            + "Pésate para ver cómo va tu meta."
+                    } ?? "Aún no registras tu peso. El primero marca tu punto de partida.")
+                        .font(.mSubheadline).foregroundStyle(.secondary)
+                    Button {
+                        goalsViewModel.weightPromptDismissedOn = Date()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Descartar")
+                }
+                Button("Registrar peso") { showWeightSheet = true }
+                    .buttonStyle(NeonButtonStyle())
+            }
+        }
+    }
 
     @ViewBuilder private var nextRaceCard: some View {
         if let race = nextRace {

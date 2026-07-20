@@ -9,3 +9,13 @@ struct AthleteMetrics: Sendable, Equatable {
 
     static let empty = AthleteMetrics(vo2max: nil, weightKg: nil, heightM: nil, ageYears: nil)
 }
+
+/// Un registro de peso. La fuente es **Salud** (no Firestore): al escribir ahí, el historial
+/// y la sincronización con la app Salud salen gratis.
+// ponytail: sin colección propia; si algún día hace falta peso en Mac (sin HealthKit), toca persistir.
+struct WeightEntry: Sendable, Equatable, Identifiable {
+    let date: Date
+    let kg: Double
+
+    var id: Date { date }
+}

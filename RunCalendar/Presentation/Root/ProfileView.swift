@@ -6,6 +6,7 @@ struct ProfileView: View {
     let authViewModel: AuthViewModel
     @State var viewModel: ProfileViewModel
     @State var remindersViewModel: RemindersViewModel
+    @State var goalsViewModel: GoalsViewModel
 
     @State private var isEditing = false
 
@@ -45,6 +46,16 @@ struct ProfileView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        WeightLogView(viewModel: goalsViewModel)
+                    } label: {
+                        HStack {
+                            Label("Peso", systemImage: "scalemass")
+                            Spacer()
+                            Text(goalsViewModel.latestWeight.map { "\(Goal.trim($0.kg)) kg" } ?? "Sin registros")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     NavigationLink {
                         RemindersSettingsView(viewModel: remindersViewModel)
                     } label: {

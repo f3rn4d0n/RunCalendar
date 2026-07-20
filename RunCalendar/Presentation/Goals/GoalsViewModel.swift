@@ -22,6 +22,8 @@ final class GoalsViewModel {
     private let assessPace: AssessGoalPaceUseCase
     private let recommendGoal: RecommendGoalUseCase
     private let fetchAthleteMetrics: FetchAthleteMetricsUseCase
+    private let saveWeight: SaveWeightUseCase
+    private let fetchWeightHistory: FetchWeightHistoryUseCase
     /// Fuentes del valor "actual" para el progreso.
     private let racesViewModel: RacesViewModel
     private let trainingViewModel: TrainingViewModel
@@ -40,6 +42,8 @@ final class GoalsViewModel {
         assessPace: AssessGoalPaceUseCase,
         recommendGoal: RecommendGoalUseCase,
         fetchAthleteMetrics: FetchAthleteMetricsUseCase,
+        saveWeight: SaveWeightUseCase,
+        fetchWeightHistory: FetchWeightHistoryUseCase,
         racesViewModel: RacesViewModel,
         trainingViewModel: TrainingViewModel
     ) {
@@ -53,6 +57,8 @@ final class GoalsViewModel {
         self.assessPace = assessPace
         self.recommendGoal = recommendGoal
         self.fetchAthleteMetrics = fetchAthleteMetrics
+        self.saveWeight = saveWeight
+        self.fetchWeightHistory = fetchWeightHistory
         self.racesViewModel = racesViewModel
         self.trainingViewModel = trainingViewModel
     }
@@ -60,10 +66,63 @@ final class GoalsViewModel {
     func start() async {
         guard !hasStarted else { return }
         hasStarted = true
-        metrics = (try? await fetchAthleteMetrics()) ?? .empty
+        await refreshWeight()
         for await goals in observeGoals(userID: userID) {
             self.goals = goals
         }
+    }
+
+    // MARK: - Peso
+
+    /// Cada cuántos días pedir el peso. ponytail: constante; hazla preferencia si alguien la pide.
+    static let weightLogIntervalDays = 2
+
+    /// Historial de peso leído de Salud (más reciente primero).
+    private(set) var weightHistory: [WeightEntry] = []
+    /// Día en el que descartaste la tarjeta de "registra tu peso" (vuelve al día siguiente).
+    var weightPromptDismissedOn: Date?
+
+    var canLogWeight: Bool { saveWeight.isAvailable }
+
+    /// La meta de peso activa (solo hay sentido en tener una).
+    var weightGoal: Goal? { goals.first { $0.type == .weight } }
+
+    /// Peso más reciente registrado (de Salud).
+    var latestWeight: WeightEntry? { weightHistory.first }
+
+    /// ¿Toca registrar peso? Sí si hay meta de peso y el último registro es de hace
+    /// `weightLogIntervalDays` días o más (o no hay ninguno), y no descartaste la tarjeta hoy.
+    var needsWeightLog: Bool {
+        guard canLogWeight, weightGoal != nil else { return false }
+        if let dismissed = weightPromptDismissedOn, Calendar.current.isDateInToday(dismissed) { return false }
+        guard let last = latestWeight?.date else { return true }
+        let days = Calendar.current.dateComponents(
+            [.day],
+            from: Calendar.current.startOfDay(for: last),
+            to: Calendar.current.startOfDay(for: Date())
+        ).day ?? 0
+        return days >= Self.weightLogIntervalDays
+    }
+
+    /// Guarda el peso en Salud y refresca métricas e historial (así el progreso se mueve solo).
+    func logWeight(kg: Double, date: Date = Date()) async -> Bool {
+        errorMessage = nil   // si ya diste el permiso, el reintento no debe seguir mostrando el error
+        do {
+            try await saveWeight(kg: kg, date: date)
+            await refreshWeight()
+            Haptics.success()
+            return true
+        } catch {
+            // El error real (incluye la ruta de Ajustes cuando falta el permiso).
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    /// Relee de Salud el peso actual y el historial.
+    func refreshWeight() async {
+        metrics = (try? await fetchAthleteMetrics()) ?? .empty
+        weightHistory = (try? await fetchWeightHistory()) ?? []
     }
 
     /// Meta sugerida (editable) para un tipo/distancia, con datos reales.

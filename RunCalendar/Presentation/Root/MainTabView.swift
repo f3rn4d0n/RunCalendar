@@ -42,6 +42,7 @@ struct MainTabView: View {
                     racesViewModel: racesViewModel,
                     trainingViewModel: trainingViewModel,
                     healthViewModel: healthViewModel,
+                    goalsViewModel: goalsViewModel,
                     user: user,
                     authViewModel: authViewModel,
                     profileViewModel: profileViewModel,

@@ -38,6 +38,8 @@
 	<string>Rumbo agrega tus carreras y entregas de kit a tu calendario.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Rumbo lee tus entrenamientos y datos de condición física de Salud para estimar tu preparación hacia tus carreras.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Rumbo guarda en Salud el peso que registras, para que tu progreso esté también en la app Salud y en el resto de tus apps.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>PermanentMarker.ttf</string>

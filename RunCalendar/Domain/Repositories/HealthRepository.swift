@@ -1,5 +1,24 @@
 import Foundation
 
+/// Fallos al escribir en Salud, para poder decirle al usuario qué hacer.
+enum HealthWriteError: LocalizedError {
+    /// El usuario no concedió (o revocó) el permiso de escribir peso.
+    case weightNotAuthorized
+
+    var errorDescription: String? {
+        switch self {
+        case .weightNotAuthorized:
+            // iOS no vuelve a mostrar la hoja de permisos una vez denegada: la única salida
+            // es que el usuario lo active a mano, así que la ruta tiene que ser exacta.
+            // Ojo: en la pantalla de Rumbo dentro de Salud hay dos bloques, lectura y escritura,
+            // y "Peso" aparece en ambos. El que hace falta aquí es el de ESCRITURA.
+            return "Salud no deja que Rumbo escriba tu peso. Ve a Salud › tu foto (arriba a la "
+                + "derecha) › Apps y servicios › Rumbo y enciende «Peso» en el bloque "
+                + "«Permitir que Rumbo escriba datos» (no el de leer datos, ese ya está activo)."
+        }
+    }
+}
+
 /// Contrato de acceso a datos de salud. Implementado con HealthKit en la capa Data.
 protocol HealthRepository: Sendable {
     /// Si el dispositivo tiene datos de salud disponibles (falso en Mac).
@@ -29,6 +48,12 @@ protocol HealthRepository: Sendable {
 
     /// Datos actuales del atleta (VO₂max, peso, estatura, edad) para metas y recomendaciones.
     func fetchAthleteMetrics() async throws -> AthleteMetrics
+
+    /// Guarda un peso en Salud (única escritura de la app; así se sincroniza con la app Salud).
+    func saveWeight(kg: Double, date: Date) async throws
+
+    /// Historial de peso de los últimos `days` días, del más reciente al más viejo.
+    func fetchWeightHistory(days: Int) async throws -> [WeightEntry]
 
     /// Traza GPS (+ FC por punto) de la corrida de Salud de ese día que mejor
     /// coincide con `distanceKm`. `nil` si no hay corrida con ruta ese día.
