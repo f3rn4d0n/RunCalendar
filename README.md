@@ -1,8 +1,13 @@
 # RunCalendar 🏃‍♂️
 
-App para iPhone y Mac que reúne tu **calendario de carreras** (ubicación, costos, entrega de
-kits, fecha), tu **programa de entrenamiento** (CrossFit y carrera) y tu **condición física**
-(recuperación, carga y forma leídas de Apple Salud), con login.
+> **Nota de marca:** el nombre *RunCalendar* quedó chico — la app dejó de ser un calendario de carreras
+> y hoy es un **coach personal del atleta híbrido**. Rename de marca **pendiente** (candidato: *Rumbo*);
+> los identificadores técnicos (bundle id, Firebase) se mantienen por ahora. Ver [Roadmap](#roadmap-y-backlog).
+
+App iPhone/Mac que es un **coach del atleta híbrido**: tus **objetivos** (con sugerencia y ritmo
+esperado), tu **entrenamiento** (carrera, CrossFit, caminata, senderismo — con import de Apple Salud,
+rutas y RPE), tu **progreso/condición** (recuperación, calibración, ACWR, VO₂max, readiness) y tu
+agenda de **carreras**. Navegación por *ciclo del atleta*: **Hoy · Entrenar · Objetivos · Progreso**.
 
 Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Auth + Firestore).
 
@@ -485,9 +490,10 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 > Objetivos · Progreso**), Carreras/Calendario dentro de Hoy, Perfil como avatar. Falta la tab **Plan**
 > (Fase 3) y enriquecer **Hoy** con "misiones del día" cuando exista el plan.
 >
-> **Rediseño visual (transversal, en curso):** de "formulario" a "misión" — número héroe, "faltan X días",
-> Coach Insight, confianza cualitativa, cards reutilizables. Empieza por **Objetivos** y se rueda al resto.
-> Detalle y patrones en [Diseño / UI → Dirección de rediseño](#dirección-de-rediseño-en-curso).
+> **Rediseño visual (RunCalendar UI Kit):** ✅ en su mayoría — paleta, tipografía (Permanent Marker en
+> display + San Francisco en cuerpo), **superficies dark-first** en todas las tabs, **`ProgressRing`**
+> (recuperación/ACWR/readiness) y la vista **"misión"** en Objetivos. Pendiente: decidir **dark-only** vs.
+> adaptable y rodar el look "misión" a más pantallas. Patrones en [Diseño / UI](#dirección-de-rediseño-en-curso).
 >
 > Boceto de colecciones para estas fases: ver [Modelo de datos futuro](#modelo-de-datos-futuro-fases-1-4-tentativo).
 
@@ -496,10 +502,20 @@ búsqueda de ubicación + "Cómo llegar", Condición completa (recuperación, AC
 PRs), readiness por carrera, RPE por sesión + esfuerzo del Watch, calibración **segmentada**
 (por HRV/sueño/carga), **carga de recuperación/ACWR ponderada por RPE**, distancia 15K,
 caminata/senderismo, recordatorios locales (carreras, kit con lugar/hora, entrenamientos + pendientes),
-exportar carreras/kit al Calendario (EventKit, con coordenadas/URL/alarma).
+exportar carreras/kit al Calendario (EventKit, con coordenadas/URL/alarma). **Objetivos** con confianza
+cualitativa, Coach Insight y ritmo semanal esperado. **Rediseño del Kit** (paleta/tipografía/superficies/
+rings) y **navegación por ciclo del atleta** (Hoy · Entrenar · Objetivos · Progreso).
 
 **Pendiente:**
 
+- [ ] **Renombrar la marca** — "RunCalendar" ya no describe la app (es un *coach del atleta híbrido*).
+  Cambiar solo el **nombre de marca/display**; **dejar** bundle id / Firebase (no publicado; el rename
+  técnico es riesgoso). Candidato sugerido: **Rumbo**.
+- [ ] **Fases 2–5** de la visión (ver tabla): Review dominical → Plan + Campañas (tab **Plan**, "misiones
+  del día" en Hoy) → Nutrición → IA + reportes por correo.
+- [ ] **Nuevos objetivos** auto-medibles (Tier 1): **volumen semanal**, **FC en reposo**, **tirada larga**.
+- [ ] **Registro de fuerza + PR de levantamiento** — la mitad "híbrida" (dominio nuevo: ejercicio × peso × reps).
+- [ ] **Decisión de diseño:** ¿comprometer **dark-only** ("oscuro-primero" del Kit) o mantener adaptable?
 - [ ] **Widget de cuenta regresiva** (WidgetKit) — espera membresía de pago (App Groups).
 - [ ] Target de **Apple Watch** (watchOS).
 - [ ] **Catálogo de carreras** compartido entre usuarios.
