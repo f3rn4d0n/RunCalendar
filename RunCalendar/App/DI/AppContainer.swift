@@ -116,6 +116,8 @@ final class AppContainer {
             assessPace: AssessGoalPaceUseCase(),
             recommendGoal: RecommendGoalUseCase(),
             fetchAthleteMetrics: FetchAthleteMetricsUseCase(repository: healthRepository),
+            saveWeight: SaveWeightUseCase(repository: healthRepository),
+            fetchWeightHistory: FetchWeightHistoryUseCase(repository: healthRepository),
             racesViewModel: racesViewModel,
             trainingViewModel: trainingViewModel
         )

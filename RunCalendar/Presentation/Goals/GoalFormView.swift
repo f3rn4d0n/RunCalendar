@@ -15,6 +15,15 @@ struct GoalFormView: View {
     @State private var deadline = Date()
     @State private var notes = ""
     @State private var suggestion: String?
+    @State private var startText = ""      // punto de partida (base de la barra de progreso)
+
+    /// Punto de partida parseado; `nil` = dejarlo como estaba.
+    private var parsedStart: Double? {
+        switch type {
+        case .raceTime: return Goal.parseTime(startText).map(Double.init)
+        case .vo2max, .weight: return Double(startText.replacingOccurrences(of: ",", with: "."))
+        }
+    }
 
     /// Distancias con tiempo objetivo (las estándar).
     private static let distances: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
@@ -61,6 +70,21 @@ struct GoalFormView: View {
                         TextField("Peso objetivo en kg (p. ej. 78)", text: $valueText)
                             .keyboardType(.decimalPad)
                     }
+                }
+
+                Section {
+                    switch type {
+                    case .raceTime:
+                        TextField("Tiempo de partida (p. ej. 30:00)", text: $startText)
+                    case .vo2max, .weight:
+                        TextField("Valor de partida", text: $startText)
+                            .keyboardType(.decimalPad)
+                    }
+                } header: {
+                    Text("Punto de partida")
+                } footer: {
+                    Text("Desde dónde arrancaste. Es la base de la barra de progreso; "
+                        + "se toma de tus datos al crear la meta, pero puedes corregirlo.")
                 }
 
                 Section {
@@ -119,6 +143,9 @@ struct GoalFormView: View {
         case .raceTime: timeText = Goal.formatTime(Int(goal.targetValue))
         case .vo2max, .weight: valueText = Goal.trim(goal.targetValue)
         }
+        if let start = goal.startValue {
+            startText = goal.type == .raceTime ? Goal.formatTime(Int(start)) : Goal.trim(start)
+        }
         hasDeadline = goal.deadline != nil
         deadline = goal.deadline ?? Date()
         notes = goal.notes
@@ -147,7 +174,7 @@ struct GoalFormView: View {
             id: goal?.id ?? UUID().uuidString,
             type: type,
             targetValue: target,
-            startValue: goal?.startValue,
+            startValue: parsedStart ?? goal?.startValue,
             distance: type == .raceTime ? distance : nil,
             deadline: hasDeadline ? deadline : nil,
             notes: notes,

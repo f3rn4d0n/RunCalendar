@@ -3,10 +3,15 @@ import HealthKit
 import CoreLocation
 
 /// Implementación de `HealthRepository` sobre HealthKit.
-/// Solo lectura; no escribe nada en Salud. No disponible en Mac.
+/// Lectura, y **escritura solo del peso** (`bodyMass`). No disponible en Mac.
 final class HealthKitService: HealthRepository, @unchecked Sendable {
 
     private let store = HKHealthStore()
+
+    /// Lo único que la app escribe en Salud: el peso que registras a mano.
+    private var shareTypes: Set<HKSampleType> {
+        HKQuantityType.quantityType(forIdentifier: .bodyMass).map { [$0] } ?? []
+    }
 
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = [HKObjectType.workoutType()]
@@ -59,7 +64,7 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
     func requestAuthorization() async -> Bool {
         guard isAvailable() else { return false }
         do {
-            try await store.requestAuthorization(toShare: [], read: readTypes)
+            try await store.requestAuthorization(toShare: shareTypes, read: readTypes)
             Log.health.info("Autorización de Salud solicitada")
             return true
         } catch {
@@ -352,6 +357,58 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         let weight = try? await mostRecentQuantity(.bodyMass, unit: .gramUnit(with: .kilo))
         let height = try? await mostRecentQuantity(.height, unit: .meter())
         return AthleteMetrics(vo2max: vo2, weightKg: weight, heightM: height, ageYears: currentAge())
+    }
+
+    func saveWeight(kg: Double, date: Date) async throws {
+        guard isAvailable(), let type = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { return }
+
+        // El permiso de escritura se pide aquí y no solo en Progreso: registrar peso se puede
+        // disparar desde Hoy o Perfil sin haber abierto esa pestaña nunca.
+        if store.authorizationStatus(for: type) == .notDetermined {
+            _ = await requestAuthorization()
+        }
+        // Ojo: NO se usa `authorizationStatus` como candado. Apple advierte que para escritura
+        // puede no reflejar el permiso real; el veredicto es el error que devuelve `save`.
+
+        let sample = HKQuantitySample(
+            type: type,
+            quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kg),
+            start: date, end: date
+        )
+        do {
+            try await store.save(sample)
+            Log.health.info("Peso guardado en Salud")
+        } catch {
+            let code = (error as? HKError)?.code
+            Log.health.error("Error al guardar peso [código \((error as NSError).code, privacy: .public)]: \(error.localizedDescription, privacy: .public)")
+            // Solo si HealthKit dice que es de permisos mostramos la ruta para activarlo;
+            // cualquier otro fallo se propaga tal cual en vez de culpar al permiso.
+            if code == .errorAuthorizationDenied || code == .errorAuthorizationNotDetermined {
+                throw HealthWriteError.weightNotAuthorized
+            }
+            throw error
+        }
+    }
+
+    func fetchWeightHistory(days: Int) async throws -> [WeightEntry] {
+        guard isAvailable(), let type = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { return [] }
+        let start = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: nil)
+        let sort = [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type, predicate: predicate,
+                limit: HKObjectQueryNoLimit, sortDescriptors: sort
+            ) { _, samples, error in
+                if let error { continuation.resume(throwing: error); return }
+                let entries = (samples as? [HKQuantitySample] ?? []).map {
+                    WeightEntry(date: $0.endDate,
+                                kg: $0.quantity.doubleValue(for: .gramUnit(with: .kilo)))
+                }
+                continuation.resume(returning: entries)
+            }
+            store.execute(query)
+        }
     }
 
     /// Esfuerzo percibido (RPE 1–10) que el usuario registró en el reloj, por UUID de workout.
