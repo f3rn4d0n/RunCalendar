@@ -1,30 +1,26 @@
 import SwiftUI
 
 /// Tarjeta de clima reutilizable (carreras y entrenamientos). Carga async al aparecer
-/// mediante el closure `load`; muestra el pronóstico/histórico a la hora del evento,
-/// o `emptyMessage` si aún no hay datos (fecha muy a futuro o sin ubicación).
+/// mediante el closure `load`; muestra el pronóstico/histórico a la hora del evento, o
+/// el **motivo concreto** por el que no hay clima (ver `WeatherUnavailable`).
 struct WeatherCardView: View {
-    var emptyMessage = "No pudimos obtener el clima para esta ubicación. Revisa que la dirección sea reconocible."
-    let load: () async -> RaceWeather?
+    let load: () async -> Result<RaceWeather, WeatherUnavailable>
 
-    @State private var weather: RaceWeather?
-    @State private var isLoading = true
+    @State private var result: Result<RaceWeather, WeatherUnavailable>?
 
     var body: some View {
         Group {
-            if isLoading {
+            switch result {
+            case .none:
                 HStack { ProgressView(); Text("Consultando el clima…").foregroundStyle(.secondary) }
-            } else if let weather {
+            case .success(let weather):
                 loaded(weather)
-            } else {
-                Label(emptyMessage, systemImage: "clock.badge.questionmark")
+            case .failure(let reason):
+                Label(reason.message, systemImage: reason.systemImage)
                     .font(.mSubheadline).foregroundStyle(.secondary)
             }
         }
-        .task {
-            weather = await load()
-            isLoading = false
-        }
+        .task { result = await load() }
     }
 
     private func loaded(_ w: RaceWeather) -> some View {

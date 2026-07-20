@@ -45,18 +45,25 @@ final class TrainingViewModel {
     }
 
     /// Clima del entrenamiento: usa las coordenadas de la traza GPS de Salud (sin pedir
-    /// dirección ni geocodificar). `nil` si no es carrera o no tiene ruta con GPS.
+    /// dirección ni geocodificar). `nil` si el tipo no lleva distancia o no tiene ruta con GPS.
     // ponytail: reusa route() (trae toda la traza + FC); si pesa, un query de solo
     // la primera coordenada del workout sería más ligero.
-    func weather(for session: TrainingSession) async -> RaceWeather? {
-        guard session.type == .running,
+    func weather(for session: TrainingSession) async -> Result<RaceWeather, WeatherUnavailable> {
+        // Vale para todo lo que tenga GPS (correr, caminar, senderismo), no solo correr:
+        // es el mismo criterio que usan `fetchRoute` y la sección "Clima" del detalle.
+        guard session.type.tracksDistance,
               let start = await route(onDay: session.date, distanceKm: session.distanceKm)?.points.first
-        else { return nil }
+        else { return .failure(.noGPSTrack) }
         do {
-            return try await fetchWeather(latitude: start.latitude, longitude: start.longitude, date: session.date)
+            guard let weather = try await fetchWeather(latitude: start.latitude,
+                                                       longitude: start.longitude,
+                                                       date: session.date) else {
+                return .failure(.noDataForDate)
+            }
+            return .success(weather)
         } catch {
             Log.health.error("weather(training): \(error.localizedDescription, privacy: .public)")
-            return nil
+            return .failure(.serviceUnreachable)
         }
     }
 
