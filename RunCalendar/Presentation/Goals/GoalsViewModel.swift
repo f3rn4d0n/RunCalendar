@@ -195,7 +195,9 @@ final class GoalsViewModel {
     func recommendation(type: GoalType, distance: RaceDiscipline?) -> GoalRecommendation? {
         let records = PersonalRecords.compute(races: racesViewModel.races,
                                               sessions: trainingViewModel.sessions)
-        return recommendGoal(type: type, distance: distance, records: records, metrics: metrics)
+        // Las metas auto-medibles se sugieren desde tu valor actual real (volumen, tirada, FC).
+        return recommendGoal(type: type, distance: distance, records: records, metrics: metrics,
+                             current: currentValue(type: type, distance: distance))
     }
 
     /// Progreso de una meta contra el dato actual disponible.
@@ -256,8 +258,33 @@ final class GoalsViewModel {
         case .raceTime:
             guard let distance else { return nil }
             return records().first { $0.distance == distance }.map { Double($0.best.timeSeconds) }
-        case .vo2max: return metrics.vo2max
-        case .weight: return metrics.weightKg
+        case .vo2max:    return metrics.vo2max
+        case .weight:    return metrics.weightKg
+        case .restingHR: return metrics.restingHR
+        // Volumen y tirada larga salen de las sesiones (que ya incluyen lo importado de Salud),
+        // el mismo origen que usa la carga de ACWR: así una meta y la carga nunca se contradicen.
+        case .weeklyVolume: return weeklyVolumeKm
+        case .longRun:      return longestRunKm
+        }
+    }
+
+    /// Kilómetros completados en los últimos 7 días.
+    private var weeklyVolumeKm: Double? {
+        distanceSessions(withinDays: 7).compactMap(\.distanceKm).reduce(0, +)
+    }
+
+    /// La corrida más larga de las últimas 8 semanas. Ventana y no histórico: la meta mide
+    /// tu capacidad *actual*, no una tirada de hace dos años.
+    // ponytail: 8 semanas ≈ un bloque de entrenamiento; ajústalo si el bloque es más largo.
+    private var longestRunKm: Double? {
+        distanceSessions(withinDays: 56).compactMap(\.distanceKm).max()
+    }
+
+    /// Sesiones completadas con distancia dentro de la ventana (correr, caminar, senderismo).
+    private func distanceSessions(withinDays days: Int) -> [TrainingSession] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        return trainingViewModel.sessions.filter {
+            $0.completed && $0.type.tracksDistance && $0.date >= cutoff && $0.date <= Date()
         }
     }
 
