@@ -32,7 +32,7 @@ struct HealthView: View {
                 case .needsAuthorization:
                     connectPrompt
                 case .loading:
-                    ProgressView("Leyendo Salud…")
+                    loadingSkeleton
                 case .loaded(let data):
                     loaded(data)
                 case .error(let message):
@@ -47,6 +47,38 @@ struct HealthView: View {
             .navigationTitle("Progreso")
             .task { await viewModel.onAppear() }
         }
+    }
+
+    /// Skeleton mientras lee Salud: cards con la misma silueta que el contenido real, con brillo.
+    private var loadingSkeleton: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                ForEach(0..<3, id: \.self) { _ in skeletonCard }
+            }
+            .padding(16)
+        }
+    }
+
+    private var skeletonCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
+                Circle().fill(Color.primary.opacity(0.08)).frame(width: 66, height: 66)
+                VStack(alignment: .leading, spacing: 6) {
+                    RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.12))
+                        .frame(width: 120, height: 14)
+                    RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.08))
+                        .frame(width: 180, height: 10)
+                }
+                Spacer()
+            }
+            RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.08)).frame(height: 10)
+            RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.08))
+                .frame(width: 220, height: 10)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Neon.surface, in: RoundedRectangle(cornerRadius: 18))
+        .shimmering()
     }
 
     private var connectPrompt: some View {

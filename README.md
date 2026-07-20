@@ -294,6 +294,8 @@ RunCalendar/
 - `Presentation/Root/MainTabView.swift` — **dueño de todos los ViewModels**; monta los 4 tabs (Hoy/
   Entrenar/Objetivos/Progreso), arranca
   los streams de Firestore (`.task { … start() }`) y los observadores de Salud (`HKObserverQuery`).
+  También dispara la **carga inicial de Condición** (`healthViewModel.onAppear()`) aquí, no solo en
+  la tab Progreso: la card de recuperación de *Hoy* la necesita aunque nunca abras Progreso.
 
 ### ViewModels (`@Observable`, en `Presentation/*/`) y sus dependencias cruzadas
 > El acoplamiento entre ViewModels **no es obvio** y es fácil tropezar: varios reciben a otros por constructor.
@@ -374,6 +376,7 @@ no por pantalla.
 | `MetricRow` + `MetricInfoCard` | `Presentation/Health` | Fila de métrica con **card educativa** (qué es, rangos, tu valoración) |
 | `chartSelectionMark(...)` | `Presentation/Health/ChartSupport` | Tooltip de selección para Swift Charts |
 | `RPEPromptCard` | `Presentation/Training` | Card discreta descartable (patrón "pendiente de completar") |
+| `.shimmering()` | `Core/Components/Shimmer.swift` | Brillo animado para skeletons de carga (sobre placeholders `.redacted`) |
 | `RecoveryAccuracyChart` / `*TrendChart` | `Presentation/Health` | Gráficas interactivas (`chartXSelection`) |
 | chips (`chip(...)`) | Detalle de carrera/entreno | Etiquetas de estado (Completado, Prioritario) |
 | `Haptics` | `Core/Utils` | Feedback al guardar/confirmar |
@@ -384,6 +387,10 @@ no por pantalla.
 - **Swipe actions** (eliminar / marcar hecho) en filas.
 - **Sheets** para formularios de alta/edición; **`confirmationDialog`** para duplicados/decisiones.
 - **Cards descartables** para avisos no bloqueantes (ver `RPEPromptCard`).
+- **Skeletons de carga** (`.redacted(reason: .placeholder)` + `.shimmering()`): cada sección
+  carga por su cuenta sin bloquear la navegación — mientras llega el dato se muestra su silueta
+  con brillo, no un spinner que tape la pantalla. En uso en la recuperación de *Hoy* y el `.loading`
+  de *Progreso*.
 - **Cards educativas** en Condición: cada métrica explica importancia + rango + valoración
   (es una preferencia de producto, no adorno).
 
