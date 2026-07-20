@@ -50,9 +50,9 @@ struct ProfileView: View {
                         WeightLogView(viewModel: goalsViewModel)
                     } label: {
                         HStack {
-                            Label("Peso", systemImage: "scalemass")
+                            Label("Cuerpo", systemImage: "figure.walk")
                             Spacer()
-                            Text(goalsViewModel.latestWeight.map { "\(Goal.trim($0.kg)) kg" } ?? "Sin registros")
+                            Text(goalsViewModel.latestWeight.map { "\(Goal.trim($0.value)) kg" } ?? "Sin registros")
                                 .foregroundStyle(.secondary)
                         }
                     }

@@ -8,9 +8,9 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
 
     private let store = HKHealthStore()
 
-    /// Lo único que la app escribe en Salud: el peso que registras a mano.
+    /// Lo único que la app escribe en Salud: las medidas del review (peso y cintura).
     private var shareTypes: Set<HKSampleType> {
-        HKQuantityType.quantityType(forIdentifier: .bodyMass).map { [$0] } ?? []
+        Set(BodyMeasure.allCases.compactMap { Self.quantityType(for: $0) })
     }
 
     private var readTypes: Set<HKObjectType> {
@@ -26,6 +26,9 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         }
         if let weight = HKQuantityType.quantityType(forIdentifier: .bodyMass) {
             types.insert(weight)
+        }
+        if let waist = HKQuantityType.quantityType(forIdentifier: .waistCircumference) {
+            types.insert(waist)
         }
         if let height = HKQuantityType.quantityType(forIdentifier: .height) {
             types.insert(height)
@@ -359,11 +362,11 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         return AthleteMetrics(vo2max: vo2, weightKg: weight, heightM: height, ageYears: currentAge())
     }
 
-    func saveWeight(kg: Double, date: Date) async throws {
-        guard isAvailable(), let type = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { return }
+    func saveMeasure(_ measure: BodyMeasure, value: Double, date: Date) async throws {
+        guard isAvailable(), let type = Self.quantityType(for: measure) else { return }
 
-        // El permiso de escritura se pide aquí y no solo en Progreso: registrar peso se puede
-        // disparar desde Hoy o Perfil sin haber abierto esa pestaña nunca.
+        // El permiso de escritura se pide aquí y no solo en Progreso: registrar una medida se
+        // puede disparar desde Hoy o Perfil sin haber abierto esa pestaña nunca.
         if store.authorizationStatus(for: type) == .notDetermined {
             _ = await requestAuthorization()
         }
@@ -372,26 +375,44 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
 
         let sample = HKQuantitySample(
             type: type,
-            quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kg),
+            quantity: HKQuantity(unit: Self.unit(for: measure), doubleValue: value),
             start: date, end: date
         )
         do {
             try await store.save(sample)
-            Log.health.info("Peso guardado en Salud")
+            Log.health.info("\(measure.displayName, privacy: .public) guardado en Salud")
         } catch {
             let code = (error as? HKError)?.code
-            Log.health.error("Error al guardar peso [código \((error as NSError).code, privacy: .public)]: \(error.localizedDescription, privacy: .public)")
+            Log.health.error("Error al guardar \(measure.displayName, privacy: .public) [código \((error as NSError).code, privacy: .public)]: \(error.localizedDescription, privacy: .public)")
             // Solo si HealthKit dice que es de permisos mostramos la ruta para activarlo;
             // cualquier otro fallo se propaga tal cual en vez de culpar al permiso.
             if code == .errorAuthorizationDenied || code == .errorAuthorizationNotDetermined {
-                throw HealthWriteError.weightNotAuthorized
+                throw HealthWriteError.measureNotAuthorized(measure)
             }
             throw error
         }
     }
 
-    func fetchWeightHistory(days: Int) async throws -> [WeightEntry] {
-        guard isAvailable(), let type = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { return [] }
+    /// Tipo de HealthKit de cada medida corporal.
+    private static func quantityType(for measure: BodyMeasure) -> HKQuantityType? {
+        switch measure {
+        case .weight: return HKQuantityType.quantityType(forIdentifier: .bodyMass)
+        case .waist:  return HKQuantityType.quantityType(forIdentifier: .waistCircumference)
+        }
+    }
+
+    /// Unidad en la que la app captura y muestra cada medida. Salud almacena la cintura en
+    /// metros (canónico); se convierte a cm aquí para no arrastrar la conversión por la UI.
+    private static func unit(for measure: BodyMeasure) -> HKUnit {
+        switch measure {
+        case .weight: return .gramUnit(with: .kilo)
+        case .waist:  return .meterUnit(with: .centi)
+        }
+    }
+
+    func fetchMeasureHistory(_ measure: BodyMeasure, days: Int) async throws -> [MeasurementEntry] {
+        guard isAvailable(), let type = Self.quantityType(for: measure) else { return [] }
+        let unit = Self.unit(for: measure)
         let start = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: start, end: nil)
         let sort = [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
@@ -402,8 +423,7 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
             ) { _, samples, error in
                 if let error { continuation.resume(throwing: error); return }
                 let entries = (samples as? [HKQuantitySample] ?? []).map {
-                    WeightEntry(date: $0.endDate,
-                                kg: $0.quantity.doubleValue(for: .gramUnit(with: .kilo)))
+                    MeasurementEntry(date: $0.endDate, value: $0.quantity.doubleValue(for: unit))
                 }
                 continuation.resume(returning: entries)
             }

@@ -17,6 +17,7 @@ final class AppContainer {
     private let calendarRepository: CalendarRepository
     private let recoveryLogRepository: RecoveryLogRepository
     private let goalRepository: GoalRepository
+    private let bodyLogRepository: BodyLogRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
@@ -29,7 +30,8 @@ final class AppContainer {
         weatherRepository: WeatherRepository = OpenMeteoService(),
         calendarRepository: CalendarRepository = EventKitService(),
         recoveryLogRepository: RecoveryLogRepository = FirestoreRecoveryLogRepository(),
-        goalRepository: GoalRepository = FirestoreGoalRepository()
+        goalRepository: GoalRepository = FirestoreGoalRepository(),
+        bodyLogRepository: BodyLogRepository = FirestoreBodyLogRepository()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
@@ -41,6 +43,7 @@ final class AppContainer {
         self.calendarRepository = calendarRepository
         self.recoveryLogRepository = recoveryLogRepository
         self.goalRepository = goalRepository
+        self.bodyLogRepository = bodyLogRepository
     }
 
     // MARK: - ViewModels
@@ -116,8 +119,11 @@ final class AppContainer {
             assessPace: AssessGoalPaceUseCase(),
             recommendGoal: RecommendGoalUseCase(),
             fetchAthleteMetrics: FetchAthleteMetricsUseCase(repository: healthRepository),
-            saveWeight: SaveWeightUseCase(repository: healthRepository),
-            fetchWeightHistory: FetchWeightHistoryUseCase(repository: healthRepository),
+            saveMeasure: SaveBodyMeasureUseCase(repository: healthRepository),
+            fetchMeasureHistory: FetchBodyMeasureHistoryUseCase(repository: healthRepository),
+            saveBodyLog: SaveBodyLogUseCase(repository: bodyLogRepository),
+            fetchBodyLogs: FetchBodyLogsUseCase(repository: bodyLogRepository),
+            assessRecomposition: AssessRecompositionUseCase(),
             racesViewModel: racesViewModel,
             trainingViewModel: trainingViewModel
         )

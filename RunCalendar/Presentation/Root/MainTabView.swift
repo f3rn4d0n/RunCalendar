@@ -56,7 +56,8 @@ struct MainTabView: View {
                 GoalsView(viewModel: goalsViewModel)
             }
             Tab("Progreso", systemImage: "chart.line.uptrend.xyaxis") {
-                HealthView(viewModel: healthViewModel, racesViewModel: racesViewModel)
+                HealthView(viewModel: healthViewModel, racesViewModel: racesViewModel,
+                           goalsViewModel: goalsViewModel)
             }
         }
         .task { await remindersViewModel.refresh() }

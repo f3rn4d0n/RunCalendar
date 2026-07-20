@@ -17,6 +17,10 @@ struct RunCalendarApp: App {
         Log.app.info("Firebase configurado, projectID=\(projectID, privacy: .public)")
         Self.configureNavigationAppearance()
         _container = State(initialValue: AppContainer())
+        #if DEBUG
+        // No hay target de tests: la lógica no trivial deja su check y corre al arrancar.
+        AssessRecompositionUseCase.selfCheck()
+        #endif
     }
 
     /// Aplica la fuente Permanent Marker a la barra de navegación y a la de pestañas.
