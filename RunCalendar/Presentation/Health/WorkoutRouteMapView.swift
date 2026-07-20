@@ -13,6 +13,9 @@ struct WorkoutRouteMapView: View {
     let isAvailable: Bool
 
     @State private var route: WorkoutRoute?
+    /// Segmentos coloreados de la ruta, precalculados **una sola vez** (no cambian al reproducir).
+    /// Recalcularlos en cada frame hacía que MapKit redibujara toda la traza → CPU/térmico altísimos.
+    @State private var routeSegments: [RouteSegment] = []
     @State private var isLoading = true
     @State private var index = 0
     @State private var isPlaying = false
@@ -59,6 +62,7 @@ struct WorkoutRouteMapView: View {
         .task {
             guard isAvailable else { isLoading = false; return }
             route = await loader(date, distanceKm)
+            routeSegments = route.map { segments($0.points) } ?? []
             camera = route.map { .region(Self.region(for: $0.points)) } ?? .automatic
             isLoading = false
         }
@@ -76,7 +80,8 @@ struct WorkoutRouteMapView: View {
     private func map(_ route: WorkoutRoute) -> some View {
         Map(position: $camera, interactionModes: [.pan, .zoom]) {
             // Ruta coloreada por tramos de misma zona de FC (o color de acento si no hay FC).
-            ForEach(segments(route.points)) { seg in
+            // Precalculada: estable entre frames, así MapKit no la redibuja al mover el pin.
+            ForEach(routeSegments) { seg in
                 MapPolyline(coordinates: seg.coordinates)
                     .stroke(seg.color, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
             }
@@ -165,13 +170,17 @@ struct WorkoutRouteMapView: View {
     /// coordenada haría que MapKit interpole el pin entre puntos y se salga de la ruta.
     private func play(_ route: WorkoutRoute) async {
         guard isPlaying else { return }
-        if index >= route.points.count - 1 { index = 0 } // reiniciar si estaba al final
-        // Traza completa en ~12 s, sin importar cuántos puntos tenga.
-        let stepNanos = UInt64(12_000_000_000 / UInt64(max(route.points.count, 1)))
-        while isPlaying && index < route.points.count - 1 {
+        let count = route.points.count
+        if index >= count - 1 { index = 0 } // reiniciar si estaba al final
+        // ~30 fps fijos (no 60+): avanza varios puntos por tick para que la traza dure ~12 s
+        // sin re-renderizar 60 veces por segundo. El pin se ve fluido y el CPU baja a la mitad.
+        let fps = 30.0, totalSeconds = 12.0
+        let stride = max(1, Int((Double(count) / (totalSeconds * fps)).rounded()))
+        let stepNanos = UInt64(1_000_000_000 / fps)
+        while isPlaying && index < count - 1 {
             try? await Task.sleep(nanoseconds: stepNanos)
             if !isPlaying { break }
-            index += 1
+            index = min(index + stride, count - 1)
         }
         isPlaying = false
     }
