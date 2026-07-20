@@ -35,6 +35,12 @@ final class HealthViewModel {
     var isHealthAvailable: Bool { fetchSummary.isAvailable }
 
     /// Check-in de recuperación de hoy, si ya se registró.
+    /// Recuperación estimada actual (si ya cargó). Para el dashboard "Hoy".
+    var recovery: RecoveryEstimate? {
+        if case .loaded(let data) = state { return data.recovery }
+        return nil
+    }
+
     private(set) var todayCheckIn: RecoveryCheckIn?
     /// Check-ins recientes (cronológicos) para la gráfica "sentido vs predicho".
     private(set) var recentCheckIns: [RecoveryCheckIn] = []

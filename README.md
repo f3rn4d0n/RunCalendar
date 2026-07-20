@@ -16,7 +16,14 @@ Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Au
 
 ## Funcionalidades
 
-Seis pestañas: **Carreras**, **Calendario**, **Entrenar**, **Objetivos**, **Condición** y **Perfil**.
+**Cuatro pestañas por *ciclo del atleta*** (las 4 preguntas de la mañana): **Hoy** · **Entrenar** ·
+**Objetivos** · **Progreso**. **Carreras** y **Calendario** se abren desde *Hoy*; **Perfil** es el
+avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las colapsaba en "More".)
+
+### ☀️ Hoy
+- Dashboard de arranque: **próxima carrera** (countdown) · **entreno de hoy** · **recuperación**
+  (ring). Accesos a *Todas las carreras* y *Calendario*. Avatar → Perfil. Es la pantalla que
+  responde "¿qué hago hoy?".
 
 ### 🎯 Objetivos
 - Metas del atleta: **tiempo por distancia**, **VO₂max** y **peso** (entidad `Goal`).
@@ -49,8 +56,8 @@ Seis pestañas: **Carreras**, **Calendario**, **Entrenar**, **Objetivos**, **Con
   día del evento), **entrega de kit** (víspera y día mismo, con lugar y hora), y de
   entrenamientos (a la hora, y un aviso de los que dejaste pendientes). Sin backend.
 
-### 📅 Calendario
-- Vista mensual con carreras y entrenamientos.
+### 📅 Calendario (desde *Hoy*)
+- Vista mensual con carreras y entrenamientos. Ya no es tab; se abre desde *Hoy*.
 
 ### 🏋️ Entrenar
 - Entrenamientos de **carrera**, **CrossFit** (WOD), **caminata**, **senderismo** y **otro**,
@@ -67,7 +74,7 @@ Seis pestañas: **Carreras**, **Calendario**, **Entrenar**, **Objetivos**, **Con
   quedó **sin RPE**, una card discreta en Entrenar te invita a calificarlo de un toque.
 - Detalle de **solo lectura** (editar es explícito).
 
-### ❤️ Condición (Apple Salud / HealthKit)
+### 📈 Progreso · Condición (Apple Salud / HealthKit)
 - **Resumen de forma**: VO₂max, FC en reposo, tendencia de fitness (Swift Charts interactivas).
 - **Recuperación estimada** (orientativa, no médica): horas hasta estar recuperado a partir de
   **HRV (SDNN)**, **FC en reposo**, **carga reciente** (ponderada por RPE) y **sueño**.
@@ -81,8 +88,8 @@ Seis pestañas: **Carreras**, **Calendario**, **Entrenar**, **Objetivos**, **Con
 - **Récords personales** por distancia y velocidad promedio.
 - Cards **educativas** por métrica (qué es, rangos por edad, tu valoración).
 
-### 👤 Perfil
-- Datos del usuario y **cierre de sesión**.
+### 👤 Perfil (avatar en *Hoy*)
+- Se abre desde el avatar de la barra superior en *Hoy* (ya no es tab). Datos del usuario y **cierre de sesión**.
 - **Recordatorios**: preferencias de las notificaciones locales (carreras, entrega de kit,
   entrenamientos). Ver `RemindersSettingsView` / `RemindersViewModel`.
 
@@ -261,7 +268,8 @@ RunCalendar/
 ### Entrada y wiring
 - `App/…App.swift` (`@main`) → `AppDelegate` (init de Firebase) → `RootView` (gate de auth) → `MainTabView`.
 - `App/DI/AppContainer.swift` — **composition root**: crea repos, services y los `makeXxxViewModel(...)`.
-- `Presentation/Root/MainTabView.swift` — **dueño de todos los ViewModels**; monta los 5 tabs, arranca
+- `Presentation/Root/MainTabView.swift` — **dueño de todos los ViewModels**; monta los 4 tabs (Hoy/
+  Entrenar/Objetivos/Progreso), arranca
   los streams de Firestore (`.task { … start() }`) y los observadores de Salud (`HKObserverQuery`).
 
 ### ViewModels (`@Observable`, en `Presentation/*/`) y sus dependencias cruzadas
@@ -473,8 +481,9 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 | **4. Nutrición** | **Solo objetivos + adherencia (checkbox)**: macros/kcal objetivo, hidratación, ¿cumpliste hoy? — **no** food-logger | Dominio nuevo; acotado a propósito para no volverse contador de calorías |
 | **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app** |
 
-> **Reestructura UX asociada:** pasar de tabs por *tipo de dato* (Carreras/Calendario/Entrenar/Condición)
-> a tabs por *ciclo del atleta*: **Objetivos → Plan → Hoy → Progreso** (las 4 preguntas). La Fase 1 la habilita.
+> **Reestructura UX:** ✅ hecha en su mayoría — 4 tabs por *ciclo del atleta* (**Hoy · Entrenar ·
+> Objetivos · Progreso**), Carreras/Calendario dentro de Hoy, Perfil como avatar. Falta la tab **Plan**
+> (Fase 3) y enriquecer **Hoy** con "misiones del día" cuando exista el plan.
 >
 > **Rediseño visual (transversal, en curso):** de "formulario" a "misión" — número héroe, "faltan X días",
 > Coach Insight, confianza cualitativa, cards reutilizables. Empieza por **Objetivos** y se rueda al resto.
