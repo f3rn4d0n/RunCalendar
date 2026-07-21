@@ -83,6 +83,8 @@ struct TrainingPlan: Identifiable, Equatable, Sendable {
     var secondaryGoalIds: [String]
     var config: PlanConfig
     var days: [PlannedDay]
+    /// Aviso del coach cuando el volumen no cabe sano en los días disponibles (nil si todo cuadra).
+    var note: String?
     var weekStart: Date
     var createdAt: Date
 
@@ -92,6 +94,7 @@ struct TrainingPlan: Identifiable, Equatable, Sendable {
         secondaryGoalIds: [String] = [],
         config: PlanConfig,
         days: [PlannedDay],
+        note: String? = nil,
         weekStart: Date,
         createdAt: Date = Date()
     ) {
@@ -100,6 +103,7 @@ struct TrainingPlan: Identifiable, Equatable, Sendable {
         self.secondaryGoalIds = secondaryGoalIds
         self.config = config
         self.days = days
+        self.note = note
         self.weekStart = weekStart
         self.createdAt = createdAt
     }

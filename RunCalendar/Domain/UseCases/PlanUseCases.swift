@@ -71,21 +71,43 @@ struct GeneratePlanUseCase: Sendable {
         let tapering = weeksLeft(input.primary.deadline, input.now).map { $0 <= 1 } ?? false
         if tapering { weekKm *= 0.6 }
 
-        // Tirada larga: progresa +1 km/sem hacia su target si tenemos el dato; si no, una fracción
-        // del volumen. Acotada a [fracción base, 60%] para que sea siempre el día más largo.
-        let frac = longFraction(days: days)
-        let progressed = input.currentLongRunKm.map { min($0 + 1, longRunTarget ?? .greatestFiniteMagnitude) }
-        let longKm = round1(clampD(progressed ?? weekKm * frac, weekKm * frac, weekKm * 0.6))
-
-        // Reparto del resto por pesos de rol (el largo ya está fuera del pool).
         let structure = structure(for: days)             // ordenado, tirada larga al final
-        let others = structure.filter { $0 != .longRun }
-        let weightSum = others.map(roleWeight).reduce(0, +)
-        let remaining = max(0, weekKm - longKm)
+        let easyCount = structure.filter { $0 == .easy }.count
+
+        // Tirada larga: progresa +1 km/sem hacia su target; acotada por la fracción base y por un
+        // **máximo absoluto** (una tirada no crece sin límite aunque el volumen sea alto).
+        let frac = longFraction(days: days)
+        let longCeiling = min(weekKm * 0.6, maxLongKm)
+        let progressed = input.currentLongRunKm.map { min($0 + 1, longRunTarget ?? .greatestFiniteMagnitude) }
+        var longKm = clampD(progressed ?? weekKm * frac, weekKm * frac, longCeiling)
+
+        // Sesiones de calidad con volumen **topado**: una serie es por repeticiones, no un balde de
+        // kilómetros, así que el tope absoluto manda por encima de la fracción del volumen.
+        let tempoKm     = structure.contains(.tempo)     ? min(weekKm * 0.20, maxTempoKm)     : 0
+        let intervalsKm = structure.contains(.intervals) ? min(weekKm * 0.15, maxIntervalsKm) : 0
+
+        // El resto del volumen lo absorben, en orden: los rodajes fáciles (la esponja natural) y
+        // luego la tirada larga hasta su techo. Lo que aún NO quepa se reporta (faltan días para
+        // tu volumen), en vez de inflar una sesión de calidad a un tamaño absurdo.
+        var leftover = weekKm - longKm - tempoKm - intervalsKm
+        let easyEach = easyCount > 0 ? clampD(max(0, leftover) / Double(easyCount), minEasyKm, longKm) : 0
+        leftover -= easyEach * Double(easyCount)
+        let addToLong = clampD(leftover, 0, longCeiling - longKm)
+        longKm += addToLong
+        leftover -= addToLong
+
+        let note: String? = leftover > unfitThresholdKm
+            ? "Tu volumen (~\(Goal.trim(weekKm)) km) no cabe sano en \(days) días: sube a "
+                + "~\(suggestedDays(weekKm)) días para repartirlo en vez de meter sesiones enormes."
+            : nil
 
         func km(for kind: PlannedWorkoutKind) -> Double {
-            kind == .longRun ? longKm
-                             : (weightSum > 0 ? round1(remaining * roleWeight(kind) / weightSum) : 0)
+            switch kind {
+            case .longRun:   return round1(longKm)
+            case .tempo:     return round1(tempoKm)
+            case .intervals: return round1(intervalsKm)
+            case .easy:      return round1(easyEach)
+            }
         }
 
         // Asigna días de la semana: preferidos (o reparto por defecto), la tirada larga al último.
@@ -101,6 +123,7 @@ struct GeneratePlanUseCase: Sendable {
             secondaryGoalIds: input.secondaries.map(\.id),
             config: PlanConfig(daysPerWeek: days, preferredWeekdays: input.config.preferredWeekdays),
             days: planned,
+            note: note,
             weekStart: input.weekStart
         )
     }
@@ -131,14 +154,18 @@ struct GeneratePlanUseCase: Sendable {
         }
     }
 
-    /// Peso relativo de volumen de los días que no son la tirada larga (series aporta menos km).
-    private func roleWeight(_ kind: PlannedWorkoutKind) -> Double {
-        switch kind {
-        case .intervals: return 0.8
-        case .tempo:     return 1.0
-        case .easy:      return 1.0
-        case .longRun:   return 0
-        }
+    // Topes de sesión (km). Las de calidad no escalan con el volumen: son por repeticiones/ritmo.
+    // ponytail: constantes globales; hazlas por distancia de meta (una larga de 21K ≠ de 42K) si hace falta.
+    private var maxLongKm: Double      { 30 }
+    private var maxTempoKm: Double     { 14 }
+    private var maxIntervalsKm: Double { 9 }
+    private var minEasyKm: Double      { 4 }
+    /// Km sobrantes a partir de los cuales avisamos que el volumen no cabe en los días dados.
+    private var unfitThresholdKm: Double { 5 }
+
+    /// Días/semana sugeridos para repartir un volumen sano (~14 km por día como cota gruesa).
+    private func suggestedDays(_ weekKm: Double) -> Int {
+        clamp(Int((weekKm / 14).rounded(.up)), 2, 6)
     }
 
     private func label(_ kind: PlannedWorkoutKind, km: Double) -> String {
@@ -182,6 +209,8 @@ extension GeneratePlanUseCase {
         let gen = GeneratePlanUseCase()
         let deadline = Calendar.current.date(byAdding: .day, value: 84, to: Date())
         let goal = Goal(type: .raceTime, targetValue: 1500, distance: .tenK, deadline: deadline)
+
+        // Caso normal: 30 km / 3 días.
         let plan = gen(.init(
             primary: goal,
             config: PlanConfig(daysPerWeek: 3, preferredWeekdays: [3, 5, 7]),
@@ -190,13 +219,23 @@ extension GeneratePlanUseCase {
         let kinds = Set(plan.days.map(\.kind))
         assert(kinds.isSuperset(of: [.longRun, .tempo, .intervals]),
                "3 días debe incluir tirada larga + tempo + series")
-        assert(plan.totalKm <= 30 * 1.10 + 0.5, "el volumen no debe exceder +10% del actual")
         let longKm = plan.days.first { $0.kind == .longRun }?.targetKm ?? 0
         assert(longKm == plan.days.compactMap(\.targetKm).max(),
                "la tirada larga debe ser el día más largo")
         assert(plan.days.map(\.weekday) == [3, 5, 7], "debe respetar los días preferidos")
-        return "OK · \(plan.days.count) días · \(Goal.trim(plan.totalKm)) km/sem · "
-             + "larga \(Goal.trim(longKm)) km"
+
+        // Volumen alto en pocos días: las sesiones de calidad NO se disparan (topadas) y se avisa.
+        let big = gen(.init(primary: goal, config: PlanConfig(daysPerWeek: 3),
+                            currentWeeklyKm: 65, currentLongRunKm: 26))
+        let series = big.days.first { $0.kind == .intervals }?.targetKm ?? 0
+        let tempo  = big.days.first { $0.kind == .tempo }?.targetKm ?? 0
+        assert(series <= 9.01, "series debe estar topada, no 18 km (\(Goal.trim(series)))")
+        assert(tempo  <= 14.01, "tempo debe estar topado (\(Goal.trim(tempo)))")
+        assert((big.days.compactMap(\.targetKm).max() ?? 0) <= 30.01, "ningún día pasa el tope de larga")
+        assert(big.note != nil, "volumen alto en pocos días debe avisar subir días")
+
+        return "OK · normal: larga \(Goal.trim(longKm)) km · "
+             + "alto: series \(Goal.trim(series)) km, tempo \(Goal.trim(tempo)) km, aviso ✓"
     }
 }
 #endif
