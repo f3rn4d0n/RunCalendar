@@ -18,6 +18,8 @@ struct PlanConfigSheet: View {
                     } label: {
                         Label("Sugerir plan desde mi historial", systemImage: "wand.and.stars")
                     }
+                    .buttonStyle(NeonButtonStyle())
+                    .listRowBackground(Color.clear)
                 } footer: {
                     Text("Analiza tus corridas recientes para proponerte días/semana, tus días y una "
                         + "meta de volumen. Todo queda editable.")
