@@ -5,6 +5,7 @@ import SwiftUI
 struct PlanConfigSheet: View {
     @Bindable var viewModel: GoalsViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var detailDay: PlannedDay?
 
     var body: some View {
         NavigationStack {
@@ -36,6 +37,9 @@ struct PlanConfigSheet: View {
                     Button("Listo") { dismiss() }
                 }
             }
+            .sheet(item: $detailDay) { day in
+                WorkoutDetailView(day: day, viewModel: viewModel)
+            }
         }
     }
 
@@ -45,17 +49,21 @@ struct PlanConfigSheet: View {
         if let plan = viewModel.currentPlan {
             Section {
                 ForEach(plan.days) { day in
-                    HStack(spacing: 12) {
-                        Image(systemName: day.kind.systemImage)
-                            .foregroundStyle(Neon.accent).frame(width: 26)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(day.weekdayName.capitalized)
-                                .font(.mCaption2).foregroundStyle(.secondary)
-                            Text(day.label).font(.mSubheadline)
-                            Text(day.detail).font(.mCaption2).foregroundStyle(.tertiary)
+                    Button { detailDay = day } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: day.kind.systemImage)
+                                .foregroundStyle(Neon.accent).frame(width: 26)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(day.weekdayName.capitalized)
+                                    .font(.mCaption2).foregroundStyle(.secondary)
+                                Text(day.label).font(.mSubheadline).foregroundStyle(.primary)
+                                Text(day.detail).font(.mCaption2).foregroundStyle(.tertiary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.mCaption2).foregroundStyle(.tertiary)
                         }
-                        Spacer()
                     }
+                    .buttonStyle(.plain)
                 }
             } header: {
                 Text("Vista previa de la semana")
