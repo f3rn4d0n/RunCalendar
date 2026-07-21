@@ -126,6 +126,7 @@ final class AppContainer {
             assessRecomposition: AssessRecompositionUseCase(),
             generatePlan: GeneratePlanUseCase(),
             inferPrimary: InferPrimaryGoalUseCase(),
+            describeWorkout: DescribeWorkoutUseCase(),
             racesViewModel: racesViewModel,
             trainingViewModel: trainingViewModel
         )

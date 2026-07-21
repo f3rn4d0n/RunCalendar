@@ -19,6 +19,100 @@ struct InferPrimaryGoalUseCase: Sendable {
     }
 }
 
+/// Explica una sesión planificada en lenguaje de atleta: qué es, cómo se hace (con esquema de
+/// repeticiones concreto para las series), para qué sirve y por qué ese tamaño. Determinista y sin
+/// inventar ritmos exactos (los deja cualitativos), fiel al principio de "nunca un dato inventado".
+struct DescribeWorkoutUseCase: Sendable {
+    func callAsFunction(_ day: PlannedDay) -> WorkoutGuide {
+        let km = day.targetKm ?? 0
+        switch day.kind {
+        case .intervals: return intervals(km)
+        case .tempo:     return tempo(km)
+        case .longRun:   return longRun(km)
+        case .easy:      return easy(km)
+        }
+    }
+
+    /// Series: el volumen "fuerte" se parte en repeticiones. Distancia de repetición según el total,
+    /// para que salgan entre ~4 y ~8 repeticiones (el rango útil de una sesión de calidad).
+    private func intervals(_ km: Double) -> WorkoutGuide {
+        let qualityM = km * 1000
+        let repM = qualityM <= 2400 ? 400.0 : (qualityM <= 4000 ? 600.0 : 800.0)
+        let reps = max(3, Int((qualityM / repM).rounded()))
+        let recovery = repM <= 400 ? "60–90 s" : "90 s – 2 min"
+        return WorkoutGuide(
+            title: "Series",
+            headline: "\(reps) × \(Int(repM)) m fuerte",
+            pace: "Ritmo ~5K: rápido pero repetible, esfuerzo 8–9 de 10 (no un sprint).",
+            steps: [
+                GuideStep(label: "Calentamiento",
+                          detail: "10–15 min de trote muy suave + 3–4 aceleraciones cortas."),
+                GuideStep(label: "Bloque principal",
+                          detail: "\(reps) repeticiones de \(Int(repM)) m a ritmo ~5K, con "
+                              + "\(recovery) de trote suave (o caminar) entre cada una."),
+                GuideStep(label: "Enfriamiento", detail: "10 min de trote muy suave.")
+            ],
+            purpose: "Suben tu velocidad y tu VO₂max: enseñan al cuerpo a correr rápido y a tolerar "
+                + "el esfuerzo. Es el estímulo de intensidad de la semana.",
+            rationale: "Los ~\(Goal.trim(km)) km fuertes son cerca del 15% de tu volumen semanal, "
+                + "topados a propósito para que sean calidad sin vaciarte. Por eso el número no es "
+                + "redondo: sale de tu volumen actual, no de una tabla genérica."
+        )
+    }
+
+    private func tempo(_ km: Double) -> WorkoutGuide {
+        WorkoutGuide(
+            title: "Tempo",
+            headline: "\(Goal.trim(km)) km continuos a ritmo umbral",
+            pace: "Cómodo-duro: podrías decir pocas palabras, no mantener una charla. ~ritmo de 10–15K.",
+            steps: [
+                GuideStep(label: "Calentamiento", detail: "10 min de trote suave."),
+                GuideStep(label: "Bloque principal",
+                          detail: "\(Goal.trim(km)) km continuos a ritmo umbral, sin parar."),
+                GuideStep(label: "Enfriamiento", detail: "10 min de trote suave.")
+            ],
+            purpose: "Sube tu umbral de lactato: el ritmo más rápido que puedes sostener sin "
+                + "fundirte. Es lo que más mueve tu marca en carreras largas.",
+            rationale: "Un bloque continuo moderado; su tamaño está topado (≤ 14 km) para que sea "
+                + "sostenible y no se convierta en una carrera de práctica."
+        )
+    }
+
+    private func longRun(_ km: Double) -> WorkoutGuide {
+        WorkoutGuide(
+            title: "Tirada larga",
+            headline: "\(Goal.trim(km)) km a ritmo cómodo",
+            pace: "Conversable: deberías poder hablar en frases completas todo el tiempo.",
+            steps: [
+                GuideStep(label: "La sesión",
+                          detail: "Corre \(Goal.trim(km)) km a ritmo suave y constante. Si te "
+                              + "cuesta hablar, vas muy rápido: baja el ritmo.")
+            ],
+            purpose: "Construye tu base aeróbica y tu resistencia: acostumbra al cuerpo a usar grasa "
+                + "y a aguantar tiempo en pie. Es la sesión más importante para distancias largas.",
+            rationale: "Crece ~1 km por semana hacia tu meta de tirada, y está topada al 60% de tu "
+                + "volumen (máx. 30 km) para no meter una corrida que te lesione."
+        )
+    }
+
+    private func easy(_ km: Double) -> WorkoutGuide {
+        WorkoutGuide(
+            title: "Rodaje fácil",
+            headline: "\(Goal.trim(km)) km muy suave",
+            pace: "Muy fácil, ritmo de recuperación: deberías terminar sintiendo que podrías seguir.",
+            steps: [
+                GuideStep(label: "La sesión",
+                          detail: "Corre \(Goal.trim(km)) km sin prisa. El objetivo es sumar "
+                              + "volumen sin fatiga, no ir rápido.")
+            ],
+            purpose: "Recuperación activa y volumen aeróbico barato: suma kilómetros que construyen "
+                + "fitness sin costo de fatiga, y ayudan a que las sesiones duras rindan.",
+            rationale: "Reparte el resto de tu volumen entre los días fáciles, con un piso de 4 km "
+                + "para que la salida valga la pena."
+        )
+    }
+}
+
 /// Genera el plan de una semana desde la meta principal + sus parámetros, de forma **determinista**
 /// (sin IA, mismo espíritu que "Sugerir meta"). Reglas estándar:
 /// - **Estructura por días/semana**: 3 → tirada larga + tempo (umbral) + series; menos/más días

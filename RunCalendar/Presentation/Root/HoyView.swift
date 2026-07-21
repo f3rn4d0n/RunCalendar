@@ -17,6 +17,7 @@ struct HoyView: View {
     @State private var showWeightSheet = false
     @State private var showReviewSheet = false
     @State private var showPlanConfig = false
+    @State private var detailDay: PlannedDay?
 
     private var nextRace: Race? {
         let today = Calendar.current.startOfDay(for: Date())
@@ -67,6 +68,9 @@ struct HoyView: View {
             .sheet(isPresented: $showPlanConfig) {
                 PlanConfigSheet(viewModel: goalsViewModel)
             }
+            .sheet(item: $detailDay) { day in
+                WorkoutDetailView(day: day, viewModel: goalsViewModel)
+            }
         }
     }
 
@@ -74,15 +78,19 @@ struct HoyView: View {
     @ViewBuilder private var missionCard: some View {
         DashCard(eyebrow: "Misión de hoy", accent: Neon.green) {
             if let mission = goalsViewModel.todayMission {
-                HStack(spacing: 12) {
-                    Image(systemName: mission.kind.systemImage)
-                        .font(.title2).foregroundStyle(Neon.green).frame(width: 32)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(mission.label).font(.mHeadline).foregroundStyle(.primary)
-                        Text(mission.detail).font(.mCaption).foregroundStyle(.secondary)
+                Button { detailDay = mission } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: mission.kind.systemImage)
+                            .font(.title2).foregroundStyle(Neon.green).frame(width: 32)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(mission.label).font(.mHeadline).foregroundStyle(.primary)
+                            Text(mission.detail).font(.mCaption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.mCaption).foregroundStyle(.tertiary)
                     }
-                    Spacer()
                 }
+                .buttonStyle(.plain)
                 planFooter
             } else if goalsViewModel.currentPlan != nil {
                 Text("Hoy descansas. La recuperación también entrena.")

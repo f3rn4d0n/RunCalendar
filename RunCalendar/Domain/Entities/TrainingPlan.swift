@@ -62,6 +62,23 @@ struct PlannedDay: Identifiable, Equatable, Sendable {
     }
 }
 
+/// Explicación pedagógica de una sesión: qué es, cómo se hace, para qué sirve y por qué ese
+/// tamaño. Para que "Series 3.3 km" deje de ser críptico y el atleta entienda qué hacer y por qué.
+struct WorkoutGuide: Equatable, Sendable {
+    let title: String       // "Series"
+    let headline: String    // "5 × 600 m fuerte"
+    let pace: String        // ritmo cualitativo (nunca inventamos un ritmo exacto)
+    let steps: [GuideStep]  // calentamiento · principal · enfriamiento
+    let purpose: String     // para qué sirve
+    let rationale: String   // por qué este número (de dónde sale, no una tabla)
+}
+
+/// Un paso de la sesión (calentamiento, bloque principal, enfriamiento).
+struct GuideStep: Equatable, Sendable {
+    let label: String
+    let detail: String
+}
+
 /// Configuración del plan que da el usuario: cuántos días puede entrenar y cuáles.
 struct PlanConfig: Equatable, Sendable {
     var daysPerWeek: Int

@@ -32,6 +32,7 @@ final class GoalsViewModel {
     private let trainingViewModel: TrainingViewModel
     private let generatePlan: GeneratePlanUseCase
     private let inferPrimary: InferPrimaryGoalUseCase
+    private let describeWorkout: DescribeWorkoutUseCase
 
     /// Datos actuales del atleta (de Salud), para progreso de VO₂max/peso y recomendaciones.
     private(set) var metrics: AthleteMetrics = .empty
@@ -61,6 +62,7 @@ final class GoalsViewModel {
         assessRecomposition: AssessRecompositionUseCase,
         generatePlan: GeneratePlanUseCase,
         inferPrimary: InferPrimaryGoalUseCase,
+        describeWorkout: DescribeWorkoutUseCase,
         racesViewModel: RacesViewModel,
         trainingViewModel: TrainingViewModel
     ) {
@@ -81,6 +83,7 @@ final class GoalsViewModel {
         self.assessRecomposition = assessRecomposition
         self.generatePlan = generatePlan
         self.inferPrimary = inferPrimary
+        self.describeWorkout = describeWorkout
         self.racesViewModel = racesViewModel
         self.trainingViewModel = trainingViewModel
         self.planConfig = Self.loadPlanConfig()
@@ -351,6 +354,9 @@ final class GoalsViewModel {
 
     /// La misión de hoy (sesión planificada), si el plan pide entrenar hoy.
     var todayMission: PlannedDay? { currentPlan?.today() }
+
+    /// Explicación pedagógica de una sesión planificada (qué es, cómo, para qué, por qué ese número).
+    func guide(for day: PlannedDay) -> WorkoutGuide { describeWorkout(day) }
 
     private static func currentWeekStart(_ now: Date = Date()) -> Date {
         Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now
