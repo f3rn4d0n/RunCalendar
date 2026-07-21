@@ -11,7 +11,7 @@ struct PlanConfigSheet: View {
             Form {
                 Section {
                     Stepper("Días por semana: \(viewModel.planConfig.daysPerWeek)",
-                            value: $viewModel.planConfig.daysPerWeek, in: 2...6)
+                            value: $viewModel.planConfig.daysPerWeek, in: 1...7)
                 } footer: {
                     Text("Cuántas veces puedes correr en la semana. El plan reparte tirada larga, "
                         + "tempo y series según esto.")
@@ -24,6 +24,8 @@ struct PlanConfigSheet: View {
                 } footer: {
                     Text("Si no eliges, el plan usa un reparto espaciado por defecto.")
                 }
+
+                weekPreview
             }
             .scrollContentBackground(.hidden)
             .background(Neon.background.ignoresSafeArea())
@@ -32,6 +34,39 @@ struct PlanConfigSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Listo") { dismiss() }
+                }
+            }
+        }
+    }
+
+    /// Vista previa en vivo de la semana con la config actual. Como el plan es derivado, cambia
+    /// al instante al mover los días o los días preferidos — sin esperar a que llegue la fecha.
+    @ViewBuilder private var weekPreview: some View {
+        if let plan = viewModel.currentPlan {
+            Section {
+                ForEach(plan.days) { day in
+                    HStack(spacing: 12) {
+                        Image(systemName: day.kind.systemImage)
+                            .foregroundStyle(Neon.accent).frame(width: 26)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(day.weekdayName.capitalized)
+                                .font(.mCaption2).foregroundStyle(.secondary)
+                            Text(day.label).font(.mSubheadline)
+                            Text(day.detail).font(.mCaption2).foregroundStyle(.tertiary)
+                        }
+                        Spacer()
+                    }
+                }
+            } header: {
+                Text("Vista previa de la semana")
+            } footer: {
+                if let note = plan.note {
+                    Label(note, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Neon.orange)
+                } else {
+                    Text("Así queda tu semana con \(plan.days.count) "
+                        + "\(plan.days.count == 1 ? "día" : "días") · "
+                        + "\(Goal.trim(plan.totalKm)) km. Ajusta arriba y mira cómo cambia.")
                 }
             }
         }
