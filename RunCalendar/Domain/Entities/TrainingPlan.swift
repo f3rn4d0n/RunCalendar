@@ -133,4 +133,10 @@ struct TrainingPlan: Identifiable, Equatable, Sendable {
         let weekday = Calendar.current.component(.weekday, from: now)
         return days.first { $0.weekday == weekday }
     }
+
+    /// La semana completa (7 días) con la sesión de cada día o `nil` si es descanso. Para mostrar
+    /// el ritmo real: sesiones y descansos intercalados, no solo los días que entrenas.
+    func fullWeek() -> [(weekday: Int, session: PlannedDay?)] {
+        (1...7).map { wd in (weekday: wd, session: days.first { $0.weekday == wd }) }
+    }
 }

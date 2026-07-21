@@ -48,22 +48,13 @@ struct PlanConfigSheet: View {
     @ViewBuilder private var weekPreview: some View {
         if let plan = viewModel.currentPlan {
             Section {
-                ForEach(plan.days) { day in
-                    Button { detailDay = day } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: day.kind.systemImage)
-                                .foregroundStyle(Neon.accent).frame(width: 26)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(day.weekdayName.capitalized)
-                                    .font(.mCaption2).foregroundStyle(.secondary)
-                                Text(day.label).font(.mSubheadline).foregroundStyle(.primary)
-                                Text(day.detail).font(.mCaption2).foregroundStyle(.tertiary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right").font(.mCaption2).foregroundStyle(.tertiary)
-                        }
+                ForEach(plan.fullWeek(), id: \.weekday) { entry in
+                    if let day = entry.session {
+                        Button { detailDay = day } label: { sessionRow(day) }
+                            .buttonStyle(.plain)
+                    } else {
+                        restRow(weekday: entry.weekday)
                     }
-                    .buttonStyle(.plain)
                 }
             } header: {
                 Text("Vista previa de la semana")
@@ -77,6 +68,31 @@ struct PlanConfigSheet: View {
                         + "\(Goal.trim(plan.totalKm)) km. Ajusta arriba y mira cómo cambia.")
                 }
             }
+        }
+    }
+
+    private func sessionRow(_ day: PlannedDay) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: day.kind.systemImage).foregroundStyle(Neon.accent).frame(width: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(day.weekdayName.capitalized).font(.mCaption2).foregroundStyle(.secondary)
+                Text(day.label).font(.mSubheadline).foregroundStyle(.primary)
+                Text(day.detail).font(.mCaption2).foregroundStyle(.tertiary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").font(.mCaption2).foregroundStyle(.tertiary)
+        }
+    }
+
+    private func restRow(weekday: Int) -> some View {
+        let name = (1...7).contains(weekday) ? Calendar.current.weekdaySymbols[weekday - 1] : "—"
+        return HStack(spacing: 12) {
+            Image(systemName: "moon.zzz").foregroundStyle(.tertiary).frame(width: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name.capitalized).font(.mCaption2).foregroundStyle(.secondary)
+                Text("Descanso").font(.mSubheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
         }
     }
 
