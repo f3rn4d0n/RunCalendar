@@ -33,6 +33,7 @@ final class GoalsViewModel {
     private let generatePlan: GeneratePlanUseCase
     private let inferPrimary: InferPrimaryGoalUseCase
     private let describeWorkout: DescribeWorkoutUseCase
+    private let suggestPlan: SuggestPlanUseCase
 
     /// Datos actuales del atleta (de Salud), para progreso de VO₂max/peso y recomendaciones.
     private(set) var metrics: AthleteMetrics = .empty
@@ -63,6 +64,7 @@ final class GoalsViewModel {
         generatePlan: GeneratePlanUseCase,
         inferPrimary: InferPrimaryGoalUseCase,
         describeWorkout: DescribeWorkoutUseCase,
+        suggestPlan: SuggestPlanUseCase,
         racesViewModel: RacesViewModel,
         trainingViewModel: TrainingViewModel
     ) {
@@ -84,6 +86,7 @@ final class GoalsViewModel {
         self.generatePlan = generatePlan
         self.inferPrimary = inferPrimary
         self.describeWorkout = describeWorkout
+        self.suggestPlan = suggestPlan
         self.racesViewModel = racesViewModel
         self.trainingViewModel = trainingViewModel
         self.planConfig = Self.loadPlanConfig()
@@ -357,6 +360,27 @@ final class GoalsViewModel {
 
     /// Explicación pedagógica de una sesión planificada (qué es, cómo, para qué, por qué ese número).
     func guide(for day: PlannedDay) -> WorkoutGuide { describeWorkout(day) }
+
+    /// Sugerencia de plan desde tu historial de carreras (días/semana, días y meta de volumen).
+    /// `nil` si aún no hay historial suficiente. Solo calcula; no aplica nada.
+    func planSuggestion() -> PlanSuggestion? {
+        suggestPlan(runningSessions: runningSessions(withinDays: 42))
+    }
+
+    /// Aplica una sugerencia: fija la config del plan y crea/actualiza la meta de volumen que lo
+    /// ancla. El usuario puede editar ambos después.
+    func applyPlanSuggestion(_ suggestion: PlanSuggestion) async {
+        planConfig = suggestion.config
+        if var goal = goals.first(where: { $0.type == .weeklyVolume }) {
+            goal.targetValue = suggestion.weeklyVolumeTarget
+            if goal.deadline == nil { goal.deadline = suggestion.deadline }
+            _ = await save(goal, isNew: false)
+        } else {
+            let goal = Goal(type: .weeklyVolume, targetValue: suggestion.weeklyVolumeTarget,
+                            deadline: suggestion.deadline)
+            _ = await save(goal, isNew: true)   // save() captura el startValue actual
+        }
+    }
 
     private static func currentWeekStart(_ now: Date = Date()) -> Date {
         Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now

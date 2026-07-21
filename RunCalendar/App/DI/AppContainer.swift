@@ -127,6 +127,7 @@ final class AppContainer {
             generatePlan: GeneratePlanUseCase(),
             inferPrimary: InferPrimaryGoalUseCase(),
             describeWorkout: DescribeWorkoutUseCase(),
+            suggestPlan: SuggestPlanUseCase(),
             racesViewModel: racesViewModel,
             trainingViewModel: trainingViewModel
         )
