@@ -83,7 +83,7 @@ struct HoyView: View {
                         Image(systemName: mission.kind.systemImage)
                             .font(.title2).foregroundStyle(Neon.green).frame(width: 32)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(mission.label).font(.mHeadline).foregroundStyle(.primary)
+                            SessionHeadline(day: mission)
                             Text(mission.detail).font(.mCaption).foregroundStyle(.secondary)
                         }
                         Spacer()
