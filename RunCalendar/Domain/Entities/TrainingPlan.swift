@@ -62,6 +62,15 @@ struct PlannedDay: Identifiable, Equatable, Sendable {
     }
 }
 
+/// Plan sugerido desde el historial: config (días/semana + días preferidos) + una meta de volumen,
+/// como punto de partida editable (análogo a "Sugerir meta").
+struct PlanSuggestion: Equatable, Sendable {
+    let config: PlanConfig
+    let weeklyVolumeTarget: Double
+    let deadline: Date?
+    let rationale: String
+}
+
 /// Explicación pedagógica de una sesión: qué es, cómo se hace, para qué sirve y por qué ese
 /// tamaño. Para que "Series 3.3 km" deje de ser críptico y el atleta entienda qué hacer y por qué.
 struct WorkoutGuide: Equatable, Sendable {

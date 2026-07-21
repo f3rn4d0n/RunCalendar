@@ -19,6 +19,52 @@ struct InferPrimaryGoalUseCase: Sendable {
     }
 }
 
+/// Sugiere un plan desde el historial de carreras (sin IA, análogo a "Sugerir meta"): infiere
+/// cuántos días/semana corres, en qué días, y un volumen objetivo (+20% en 8 semanas). Todo editable.
+/// Usa solo carreras (no camina/senderismo). `nil` si no hay historial suficiente.
+struct SuggestPlanUseCase: Sendable {
+    func callAsFunction(runningSessions: [TrainingSession], now: Date = Date()) -> PlanSuggestion? {
+        let cal = Calendar.current
+        let cutoff = cal.date(byAdding: .day, value: -42, to: now) ?? now   // ~6 semanas
+        let recent = runningSessions.filter { $0.completed && $0.date >= cutoff && $0.date <= now }
+        guard recent.count >= 3 else { return nil }                          // mínimo para inferir
+
+        // Agrupa por semana para promediar frecuencia y volumen sobre semanas activas.
+        let byWeek = Dictionary(grouping: recent) {
+            cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: $0.date)
+        }
+        let activeWeeks = max(1, byWeek.count)
+
+        // Días/semana: promedio de días distintos que corres por semana activa.
+        let distinctDaysPerWeek = byWeek.values.map { Set($0.map { cal.component(.weekday, from: $0.date) }).count }
+        let avgDays = Double(distinctDaysPerWeek.reduce(0, +)) / Double(activeWeeks)
+        let daysPerWeek = min(7, max(1, Int(avgDays.rounded())))
+
+        // Días preferidos: los días de la semana en que más corres, tantos como daysPerWeek.
+        let weekdayFreq = Dictionary(grouping: recent) { cal.component(.weekday, from: $0.date) }.mapValues(\.count)
+        let preferred = weekdayFreq
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            .prefix(daysPerWeek).map(\.key).sorted()
+
+        // Volumen: promedio semanal (km) → meta +20% en 8 semanas (bajo el techo de ~10%/sem).
+        let avgWeekly = byWeek.values.map { $0.compactMap(\.distanceKm).reduce(0, +) }.reduce(0, +) / Double(activeWeeks)
+        guard avgWeekly > 0 else { return nil }
+        let target = (avgWeekly * 1.2).rounded()
+        let deadline = cal.date(byAdding: .day, value: 56, to: now)
+
+        let dayNames = preferred.map { cal.shortWeekdaySymbols[$0 - 1] }.joined(separator: ", ")
+        let rationale = "Corres ~\(daysPerWeek) días/semana (\(dayNames)) y ~\(Goal.trim(avgWeekly)) km. "
+            + "Meta sugerida: \(Goal.trim(target)) km/sem en ~8 semanas (+20%). Todo editable."
+
+        return PlanSuggestion(
+            config: PlanConfig(daysPerWeek: daysPerWeek, preferredWeekdays: Array(preferred)),
+            weeklyVolumeTarget: target,
+            deadline: deadline,
+            rationale: rationale
+        )
+    }
+}
+
 /// Explica una sesión planificada en lenguaje de atleta: qué es, cómo se hace (con esquema de
 /// repeticiones concreto para las series), para qué sirve y por qué ese tamaño. Determinista y sin
 /// inventar ritmos exactos (los deja cualitativos), fiel al principio de "nunca un dato inventado".

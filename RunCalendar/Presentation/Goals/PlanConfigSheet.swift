@@ -6,10 +6,23 @@ struct PlanConfigSheet: View {
     @Bindable var viewModel: GoalsViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var detailDay: PlannedDay?
+    @State private var suggestion: PlanSuggestion?
+    @State private var noHistory = false
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Button {
+                        if let s = viewModel.planSuggestion() { suggestion = s } else { noHistory = true }
+                    } label: {
+                        Label("Sugerir plan desde mi historial", systemImage: "wand.and.stars")
+                    }
+                } footer: {
+                    Text("Analiza tus corridas recientes para proponerte días/semana, tus días y una "
+                        + "meta de volumen. Todo queda editable.")
+                }
+
                 Section {
                     Stepper("Días por semana: \(viewModel.planConfig.daysPerWeek)",
                             value: $viewModel.planConfig.daysPerWeek, in: 1...7)
@@ -39,6 +52,24 @@ struct PlanConfigSheet: View {
             }
             .sheet(item: $detailDay) { day in
                 WorkoutDetailView(day: day, viewModel: viewModel)
+            }
+            .alert("Plan sugerido", isPresented: Binding(
+                get: { suggestion != nil },
+                set: { if !$0 { suggestion = nil } }
+            )) {
+                Button("Aplicar") {
+                    if let s = suggestion { Task { await viewModel.applyPlanSuggestion(s) } }
+                    suggestion = nil
+                }
+                Button("Cancelar", role: .cancel) { suggestion = nil }
+            } message: {
+                Text(suggestion?.rationale ?? "")
+            }
+            .alert("Sin historial suficiente", isPresented: $noHistory) {
+                Button("Entendido", role: .cancel) {}
+            } message: {
+                Text("Corre unas cuantas veces (y deja que Salud las importe) para poder sugerirte "
+                    + "un plan desde tu historial.")
             }
         }
     }
