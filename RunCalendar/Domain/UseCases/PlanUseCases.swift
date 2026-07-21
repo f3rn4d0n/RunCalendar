@@ -58,7 +58,7 @@ struct GeneratePlanUseCase: Sendable {
     }
 
     func callAsFunction(_ input: Input) -> TrainingPlan {
-        let days = clamp(input.config.daysPerWeek, 2, 6)
+        let days = clamp(input.config.daysPerWeek, 1, 7)
         let volumeTarget  = input.secondaries.first { $0.type == .weeklyVolume }?.targetValue
         let longRunTarget = input.secondaries.first { $0.type == .longRun }?.targetValue
 
@@ -134,11 +134,13 @@ struct GeneratePlanUseCase: Sendable {
     /// caiga en el día más tardío (típicamente fin de semana).
     private func structure(for days: Int) -> [PlannedWorkoutKind] {
         switch days {
+        case 1:  return [.longRun]                                            // la sesión clave
         case 2:  return [.tempo, .longRun]
         case 3:  return [.intervals, .tempo, .longRun]
         case 4:  return [.intervals, .tempo, .easy, .longRun]
         case 5:  return [.intervals, .tempo, .easy, .easy, .longRun]
-        default: return [.intervals, .tempo, .easy, .easy, .easy, .longRun]   // 6
+        case 6:  return [.intervals, .tempo, .easy, .easy, .easy, .longRun]
+        default: return [.intervals, .tempo, .easy, .easy, .easy, .easy, .longRun]  // 7
         }
     }
 
@@ -186,6 +188,7 @@ struct GeneratePlanUseCase: Sendable {
     private func weekdays(for config: PlanConfig, count: Int) -> [Int] {
         let prefs = Array(Set(config.preferredWeekdays)).filter { (1...7).contains($0) }.sorted()
         if prefs.count >= count { return Array(prefs.prefix(count)) }
+        if count >= 7 { return Array(1...7) }            // toda la semana
         let spread = [3, 5, 7, 2, 4, 1]                  // Calendar: 1=Dom … 7=Sáb
         return Array(spread.prefix(count)).sorted()
     }
@@ -233,6 +236,14 @@ extension GeneratePlanUseCase {
         assert(tempo  <= 14.01, "tempo debe estar topado (\(Goal.trim(tempo)))")
         assert((big.days.compactMap(\.targetKm).max() ?? 0) <= 30.01, "ningún día pasa el tope de larga")
         assert(big.note != nil, "volumen alto en pocos días debe avisar subir días")
+
+        // Todos los conteos de días (1–7) generan esa cantidad de sesiones, en días sin repetir.
+        for d in 1...7 {
+            let p = gen(.init(primary: goal, config: PlanConfig(daysPerWeek: d),
+                              currentWeeklyKm: 30, currentLongRunKm: 12))
+            assert(p.days.count == d, "\(d) días debe generar \(d) sesiones")
+            assert(Set(p.days.map(\.weekday)).count == d, "\(d) días: sin repetir día de la semana")
+        }
 
         return "OK · normal: larga \(Goal.trim(longKm)) km · "
              + "alto: series \(Goal.trim(series)) km, tempo \(Goal.trim(tempo)) km, aviso ✓"
