@@ -83,11 +83,11 @@ struct HoyView: View {
                     }
                     Spacer()
                 }
-                planConfigButton
+                planFooter
             } else if goalsViewModel.currentPlan != nil {
                 Text("Hoy descansas. La recuperación también entrena.")
                     .font(.mSubheadline).foregroundStyle(.secondary)
-                planConfigButton
+                planFooter
             } else {
                 Text("Crea una meta de carrera en Objetivos y te armo un plan semanal automático.")
                     .font(.mSubheadline).foregroundStyle(.secondary)
@@ -95,7 +95,12 @@ struct HoyView: View {
         }
     }
 
-    private var planConfigButton: some View {
+    /// Aviso del coach (si el volumen no cabe en los días dados) + acceso a ajustar la config.
+    @ViewBuilder private var planFooter: some View {
+        if let note = goalsViewModel.currentPlan?.note {
+            Label(note, systemImage: "exclamationmark.triangle.fill")
+                .font(.mCaption2).foregroundStyle(Neon.orange)
+        }
         Button { showPlanConfig = true } label: {
             Label("\(goalsViewModel.planConfig.daysPerWeek) días/semana · ajustar",
                   systemImage: "slider.horizontal.3")
