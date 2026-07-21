@@ -16,6 +16,7 @@ struct HoyView: View {
     @State private var showProfile = false
     @State private var showWeightSheet = false
     @State private var showReviewSheet = false
+    @State private var showPlanConfig = false
 
     private var nextRace: Race? {
         let today = Calendar.current.startOfDay(for: Date())
@@ -35,6 +36,7 @@ struct HoyView: View {
                     reviewPromptCard
                     weightPromptCard
                     nextRaceCard
+                    missionCard
                     todayTrainingCard
                     recoveryCard
                     accessLinks
@@ -62,7 +64,44 @@ struct HoyView: View {
             .sheet(isPresented: $showReviewSheet) {
                 WeeklyReviewView(viewModel: goalsViewModel)
             }
+            .sheet(isPresented: $showPlanConfig) {
+                PlanConfigSheet(viewModel: goalsViewModel)
+            }
         }
+    }
+
+    /// Misión del día (Fase 3): la sesión que el plan te pide hoy, derivada de tus objetivos.
+    @ViewBuilder private var missionCard: some View {
+        DashCard(eyebrow: "Misión de hoy", accent: Neon.green) {
+            if let mission = goalsViewModel.todayMission {
+                HStack(spacing: 12) {
+                    Image(systemName: mission.kind.systemImage)
+                        .font(.title2).foregroundStyle(Neon.green).frame(width: 32)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(mission.label).font(.mHeadline).foregroundStyle(.primary)
+                        Text(mission.detail).font(.mCaption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                planConfigButton
+            } else if goalsViewModel.currentPlan != nil {
+                Text("Hoy descansas. La recuperación también entrena.")
+                    .font(.mSubheadline).foregroundStyle(.secondary)
+                planConfigButton
+            } else {
+                Text("Crea una meta de carrera en Objetivos y te armo un plan semanal automático.")
+                    .font(.mSubheadline).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var planConfigButton: some View {
+        Button { showPlanConfig = true } label: {
+            Label("\(goalsViewModel.planConfig.daysPerWeek) días/semana · ajustar",
+                  systemImage: "slider.horizontal.3")
+                .font(.mCaption).foregroundStyle(Neon.accent)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Cards
