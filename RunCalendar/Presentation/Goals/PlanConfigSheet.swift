@@ -76,7 +76,7 @@ struct PlanConfigSheet: View {
             Image(systemName: day.kind.systemImage).foregroundStyle(Neon.accent).frame(width: 26)
             VStack(alignment: .leading, spacing: 2) {
                 Text(day.weekdayName.capitalized).font(.mCaption2).foregroundStyle(.secondary)
-                Text(day.label).font(.mSubheadline).foregroundStyle(.primary)
+                SessionHeadline(day: day)
                 Text(day.detail).font(.mCaption2).foregroundStyle(.tertiary)
             }
             Spacer()
