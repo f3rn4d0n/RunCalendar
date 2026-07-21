@@ -1,6 +1,7 @@
 import Foundation
 import HealthKit
 import CoreLocation
+import os
 
 /// Implementación de `HealthRepository` sobre HealthKit.
 /// Lectura, y **escritura solo del peso** (`bodyMass`). No disponible en Mac.
@@ -446,9 +447,20 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         let predicate = HKQuery.predicateForSamples(withStart: first, end: last.addingTimeInterval(1))
         let effortType = HKQuantityType(.workoutEffortScore)
         return await withCheckedContinuation { continuation in
+            // El handler de HKWorkoutEffortRelationshipQuery puede dispararse más de una vez
+            // (entrega inicial + actualizaciones), y una continuation solo se resume una vez:
+            // reanudar dos veces es crash. Reanudamos en la primera entrega y detenemos la query.
+            let resumed = OSAllocatedUnfairLock(initialState: false)
             let query = HKWorkoutEffortRelationshipQuery(
                 predicate: predicate, anchor: nil, options: .mostRelevant
-            ) { _, relationships, _, _ in
+            ) { [weak self] query, relationships, _, _ in
+                let alreadyResumed = resumed.withLock { done -> Bool in
+                    defer { done = true }
+                    return done
+                }
+                guard !alreadyResumed else { return }
+                self?.store.stop(query)
+
                 var result: [String: Int] = [:]
                 for relationship in relationships ?? [] {
                     guard let sample = relationship.samples?
