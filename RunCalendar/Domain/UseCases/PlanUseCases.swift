@@ -165,52 +165,31 @@ struct GeneratePlanUseCase: Sendable {
         let tapering = weeksLeft(input.primary.deadline, input.now).map { $0 <= 1 } ?? false
         if tapering { weekKm *= 0.6 }
 
-        let structure = structure(for: days)             // ordenado, tirada larga al final
-        let easyCount = structure.filter { $0 == .easy }.count
+        let structure = structure(for: days)             // alternado duro/fácil, tirada larga al final
 
         // Tirada larga: progresa +1 km/sem hacia su target; acotada por la fracción base y por un
         // **máximo absoluto** (una tirada no crece sin límite aunque el volumen sea alto).
         let frac = longFraction(days: days)
         let longCeiling = min(weekKm * 0.6, maxLongKm)
         let progressed = input.currentLongRunKm.map { min($0 + 1, longRunTarget ?? .greatestFiniteMagnitude) }
-        var longKm = clampD(progressed ?? weekKm * frac, weekKm * frac, longCeiling)
+        let longKm = round1(clampD(progressed ?? weekKm * frac, weekKm * frac, longCeiling))
 
-        // Sesiones de calidad con volumen **topado**: una serie es por repeticiones, no un balde de
-        // kilómetros, así que el tope absoluto manda por encima de la fracción del volumen.
-        let tempoKm     = structure.contains(.tempo)     ? min(weekKm * 0.20, maxTempoKm)     : 0
-        let intervalsKm = structure.contains(.intervals) ? min(weekKm * 0.15, maxIntervalsKm) : 0
+        // El resto del volumen se **reparte** entre las demás sesiones por pesos, con tope por tipo
+        // (series/tempo no escalan). Así, a más días la misma carga se divide en sesiones más cortas
+        // —en vez de apilar rodajes con un piso fijo— y lo que no quepa se reporta (faltan días).
+        let others = structure.filter { $0 != .longRun }
+        let (othersKm, unfit) = allocate(others, budget: weekKm - longKm, longKm: longKm)
+        var othersIter = othersKm.makeIterator()
+        let kmByIndex = structure.map { $0 == .longRun ? longKm : round1(othersIter.next() ?? 0) }
 
-        // El resto del volumen lo absorben, en orden: los rodajes fáciles (la esponja natural) y
-        // luego la tirada larga hasta su techo. Lo que aún NO quepa se reporta (faltan días para
-        // tu volumen), en vez de inflar una sesión de calidad a un tamaño absurdo.
-        var leftover = weekKm - longKm - tempoKm - intervalsKm
-        let easyEach = easyCount > 0 ? clampD(max(0, leftover) / Double(easyCount), minEasyKm, longKm) : 0
-        leftover -= easyEach * Double(easyCount)
-        let addToLong = clampD(leftover, 0, longCeiling - longKm)
-        longKm += addToLong
-        leftover -= addToLong
-
-        let note: String? = leftover > unfitThresholdKm
-            ? "Tu volumen (~\(Goal.trim(weekKm)) km) no cabe sano en \(days) días: sube a "
-                + "~\(suggestedDays(weekKm)) días para repartirlo en vez de meter sesiones enormes."
-            : nil
-
-        func km(for kind: PlannedWorkoutKind) -> Double {
-            switch kind {
-            case .longRun:   return round1(longKm)
-            case .tempo:     return round1(tempoKm)
-            case .intervals: return round1(intervalsKm)
-            case .easy:      return round1(easyEach)
-            }
-        }
-
-        // Asigna días de la semana: preferidos (o reparto por defecto), la tirada larga al último.
+        // Asigna días de la semana: preferidos (ordenados) o un reparto por defecto espaciado.
         let weekdays = weekdays(for: input.config, count: structure.count)
-        let planned: [PlannedDay] = zip(weekdays, structure).map { weekday, kind in
-            let distance = km(for: kind)
-            return PlannedDay(weekday: weekday, kind: kind, targetKm: distance,
-                              label: label(kind, km: distance), detail: detail(kind))
+        let planned: [PlannedDay] = zip(weekdays, zip(structure, kmByIndex)).map { weekday, pair in
+            PlannedDay(weekday: weekday, kind: pair.0, targetKm: pair.1,
+                       label: label(pair.0, km: pair.1), detail: detail(pair.0))
         }
+
+        let note = planNote(planned: planned, weekKm: weekKm, days: days, unfit: unfit)
 
         return TrainingPlan(
             primaryGoalId: input.primary.id,
@@ -224,17 +203,17 @@ struct GeneratePlanUseCase: Sendable {
 
     // MARK: - Reglas (constantes calibrables)
 
-    /// Estructura de la semana por días disponibles. La tirada larga siempre al final para que
-    /// caiga en el día más tardío (típicamente fin de semana).
+    /// Estructura de la semana por días disponibles. Días duros (series/tempo) **separados por un
+    /// rodaje fácil** cuando hay días para ello, y la tirada larga al final (día más tardío).
     private func structure(for days: Int) -> [PlannedWorkoutKind] {
         switch days {
         case 1:  return [.longRun]                                            // la sesión clave
         case 2:  return [.tempo, .longRun]
         case 3:  return [.intervals, .tempo, .longRun]
-        case 4:  return [.intervals, .tempo, .easy, .longRun]
-        case 5:  return [.intervals, .tempo, .easy, .easy, .longRun]
-        case 6:  return [.intervals, .tempo, .easy, .easy, .easy, .longRun]
-        default: return [.intervals, .tempo, .easy, .easy, .easy, .easy, .longRun]  // 7
+        case 4:  return [.intervals, .easy, .tempo, .longRun]
+        case 5:  return [.intervals, .easy, .tempo, .easy, .longRun]
+        case 6:  return [.intervals, .easy, .tempo, .easy, .easy, .longRun]
+        default: return [.intervals, .easy, .tempo, .easy, .easy, .easy, .longRun]  // 7
         }
     }
 
@@ -259,9 +238,82 @@ struct GeneratePlanUseCase: Sendable {
     /// Km sobrantes a partir de los cuales avisamos que el volumen no cabe en los días dados.
     private var unfitThresholdKm: Double { 5 }
 
-    /// Días/semana sugeridos para repartir un volumen sano (~14 km por día como cota gruesa).
+    /// Días/semana sugeridos para repartir un volumen alto sin sesiones enormes (~14 km/día).
     private func suggestedDays(_ weekKm: Double) -> Int {
-        clamp(Int((weekKm / 14).rounded(.up)), 2, 6)
+        clamp(Int((weekKm / 14).rounded(.up)), 1, 7)
+    }
+
+    /// Días máximos que mantienen sesiones de tamaño útil para un volumen bajo (~5 km/día).
+    private func suggestedDaysLow(_ weekKm: Double) -> Int {
+        clamp(Int((weekKm / (minEasyKm + 1)).rounded(.down)), 1, 7)
+    }
+
+    /// Peso relativo de volumen por tipo (la tirada larga se calcula aparte).
+    private func roleWeight(_ kind: PlannedWorkoutKind) -> Double {
+        switch kind {
+        case .tempo:     return 1.3
+        case .intervals: return 1.0
+        case .easy:      return 1.3
+        case .longRun:   return 0
+        }
+    }
+
+    private func capFor(_ kind: PlannedWorkoutKind, longKm: Double) -> Double {
+        switch kind {
+        case .tempo:     return maxTempoKm
+        case .intervals: return maxIntervalsKm
+        case .easy:      return longKm      // un rodaje fácil nunca más largo que la tirada larga
+        case .longRun:   return .greatestFiniteMagnitude
+        }
+    }
+
+    /// Reparte `budget` km entre `kinds` por pesos, respetando el tope de cada tipo (water-filling):
+    /// lo que rebasa un tope se re-reparte entre los que aún tienen cupo. Devuelve los km por índice
+    /// y el sobrante que no cupo (topes saturados ⇒ faltan días para el volumen).
+    private func allocate(_ kinds: [PlannedWorkoutKind], budget: Double, longKm: Double) -> ([Double], Double) {
+        var km = [Double](repeating: 0, count: kinds.count)
+        guard !kinds.isEmpty else { return (km, max(0, budget)) }
+        var capped = [Bool](repeating: false, count: kinds.count)
+        var pool = max(0, budget)
+        for _ in 0...kinds.count {
+            let active = kinds.indices.filter { !capped[$0] }
+            let weightSum = active.reduce(0.0) { $0 + roleWeight(kinds[$1]) }
+            guard pool > 0.01, weightSum > 0 else { break }
+            let poolStart = pool
+            var cappedAny = false
+            for i in active {
+                let share = poolStart * roleWeight(kinds[i]) / weightSum
+                let cap = capFor(kinds[i], longKm: longKm)
+                if km[i] + share >= cap - 1e-9 {
+                    pool -= (cap - km[i]); km[i] = cap; capped[i] = true; cappedAny = true
+                }
+            }
+            if !cappedAny {
+                for i in active { km[i] += poolStart * roleWeight(kinds[i]) / weightSum }
+                pool = 0; break
+            }
+        }
+        return (km, pool)
+    }
+
+    /// Aviso del coach, por prioridad: (1) el volumen no cabe → faltan días; (2) demasiados días →
+    /// sesiones muy cortas; (3) sesiones exigentes en días seguidos (por los días elegidos).
+    private func planNote(planned: [PlannedDay], weekKm: Double, days: Int, unfit: Double) -> String? {
+        if unfit > unfitThresholdKm {
+            return "Tu volumen (~\(Goal.trim(weekKm)) km) no cabe sano en \(days) días: sube a "
+                + "~\(suggestedDays(weekKm)) días para repartirlo en vez de meter sesiones enormes."
+        }
+        let shortest = planned.compactMap(\.targetKm).min() ?? 0
+        if days > 1, shortest < 3 {
+            return "Con \(days) días algunas sesiones quedan muy cortas para tu volumen "
+                + "(~\(Goal.trim(weekKm)) km). Da para ~\(suggestedDaysLow(weekKm)) días; súbelo o baja días."
+        }
+        let demanding = planned.filter { $0.kind.isHard || $0.kind == .longRun }.map(\.weekday).sorted()
+        if zip(demanding, demanding.dropFirst()).contains(where: { $1 - $0 == 1 }) {
+            return "Tienes sesiones exigentes en días seguidos. Deja un día fácil o de descanso "
+                + "entre ellas si puedes (ajusta tus días preferidos)."
+        }
+        return nil
     }
 
     private func label(_ kind: PlannedWorkoutKind, km: Double) -> String {
@@ -338,6 +390,17 @@ extension GeneratePlanUseCase {
             assert(p.days.count == d, "\(d) días debe generar \(d) sesiones")
             assert(Set(p.days.map(\.weekday)).count == d, "\(d) días: sin repetir día de la semana")
         }
+
+        // Redistribución: a igual volumen, más días ⇒ misma carga repartida en sesiones más cortas
+        // (no se apilan rodajes con piso fijo).
+        let p3 = gen(.init(primary: goal, config: PlanConfig(daysPerWeek: 3),
+                           currentWeeklyKm: 40, currentLongRunKm: 14))
+        let p5 = gen(.init(primary: goal, config: PlanConfig(daysPerWeek: 5),
+                           currentWeeklyKm: 40, currentLongRunKm: 14))
+        assert(abs(p3.totalKm - p5.totalKm) <= 2, "misma carga semanal con distinto nº de días")
+        let tempo3 = p3.days.first { $0.kind == .tempo }?.targetKm ?? 0
+        let tempo5 = p5.days.first { $0.kind == .tempo }?.targetKm ?? 0
+        assert(tempo5 <= tempo3 + 0.01, "más días ⇒ sesiones de calidad no más largas")
 
         return "OK · normal: larga \(Goal.trim(longKm)) km · "
              + "alto: series \(Goal.trim(series)) km, tempo \(Goal.trim(tempo)) km, aviso ✓"
