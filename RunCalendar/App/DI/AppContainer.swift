@@ -124,6 +124,8 @@ final class AppContainer {
             saveBodyLog: SaveBodyLogUseCase(repository: bodyLogRepository),
             fetchBodyLogs: FetchBodyLogsUseCase(repository: bodyLogRepository),
             assessRecomposition: AssessRecompositionUseCase(),
+            generatePlan: GeneratePlanUseCase(),
+            inferPrimary: InferPrimaryGoalUseCase(),
             racesViewModel: racesViewModel,
             trainingViewModel: trainingViewModel
         )

@@ -30,9 +30,18 @@ final class GoalsViewModel {
     /// Fuentes del valor "actual" para el progreso.
     private let racesViewModel: RacesViewModel
     private let trainingViewModel: TrainingViewModel
+    private let generatePlan: GeneratePlanUseCase
+    private let inferPrimary: InferPrimaryGoalUseCase
 
     /// Datos actuales del atleta (de Salud), para progreso de VO₂max/peso y recomendaciones.
     private(set) var metrics: AthleteMetrics = .empty
+
+    /// Config del plan (días/semana + días preferidos). Persistida en UserDefaults; el plan en sí
+    /// es derivado de tus metas y no se persiste (función pura de metas + volumen + config).
+    // ponytail: config local; muévela a Firestore si importa el sync entre dispositivos.
+    var planConfig = PlanConfig(daysPerWeek: 3) {
+        didSet { Self.savePlanConfig(planConfig) }
+    }
 
     init(
         userID: String,
@@ -50,6 +59,8 @@ final class GoalsViewModel {
         saveBodyLog: SaveBodyLogUseCase,
         fetchBodyLogs: FetchBodyLogsUseCase,
         assessRecomposition: AssessRecompositionUseCase,
+        generatePlan: GeneratePlanUseCase,
+        inferPrimary: InferPrimaryGoalUseCase,
         racesViewModel: RacesViewModel,
         trainingViewModel: TrainingViewModel
     ) {
@@ -68,8 +79,11 @@ final class GoalsViewModel {
         self.saveBodyLog = saveBodyLog
         self.fetchBodyLogs = fetchBodyLogs
         self.assessRecomposition = assessRecomposition
+        self.generatePlan = generatePlan
+        self.inferPrimary = inferPrimary
         self.racesViewModel = racesViewModel
         self.trainingViewModel = trainingViewModel
+        self.planConfig = Self.loadPlanConfig()
     }
 
     func start() async {
@@ -293,6 +307,50 @@ final class GoalsViewModel {
     func expectedPace(type: GoalType, distance: RaceDiscipline?, target: Double, deadline: Date?) -> GoalPace? {
         assessPace(type: type, target: target,
                    current: currentValue(type: type, distance: distance), deadline: deadline)
+    }
+
+    // MARK: - Plan de entrenamiento (Fase 3)
+
+    /// Meta que ancla el plan: la principal inferida (driver: tiempo/VO₂max), o —si no hay driver—
+    /// una de volumen/tirada larga, que también sirve para dar forma a la semana.
+    var planAnchorGoal: Goal? {
+        inferPrimary(goals) ?? goals.first { $0.type.planRole == .parameter }
+    }
+
+    /// Plan de la semana, derivado de tus metas + volumen actual + config. `nil` si no hay meta
+    /// que lo ancle. Reactivo: se recalcula al cambiar metas, sesiones o config.
+    var currentPlan: TrainingPlan? {
+        guard let anchor = planAnchorGoal else { return nil }
+        return generatePlan(.init(
+            primary: anchor,
+            secondaries: goals.filter { $0.id != anchor.id },
+            config: planConfig,
+            currentWeeklyKm: weeklyVolumeKm ?? 0,
+            currentLongRunKm: longestRunKm,
+            weekStart: Self.currentWeekStart()
+        ))
+    }
+
+    /// La misión de hoy (sesión planificada), si el plan pide entrenar hoy.
+    var todayMission: PlannedDay? { currentPlan?.today() }
+
+    private static func currentWeekStart(_ now: Date = Date()) -> Date {
+        Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+    }
+
+    private static let planDaysKey = "plan.daysPerWeek"
+    private static let planWeekdaysKey = "plan.weekdays"
+
+    private static func savePlanConfig(_ config: PlanConfig) {
+        UserDefaults.standard.set(config.daysPerWeek, forKey: planDaysKey)
+        UserDefaults.standard.set(config.preferredWeekdays, forKey: planWeekdaysKey)
+    }
+
+    private static func loadPlanConfig() -> PlanConfig {
+        let defaults = UserDefaults.standard
+        let days = defaults.object(forKey: planDaysKey) as? Int ?? 3
+        let weekdays = defaults.array(forKey: planWeekdaysKey) as? [Int] ?? []
+        return PlanConfig(daysPerWeek: days, preferredWeekdays: weekdays)
     }
 
     func save(_ goal: Goal, isNew: Bool) async -> Bool {
