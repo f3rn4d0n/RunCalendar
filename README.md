@@ -27,9 +27,33 @@ Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Au
 avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las colapsaba en "More".)
 
 ### ☀️ Hoy
-- Dashboard de arranque: **próxima carrera** (countdown) · **entreno de hoy** · **recuperación**
-  (ring). Accesos a *Todas las carreras* y *Calendario*. Avatar → Perfil. Es la pantalla que
-  responde "¿qué hago hoy?".
+- Dashboard de arranque: **próxima carrera** (countdown) · **misión de hoy** (la sesión que el plan
+  te pide) · **entreno de hoy** (lo que registraste) · **recuperación** (ring). Accesos a *Todas las
+  carreras* y *Calendario*. Avatar → Perfil. Es la pantalla que responde "¿qué hago hoy?".
+- **Misión de hoy** (Fase 3): la sesión planificada de hoy, derivada de tus objetivos + tu volumen
+  real. Se toca para ver el **detalle** (qué/cómo/para qué/por qué). Ver [Plan](#-plan-fase-3).
+
+### 🗓️ Plan (Fase 3)
+- **Generación automática de entrenamientos** desde tus objetivos, **determinista** (sin IA, como
+  "Sugerir meta"). El plan **no se persiste**: es una función pura de metas + volumen de carrera +
+  config, se recalcula reactivo. Solo la **config** (días/semana + días preferidos) se guarda
+  (UserDefaults). Vive en `GoalsViewModel`; motor en `GeneratePlanUseCase`.
+- **Estructura por días/semana** (1–7): 3 días → series + tempo + tirada larga; más días meten
+  rodajes fáciles **alternados** (duro/fácil) para no encadenar calidad. Volumen progresivo (~+8%/sem,
+  techo 10%), **80/20**, tirada larga como día más largo, taper la última semana.
+- **Sesiones de calidad topadas** (series ≤ 9 km, tempo ≤ 14 km, larga ≤ 30 km): una serie es por
+  repeticiones, no un balde de km. El sobrante va a fáciles → larga; si aún no cabe, **avisa subir
+  días** en vez de inflar. A más días, la misma carga se **reparte** en sesiones más cortas (water-filling).
+- **Ajustar** (`PlanConfigSheet`): selector de días/semana + días preferidos, con **vista previa en
+  vivo** de la semana completa (con descansos) — WYSIWYG. Cada sesión se toca para el detalle.
+- **Detalle de la sesión** (`WorkoutDetailView`): qué es, cómo se hace (series como "5 × 600 m
+  fuerte" con cal./enf.), para qué sirve y **por qué ese número**. Ritmos cualitativos (no inventa
+  ritmos exactos).
+- **"Sugerir plan"** (como "Sugerir meta"): infiere de tu historial de carreras los días/semana, tus
+  días y una meta de volumen (+20% en 8 sem); todo editable. `SuggestPlanUseCase`.
+- **Solo carrera**: el volumen del plan usa sesiones de tipo carrera (no camina/senderismo).
+- **Pendiente de la fase**: **adherencia** (planificado vs. `TrainingSession.completed`) y el modelo
+  de **Campañas**. Ver [Roadmap](#roadmap-y-backlog).
 
 ### 🎯 Objetivos
 - Metas del atleta (entidad `Goal`): **tiempo por distancia**, **VO₂max**, **peso**,
@@ -240,6 +264,11 @@ users/{uid}/goals/{goalId}           # objetivos del atleta (tiempo/VO₂max/pes
 users/{uid}/bodyLogs/{yyyy-MM-dd}    # review semanal: energía y hambre (fase 2)
 ```
 
+> **El plan de entrenamiento (fase 3) no se persiste.** Es una función pura de tus metas + volumen
+> de carrera + config, así que se recalcula cada vez (siempre consistente). Lo único que se guarda es
+> la **`PlanConfig`** (días/semana + días preferidos) en **UserDefaults** — dato local del dispositivo.
+> `// ponytail:` muévela a Firestore si importa el sync multi-dispositivo.
+
 > **HealthKit no vive en Firestore.** VO₂max, HRV, FC, workouts y rutas se leen del
 > dispositivo en cada sesión (nunca se suben). Lo único que persiste de Condición son los
 > **check-ins** (`recoveryLogs`) y el review semanal (`bodyLogs`). Por eso Condición solo
@@ -308,6 +337,7 @@ RunCalendar/
 | `HealthViewModel` | Condición | **`TrainingViewModel`** (sus `sessions` alimentan la carga de recuperación/ACWR) |
 | `RemindersViewModel` | Agenda notificaciones locales | **`RacesViewModel` + `TrainingViewModel`** |
 | `ProfileViewModel` | Perfil | — |
+| `GoalsViewModel` | Objetivos **y el plan (fase 3)** | **`RacesViewModel` + `TrainingViewModel`** (PRs y volumen de carrera) |
 
 ### Dominio (`Domain/Entities/`) — sustantivos clave
 - **Carreras**: `Race`, `RaceDiscipline` (5/10/15/21/42K, Trail, Otra), `RaceStatus`, `RaceReadiness`.
@@ -319,13 +349,18 @@ RunCalendar/
   (`Workload.swift`), `FitnessSummary`, `FitnessTrend`, `WorkoutRoute`, `RaceWeather`.
 - **Cuerpo** (fase 2): `BodyMeasure` (peso/cintura: unidad y rango válido), `MeasurementEntry`
   (un registro leído de Salud), `BodyLog` (review semanal: energía, hambre, notas).
+- **Plan** (fase 3, `TrainingPlan.swift`): `TrainingPlan`, `PlannedDay`, `PlanConfig`,
+  `PlannedWorkoutKind` (largo/tempo/series/fácil), `GoalRole` (driver/parámetro/resultado +
+  `GoalType.planRole`), `WorkoutGuide`/`GuideStep` (detalle de sesión), `PlanSuggestion`.
 - **Otros**: `AppUser`, `UserProfile`, `ReminderPreferences`, `CalendarEvent`.
 
 ### Casos de uso (`Domain/UseCases/`)
 Uno por responsabilidad (SRP), agrupados por archivo (`HealthUseCases.swift`, `RaceUseCases.swift`,
-`TrainingUseCases.swift`, `AuthUseCases.swift`, …). Patrón: `Fetch*` (lee del repo) y `Assess*`/`Compute*`
-(lógica pura). Los de carga/condición: `FetchRecovery`/`AssessRecovery`, `FetchWorkload`/`AssessWorkload`,
-`AssessReadiness`, `ComputeTrainingLoad`, `FetchFitnessSummary`/`FetchFitnessTrend`.
+`TrainingUseCases.swift`, `AuthUseCases.swift`, `PlanUseCases.swift`, …). Patrón: `Fetch*` (lee del repo)
+y `Assess*`/`Compute*`/`Generate*` (lógica pura). Los de carga/condición: `FetchRecovery`/`AssessRecovery`,
+`FetchWorkload`/`AssessWorkload`, `AssessReadiness`, `ComputeTrainingLoad`, `FetchFitnessSummary`/`FetchFitnessTrend`.
+Los del **plan** (puros, sin repo): `GeneratePlanUseCase` (el motor), `InferPrimaryGoalUseCase`
+(meta driver), `DescribeWorkoutUseCase` (guía de la sesión), `SuggestPlanUseCase` (sugerir desde historial).
 
 ### Data (`Data/`)
 - **Repos** `Firestore*Repository` implementan los protocolos de `Domain/Repositories`.
@@ -510,13 +545,14 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 |------|-----|-------|
 | **1. Objetivos** ✅ | Entidad `Goal` + CRUD + tab con progreso (tiempo vs. PRs, VO₂max/peso vs. Salud) y **"Sugerir meta"** (Riegel/IMC, sin IA) | Marco del que cuelga todo; también abre el rediseño de navegación |
 | **2. Review dominical** ✅ | Check-in semanal: peso y cintura (→ Salud) + energía y hambre (→ `bodyLogs`), con card en *Hoy* los domingos. **Fotos pendientes** (requieren Firebase Storage) | Reusa el patrón de `recoveryLogs`. La **cintura** detecta *recomposición*: peso estancado pero cintura bajando |
-| **3. Plan + Campañas** | Plantilla semanal recurrente (Mar/Jue/Dom + técnica) → **misiones** de la Campaña; el import de Salud marca adherencia (planificado vs. `completed`) | Habilita el modelo de "Campañas" y responde "¿qué hago hoy?" |
+| **3. Plan + Campañas** 🚧 | ✅ **Generación automática** de la semana (motor determinista sin IA), **misión de hoy** en Hoy, **detalle** de sesión, **"Sugerir plan"** desde historial, preview con descansos. **Falta**: adherencia (planificado vs. `completed`) y el modelo de **Campañas** | Responde "¿qué hago hoy?". Ver [Plan](#-plan-fase-3) |
 | **4. Nutrición** | **Solo objetivos + adherencia (checkbox)**: macros/kcal objetivo, hidratación, ¿cumpliste hoy? — **no** food-logger | Dominio nuevo; acotado a propósito para no volverse contador de calorías |
 | **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app** |
 
 > **Reestructura UX:** ✅ hecha en su mayoría — 4 tabs por *ciclo del atleta* (**Hoy · Entrenar ·
-> Objetivos · Progreso**), Carreras/Calendario dentro de Hoy, Perfil como avatar. Falta la tab **Plan**
-> (Fase 3) y enriquecer **Hoy** con "misiones del día" cuando exista el plan.
+> Objetivos · Progreso**), Carreras/Calendario dentro de Hoy, Perfil como avatar. **Hoy** ya tiene la
+> **misión del día** (Fase 3); la config del plan se abre desde ahí. Falta decidir si el plan merece
+> **tab propia** (hoy vive en Hoy/Objetivos) — se promoverá si se gana el espacio.
 >
 > **Rediseño visual (RunCalendar UI Kit):** ✅ en su mayoría — paleta, tipografía (Permanent Marker en
 > display + San Francisco en cuerpo), **superficies dark-first** en todas las tabs, **`ProgressRing`**
@@ -532,14 +568,17 @@ PRs), readiness por carrera, RPE por sesión + esfuerzo del Watch, calibración 
 caminata/senderismo, recordatorios locales (carreras, kit con lugar/hora, entrenamientos + pendientes),
 exportar carreras/kit al Calendario (EventKit, con coordenadas/URL/alarma). **Objetivos** con confianza
 cualitativa, Coach Insight y ritmo semanal esperado. **Rediseño del Kit** (paleta/tipografía/superficies/
-rings) y **navegación por ciclo del atleta** (Hoy · Entrenar · Objetivos · Progreso).
+rings) y **navegación por ciclo del atleta** (Hoy · Entrenar · Objetivos · Progreso). **Plan (Fase 3):**
+generación automática de la semana (motor determinista), misión de hoy, detalle de sesión, "Sugerir plan"
+desde historial, preview con descansos.
 
 **Pendiente:**
 
 - [x] **Marca → "Rumbo"** (`CFBundleDisplayName` + branding). Identificadores técnicos (bundle id,
   target, scheme, Firebase) se mantienen como *RunCalendar*. Rename técnico: opcional y riesgoso, sin prisa.
-- [ ] **Fases 2–5** de la visión (ver tabla): Review dominical → Plan + Campañas (tab **Plan**, "misiones
-  del día" en Hoy) → Nutrición → IA + reportes por correo.
+- [ ] **Fase 3 — cerrar:** **adherencia** (planificado vs. `TrainingSession.completed`) y modelo de
+  **Campañas**. Opcional: meta de volumen **solo-carrera** (hoy cuenta caminata) y **tab Plan** propia.
+- [ ] **Fases 4–5** de la visión (ver tabla): Nutrición → IA + reportes por correo.
 - [x] **Nuevos objetivos** auto-medibles (Tier 1): **volumen semanal**, **FC en reposo**, **tirada larga**.
 - [ ] **Registro de fuerza + PR de levantamiento** — la mitad "híbrida" (dominio nuevo: ejercicio × peso × reps).
 - [ ] **Decisión de diseño:** ¿comprometer **dark-only** ("oscuro-primero" del Kit) o mantener adaptable?
