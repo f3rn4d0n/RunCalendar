@@ -302,6 +302,24 @@ final class GoalsViewModel {
         }
     }
 
+    /// Volumen del **plan de carrera**: solo sesiones de correr (no camina/senderismo). Un plan de
+    /// carrera se construye sobre tu volumen de correr; contar caminatas lo inflaba y disparaba
+    /// avisos falsos ("no cabe en 3 días") aunque corrieras poco.
+    private func runningSessions(withinDays days: Int) -> [TrainingSession] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        return trainingViewModel.sessions.filter {
+            $0.completed && $0.type == .running && $0.date >= cutoff && $0.date <= Date()
+        }
+    }
+
+    private var runningWeeklyKm: Double {
+        runningSessions(withinDays: 7).compactMap(\.distanceKm).reduce(0, +)
+    }
+
+    private var runningLongestKm: Double? {
+        runningSessions(withinDays: 56).compactMap(\.distanceKm).max()
+    }
+
     /// Ritmo semanal esperado para una meta (tipo/distancia/valor/fecha), con el dato actual real.
     /// Reactivo: la vista lo recalcula al cambiar la meta o la fecha.
     func expectedPace(type: GoalType, distance: RaceDiscipline?, target: Double, deadline: Date?) -> GoalPace? {
@@ -325,8 +343,8 @@ final class GoalsViewModel {
             primary: anchor,
             secondaries: goals.filter { $0.id != anchor.id },
             config: planConfig,
-            currentWeeklyKm: weeklyVolumeKm ?? 0,
-            currentLongRunKm: longestRunKm,
+            currentWeeklyKm: runningWeeklyKm,
+            currentLongRunKm: runningLongestKm,
             weekStart: Self.currentWeekStart()
         ))
     }
