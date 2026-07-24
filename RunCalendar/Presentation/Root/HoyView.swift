@@ -26,8 +26,10 @@ struct HoyView: View {
             .min { $0.date < $1.date }
     }
 
-    private var todaySession: TrainingSession? {
-        trainingViewModel.sessions.first { Calendar.current.isDateInToday($0.date) }
+    private var todaySessions: [TrainingSession] {
+        trainingViewModel.sessions
+            .filter { Calendar.current.isDateInToday($0.date) }
+            .sorted { $0.date < $1.date }
     }
 
     var body: some View {
@@ -193,23 +195,31 @@ struct HoyView: View {
     }
 
     @ViewBuilder private var todayTrainingCard: some View {
-        DashCard(eyebrow: "Hoy entrenas", accent: Neon.purple) {
-            if let session = todaySession {
-                NavigationLink {
-                    TrainingDetailView(initialSession: session, viewModel: trainingViewModel,
-                                       racesViewModel: racesViewModel)
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(session.title).font(.mHeadline).foregroundStyle(.primary)
-                            Text(session.type.displayName).font(.mCaption).foregroundStyle(.secondary)
+        let sessions = todaySessions
+        DashCard(eyebrow: sessions.count > 1 ? "Hoy entrenas (\(sessions.count))" : "Hoy entrenas",
+                 accent: Neon.purple) {
+            if !sessions.isEmpty {
+                ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
+                    if index > 0 { Divider().overlay(Color.primary.opacity(0.06)) }
+                    NavigationLink {
+                        TrainingDetailView(initialSession: session, viewModel: trainingViewModel,
+                                           racesViewModel: racesViewModel)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(session.title).font(.mHeadline).foregroundStyle(.primary)
+                                Text(sessions.count > 1
+                                     ? "\(session.date.formatted(date: .omitted, time: .shortened)) · \(session.type.displayName)"
+                                     : session.type.displayName)
+                                    .font(.mCaption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: session.completed ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(session.completed ? Neon.green : .secondary)
                         }
-                        Spacer()
-                        Image(systemName: session.completed ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(session.completed ? Neon.green : .secondary)
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             } else {
                 Text("Descanso hoy. Aprovecha para recuperar.")
                     .font(.mSubheadline).foregroundStyle(.secondary)
