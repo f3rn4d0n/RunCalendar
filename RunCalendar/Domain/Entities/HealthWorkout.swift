@@ -11,6 +11,8 @@ struct HealthWorkout: Identifiable, Equatable, Sendable {
     let durationMin: Int?
     /// Frecuencia cardiaca promedio (lpm), si el workout la registró.
     let avgHeartRate: Int?
+    /// Cadencia media (pasos por minuto), si el workout registró conteo de pasos.
+    let cadenceSPM: Int?
     /// Esfuerzo percibido (RPE 1–10) que el Apple Watch guardó al terminar, si existe.
     let perceivedEffort: Int?
 }

@@ -61,6 +61,9 @@ struct TrainingDetailView: View {
                     if let hr = session.avgHeartRate {
                         row("FC promedio", "\(hr) lpm", icon: "heart.fill")
                     }
+                    if let spm = session.cadenceSPM {
+                        row("Cadencia", "\(spm) ppm", icon: "figure.run")
+                    }
                     if let pace = session.targetPace, !pace.isEmpty {
                         row("Ritmo objetivo", pace, icon: "target")
                     }

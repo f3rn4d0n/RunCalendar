@@ -37,6 +37,9 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         if let heartRate = HKQuantityType.quantityType(forIdentifier: .heartRate) {
             types.insert(heartRate)
         }
+        if let steps = HKQuantityType.quantityType(forIdentifier: .stepCount) {
+            types.insert(steps)
+        }
         if let hrv = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) {
             types.insert(hrv)
         }
@@ -161,7 +164,8 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
                     id: run.uuid.uuidString,
                     date: run.startDate,
                     paceSecondsPerKm: Int(run.duration / km),
-                    distanceKm: km
+                    distanceKm: km,
+                    stepsPerMinute: cadenceSPM(of: run)
                 )
             }
             .sorted { $0.date < $1.date }
@@ -349,6 +353,7 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
                     distanceKm: km,
                     durationMin: workout.duration > 0 ? Int(workout.duration / 60) : nil,
                     avgHeartRate: averageHeartRate(of: workout),
+                    cadenceSPM: cadenceSPM(of: workout),
                     perceivedEffort: efforts[workout.uuid.uuidString]
                 )
             }
@@ -473,6 +478,17 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
             }
             store.execute(query)
         }
+    }
+
+    /// Cadencia media (pasos/min) del workout: pasos totales ÷ minutos, de sus estadísticas.
+    /// nil si el workout no registró conteo de pasos (corridas viejas o de apps de terceros).
+    private func cadenceSPM(of workout: HKWorkout) -> Int? {
+        guard workout.duration > 0,
+              let type = HKQuantityType.quantityType(forIdentifier: .stepCount),
+              let steps = workout.statistics(for: type)?.sumQuantity()?.doubleValue(for: .count())
+        else { return nil }
+        let spm = steps / (workout.duration / 60)
+        return spm > 0 ? Int(spm.rounded()) : nil
     }
 
     /// FC promedio del workout, de sus estadísticas (nil si no la registró).
