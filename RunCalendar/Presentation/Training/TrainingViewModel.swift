@@ -124,16 +124,17 @@ final class TrainingViewModel {
         await backfillEffort()
     }
 
-    /// Rellena el RPE de carreras ya importadas con el esfuerzo que Salud ahora expone.
-    /// Idempotente: solo toca las que aún no tienen RPE, así que en syncs siguientes es no-op.
+    /// Rellena RPE y cadencia de carreras ya importadas con lo que Salud ahora expone.
+    /// Idempotente: solo toca sesiones a las que les falta el dato, así que en syncs siguientes es no-op.
     private func backfillEffort() async {
         for workout in recentWorkouts {
-            guard let effort = workout.perceivedEffort,
-                  var match = sessions.first(where: {
-                      $0.rpe == nil && isSameActivity(workout.type, day: workout.date, km: workout.distanceKm, with: $0)
-                  })
-            else { continue }
-            match.rpe = effort
+            guard var match = sessions.first(where: {
+                ($0.rpe == nil && workout.perceivedEffort != nil
+                    || $0.cadenceSPM == nil && workout.cadenceSPM != nil)
+                    && isSameActivity(workout.type, day: workout.date, km: workout.distanceKm, with: $0)
+            }) else { continue }
+            if match.rpe == nil { match.rpe = workout.perceivedEffort }
+            if match.cadenceSPM == nil { match.cadenceSPM = workout.cadenceSPM }
             _ = await save(match, isNew: false)
         }
     }
@@ -154,6 +155,7 @@ final class TrainingViewModel {
             durationMin: workout.durationMin,
             distanceKm: workout.type.tracksDistance ? workout.distanceKm : nil,
             avgHeartRate: workout.avgHeartRate,
+            cadenceSPM: workout.cadenceSPM,
             completed: true,
             rpe: workout.perceivedEffort
         )

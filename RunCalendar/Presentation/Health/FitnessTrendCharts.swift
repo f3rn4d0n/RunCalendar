@@ -8,16 +8,22 @@ struct FitnessTrendSection: View {
 
     @State private var volumeSel: Date?
     @State private var paceSel: Date?
+    @State private var cadenceSel: Date?
     @State private var vo2Sel: Date?
+
+    /// Corridas con cadencia registrada (cronológico, ya viene ordenado).
+    private var cadence: [RunPacePoint] { trend.pace.filter { $0.stepsPerMinute != nil } }
 
     private var enoughVolume: Bool { trend.weeklyVolume.count >= 2 }
     private var enoughPace: Bool { trend.pace.count >= 3 }
+    private var enoughCadence: Bool { cadence.count >= 3 }
     private var enoughVO2: Bool { trend.vo2Max.count >= 2 }
 
     var body: some View {
         Section {
             if enoughVolume { volumeChart }
             if enoughPace { paceChart }
+            if enoughCadence { cadenceChart }
             if enoughVO2 { vo2Chart }
             if !enoughVolume && !enoughPace && !enoughVO2 {
                 Label("Corre unas semanas más para ver tu tendencia aquí.",
@@ -102,6 +108,45 @@ struct FitnessTrendSection: View {
                     }
                 }
             }
+            .chartXAxis {
+                AxisMarks { AxisValueLabel(format: .dateTime.day().month(.abbreviated)) }
+            }
+            .frame(height: 150)
+        }
+        .padding(.vertical, 4)
+    }
+
+    // MARK: - Cadencia por corrida
+
+    private var cadenceChart: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Cadencia por corrida").font(.mSubheadline.weight(.semibold))
+            Text("Pasos por minuto. Una cadencia más alta suele significar zancadas más cortas "
+                + "y menos impacto: si sube, tu técnica mejora.")
+                .font(.mCaption2).foregroundStyle(.secondary)
+
+            Chart {
+                ForEach(cadence) { point in
+                    LineMark(x: .value("Fecha", point.date),
+                             y: .value("Cadencia", point.stepsPerMinute ?? 0))
+                        .foregroundStyle(Neon.pink)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.catmullRom)
+                    PointMark(x: .value("Fecha", point.date),
+                              y: .value("Cadencia", point.stepsPerMinute ?? 0))
+                        .foregroundStyle(Neon.pink)
+                        .symbolSize(30)
+                }
+                if let sel = nearestByDate(cadenceSel, in: cadence, \.date), let spm = sel.stepsPerMinute {
+                    chartSelectionMark(date: sel.date,
+                                       title: sel.date.mediumString(),
+                                       value: "\(spm) ppm")
+                }
+            }
+            .chartXSelection(value: $cadenceSel)
+            .chartYScale(domain: .automatic(includesZero: false))
+            .chartYAxisLabel("ppm")
+            .chartYAxis { AxisMarks(position: .leading) }
             .chartXAxis {
                 AxisMarks { AxisValueLabel(format: .dateTime.day().month(.abbreviated)) }
             }

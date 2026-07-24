@@ -13,6 +13,8 @@ struct RunPacePoint: Equatable, Sendable, Identifiable {
     let date: Date
     let paceSecondsPerKm: Int
     let distanceKm: Double
+    /// Cadencia media (pasos por minuto), si el workout registró conteo de pasos.
+    let stepsPerMinute: Int?
 
     var speedKmh: Double {
         paceSecondsPerKm > 0 ? 3600 / Double(paceSecondsPerKm) : 0
