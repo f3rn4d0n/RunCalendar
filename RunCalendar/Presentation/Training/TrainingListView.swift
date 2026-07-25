@@ -8,6 +8,7 @@ struct TrainingListView: View {
     @State private var onlyPriority = false
     @State private var isCreating = false
     @State private var rpePromptDismissed = false
+    @State private var showingRecords = false
 
     private var filtered: [TrainingSession] {
         var result = filter.map(viewModel.sessions(of:)) ?? viewModel.sessions
@@ -79,6 +80,10 @@ struct TrainingListView: View {
                     Button { isCreating = true } label: { Image(systemName: "plus") }
                         .accessibilityLabel("Agregar entrenamiento")
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showingRecords = true } label: { Image(systemName: "medal") }
+                        .accessibilityLabel("Récords personales")
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         Picker("Filtro", selection: $filter) {
@@ -96,6 +101,9 @@ struct TrainingListView: View {
             }
             .sheet(isPresented: $isCreating) {
                 TrainingFormView(viewModel: viewModel, racesViewModel: racesViewModel, session: nil)
+            }
+            .sheet(isPresented: $showingRecords) {
+                PersonalRecordsView(racesViewModel: racesViewModel, trainingViewModel: viewModel)
             }
         }
     }

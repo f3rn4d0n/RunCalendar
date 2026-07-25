@@ -199,6 +199,18 @@ struct FetchRecentWorkoutsUseCase: Sendable {
     }
 }
 
+/// Busca el tramo más rápido de cada distancia dentro de todo el historial de Salud.
+struct FetchBestSplitsUseCase: Sendable {
+    private let repository: HealthRepository
+    init(repository: HealthRepository) { self.repository = repository }
+
+    var isAvailable: Bool { repository.isAvailable() }
+
+    func callAsFunction(distancesKm: [Double]) async throws -> [BestSplit] {
+        try await repository.fetchBestSplits(distancesKm: distancesKm)
+    }
+}
+
 /// Trae la traza GPS (+ FC) de una corrida de Salud para dibujar su ruta.
 struct FetchWorkoutRouteUseCase: Sendable {
     private let repository: HealthRepository

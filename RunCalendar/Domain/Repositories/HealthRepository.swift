@@ -47,6 +47,10 @@ protocol HealthRepository: Sendable {
     /// Carreras registradas en Salud en los últimos `days` días (para importarlas).
     func fetchRecentWorkouts(days: Int) async throws -> [HealthWorkout]
 
+    /// El tramo más rápido de cada distancia dada, buscando dentro de **todas** las corridas
+    /// del historial (no solo las que midieron esa distancia). Uno por distancia, o ninguno.
+    func fetchBestSplits(distancesKm: [Double]) async throws -> [BestSplit]
+
     /// Datos actuales del atleta (VO₂max, peso, estatura, edad) para metas y recomendaciones.
     func fetchAthleteMetrics() async throws -> AthleteMetrics
 

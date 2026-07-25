@@ -7,19 +7,21 @@ struct PersonalRecordsView: View {
     let trainingViewModel: TrainingViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let distances: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
-
     private var records: [PersonalRecord] {
-        PersonalRecords.compute(races: racesViewModel.races, sessions: trainingViewModel.sessions)
+        PersonalRecords.compute(races: racesViewModel.races, sessions: trainingViewModel.sessions,
+                                splits: trainingViewModel.bestSplits)
     }
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(distances) { distance in
+                ForEach(PersonalRecords.standard) { distance in
                     Section(distance.displayName) {
                         if let record = records.first(where: { $0.distance == distance }) {
                             recordContent(record)
+                        } else if trainingViewModel.isLoadingSplits {
+                            Label("Buscando tu mejor tramo en Salud…", systemImage: "magnifyingglass")
+                                .font(.mSubheadline).foregroundStyle(.secondary)
                         } else {
                             Label("Aún sin registro. Captura una carrera \(distance.displayName) con su tiempo, "
                                 + "o importa un entrenamiento de esa distancia.",
@@ -29,6 +31,7 @@ struct PersonalRecordsView: View {
                     }
                 }
             }
+            .task { await trainingViewModel.loadBestSplits() }
             .navigationTitle("Récords")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
