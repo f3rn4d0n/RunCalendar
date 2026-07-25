@@ -27,8 +27,10 @@ Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Au
 avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las colapsaba en "More".)
 
 ### ☀️ Hoy
-- Dashboard de arranque: **próxima carrera** (countdown) · **misión de hoy** (la sesión que el plan
-  te pide) · **entreno de hoy** (lo que registraste) · **recuperación** (ring). Accesos a *Todas las
+- Dashboard de arranque: **próxima carrera** (countdown; la próxima **inscrita o prioritaria**, no
+  la primera del calendario — las que solo estás considerando no tapan a la de verdad) ·
+  **misión de hoy** (la sesión que el plan te pide) · **entreno de hoy** (lo que registraste, todos
+  los del día si entrenaste más de una vez) · **recuperación** (ring). Accesos a *Todas las
   carreras* y *Calendario*. Avatar → Perfil. Es la pantalla que responde "¿qué hago hoy?".
 - **Misión de hoy** (Fase 3): la sesión planificada de hoy, derivada de tus objetivos + tu volumen
   real. Se toca para ver el **detalle** (qué/cómo/para qué/por qué). Ver [Plan](#-plan-fase-3).
