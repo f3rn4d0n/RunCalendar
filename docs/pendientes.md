@@ -13,6 +13,7 @@
 | | Significado |
 |---|---|
 | **P0** | Está roto o da consejo incorrecto. Se arregla antes de seguir construyendo |
+| **Bloqueado** | Depende de algo externo (una cuenta, un permiso). Fuera de la escala |
 | **P1** | Bloquea tener usuarios reales o bloquea las fases siguientes |
 | **P2** | Deuda con costo visible; se paga cuando toque el área |
 | **P3** | Mejoras y extensiones. Sin fecha |
@@ -21,28 +22,32 @@
 
 ## P0 · Roto hoy
 
-### Entitlement de Sign in with Apple borrado
+*Vacío.* Lo que estaba aquí:
 
-`RunCalendar/Resources/RunCalendar.entitlements` perdió `com.apple.developer.applesignin`.
-`LoginView` sigue mostrando `AppleIconButton` → `AppleSignInController`, así que **compila y falla
-en runtime** con error 1000.
+- ~~**Sin modo lesión / enfermedad / descarga**~~ — resuelto: `WeekStatus` pausa la medición en vez
+  de marcar 0% al atleta que no entrenó por gripe o lesión. Ver
+  [adherencia.md](adherencia.md#semanas-que-no-se-miden).
+- **Entitlement de Sign in with Apple** → movido a *Bloqueados* (abajo): no es un error del
+  proyecto, falta la cuenta de Apple Developer.
 
-Causa probable: Xcode quita entitlements que no puede aprovisionar. Si el App ID no tiene la
-capability *Sign in with Apple* en el portal de Apple Developer, la borra al firmar (ver §4 de la
-puesta en marcha en el README).
+---
 
-```bash
-git checkout RunCalendar/Resources/RunCalendar.entitlements
-```
+## Bloqueados por dependencias externas
 
-### Sin modo lesión / enfermedad / descarga
+No entran en la escala de prioridad porque no dependen de nosotros.
 
-Con gripe o lesión, **no** entrenar es la decisión médicamente correcta y la adherencia la castiga
-con 0%. Es el único hueco del modelo que produce **consejo activamente malo** en vez de solo
-quedarse corto: le dice al atleta que falló justo cuando acertó.
+### Sign in with Apple
 
-Alcance mínimo: marcar la semana (*lesionado / enfermo / descarga*) y pausar la medición — sin
-inventar un plan alterno. Ver [adherencia.md](adherencia.md#límites-conocidos).
+`RunCalendar/Resources/RunCalendar.entitlements` no tiene `com.apple.developer.applesignin`, así que
+el botón de `LoginView` (`AppleIconButton` → `AppleSignInController`) **compila y falla en runtime**
+con error 1000.
+
+**No se arregla restaurando el archivo.** Sin cuenta de pago en el Apple Developer Program no se
+puede habilitar la capability en el App ID, y Xcode vuelve a quitar el entitlement al firmar. El
+login por email/contraseña y Google sí funcionan, así que la app es usable mientras tanto.
+
+Cuando exista la cuenta: habilitar *Sign in with Apple* en el App ID (§4 de la puesta en marcha del
+README), restaurar el entitlement y verificar que Xcode ya no lo borre.
 
 ---
 

@@ -132,6 +132,22 @@ import Foundation
         assert(skipped.summary.contains("Series de 6 km") && skipped.summary.contains("sin sesión"),
                "no hecha: \(skipped.summary)")
 
-        print("ok: los 40 checks de PlanAdherence, Campaign y PlanDayOutcome pasan")
+        // 16) Estado de la semana: lesión y enfermedad paran el entrenamiento, la descarga no
+        //     (se entrena menos, no se deja de entrenar) — de eso depende que Hoy siga o no
+        //     mostrando la sesión del día.
+        assert(WeekStatus.injured.pausesTraining, "lesión para")
+        assert(WeekStatus.sick.pausesTraining, "enfermedad para")
+        assert(!WeekStatus.deload.pausesTraining, "la descarga NO para: se entrena menos")
+
+        // Los tres explican por qué, sin dejar al atleta con un porcentaje en blanco.
+        for status in WeekStatus.allCases {
+            assert(status.message.contains("pausa"), "\(status.rawValue) debe decir que se pausa")
+            assert(!status.hint.isEmpty, "\(status.rawValue) necesita ayuda en el selector")
+        }
+
+        // Se guardan por su rawValue en UserDefaults: cambiarlo pierde la semana marcada.
+        assert(WeekStatus(rawValue: "Lesionado") == .injured, "rawValue estable")
+
+        print("ok: los 51 checks de PlanAdherence, Campaign, PlanDayOutcome y WeekStatus pasan")
     }
 }
