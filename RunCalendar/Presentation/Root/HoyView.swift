@@ -89,7 +89,12 @@ struct HoyView: View {
     /// Misión del día (Fase 3): la sesión que el plan te pide hoy, derivada de tus objetivos.
     @ViewBuilder private var missionCard: some View {
         DashCard(eyebrow: "Misión de hoy", accent: Neon.green) {
-            if let mission = goalsViewModel.todayMission {
+            if let status = goalsViewModel.weekStatus, status.pausesTraining {
+                // Nada de empujar la sesión: el atleta ya dijo que no puede entrenar.
+                Label(status.message, systemImage: status.systemImage)
+                    .font(.mSubheadline).foregroundStyle(Neon.gold)
+                planFooter
+            } else if let mission = goalsViewModel.todayMission {
                 Button { detailDay = mission } label: {
                     HStack(spacing: 12) {
                         Image(systemName: mission.kind.systemImage)
@@ -148,6 +153,12 @@ struct HoyView: View {
 
     /// Aviso del coach (si el volumen no cabe en los días dados) + acceso a ajustar la config.
     @ViewBuilder private var planFooter: some View {
+        // En descarga la sesión sigue, así que el motivo hay que decirlo aquí (en lesión/enfermedad
+        // ya se dijo arriba, en lugar de la misión).
+        if let status = goalsViewModel.weekStatus, !status.pausesTraining {
+            Label(status.message, systemImage: status.systemImage)
+                .font(.mCaption2).foregroundStyle(Neon.gold)
+        }
         adherenceRow
         if let note = goalsViewModel.currentPlan?.note {
             Label(note, systemImage: "exclamationmark.triangle.fill")

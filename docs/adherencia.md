@@ -235,15 +235,52 @@ O sea que la mitad del problema es de *plomería*, no de datos: la sensación t�
 Lo que no está resuelto es la parte difícil — cuánto ajustar por 30 °C o por 2 500 m es un modelo
 en sí mismo, y ponerle un factor inventado sería peor que no tenerlo.
 
-**No hay modo lesión, enfermedad ni descarga.** Con gripe o lesión, no entrenar es la decisión
-médicamente correcta y la adherencia la castiga con un 0%. Falta poder marcar la semana
-(*lesionado / enfermo / descarga*) para pausar la medición en vez de acumular culpa por haber
-hecho lo correcto. Es la limitación que más urge de esta lista.
+**El intento no se distingue del resultado** (ver arriba) — y esa es la limitación que queda de
+esta lista; el modo lesión/enfermedad ya se resolvió, abajo.
 
 **Todas las sesiones pesan igual por kilómetro.** Una tirada larga y un rodaje corto solo se
 diferencian por su distancia; no hay ponderación por tipo. Una evolución natural sería pesar
 tirada larga ≈ 2, tempo y series ≈ 1.5, fácil = 1 — deliberadamente pendiente hasta que haya
 razón para creer que los números importan más que la simplicidad de contar kilómetros.
+
+---
+
+## Semanas que no se miden
+
+`WeekStatus` — lesión, enfermedad o descarga. Sin esto, la adherencia marcaba **0%** al atleta que
+no entrenó por gripe o lesión: le decía que falló justo cuando acertó. Era el único hueco del modelo
+que producía **consejo activamente malo** en vez de solo quedarse corto.
+
+Se marca en *Tu plan* (el sheet que ya se abre desde la card de misión) → **Estado de la semana**.
+
+| Estado | ¿Para el entrenamiento? | Qué pasa |
+|---|---|---|
+| **Lesionado** | sí | La adherencia se pausa y *Hoy* **no muestra la sesión del día** |
+| **Enfermo** | sí | Igual |
+| **Descarga** | no | La adherencia se pausa, pero la sesión **sigue**: se entrena menos, no se deja de entrenar |
+
+Tres decisiones:
+
+**No inventa un plan alterno.** Marcar lesión pausa la medición y nada más. Generar un "plan de
+rehabilitación" sería dar consejo médico que la app no está en posición de dar — y el atleta
+lesionado necesita un fisioterapeuta, no una app que le proponga bici.
+
+**En lesión y enfermedad se esconde la misión del día.** Seguir mostrando *"hoy toca Series de
+6 km"* a alguien que acaba de marcar que no puede entrenar es exactamente el consejo que este modo
+existe para eliminar. La **descarga** sí la conserva, con el motivo escrito: bajar volumen es
+entrenar, no parar.
+
+**Caduca sola.** Se guarda junto a su `weekStart`, así que al cambiar de semana vuelve a "Normal"
+sin limpiar nada. Una semana nueva arranca en blanco: es el comportamiento correcto y además evita
+que una marca olvidada deje la adherencia muerta para siempre.
+
+En semana pausada la campaña pierde las misiones del plan y conserva las de las metas (peso, FC en
+reposo): no se marca como fallado lo que no se estaba midiendo, pero bajar de peso con gripe sigue
+siendo una victoria posible.
+
+**Límite:** no queda historial de semanas lesionadas. Tendría sentido el día que exista adherencia
+histórica —que pide persistir el plan por semana— y hoy no hay quién lo consuma. Está en
+UserDefaults, como la config del plan.
 
 ---
 
@@ -271,7 +308,7 @@ swiftc RunCalendar/Domain/Entities/TrainingPlan.swift RunCalendar/Domain/Entitie
   Scripts/check-adherence.swift -module-name check -o /tmp/check-adherence && /tmp/check-adherence
 ```
 
-40 asserts sobre la matemática pura, sin simulador ni target de tests. Los que valen la pena
+51 asserts sobre la matemática pura, sin simulador ni target de tests. Los que valen la pena
 mirar antes de cambiar algo:
 
 - que 2 sesiones largas cubriendo el km **superen** a 4 cortas a medias (el peso del volumen);
@@ -282,6 +319,8 @@ mirar antes de cambiar algo:
 - los seis estados de `PlanDayOutcome` y la tolerancia híbrida por los dos lados (3.6 de 4 sí,
   3.4 no; 19.2 de 20 sí, 18 no);
 - que el aviso de sesión perdida **no** sea una prohibición: el assert falla si el texto vuelve a
-  decir "no la repongas".
+  decir "no la repongas";
+- que la **descarga no** pause el entrenamiento y que lesión y enfermedad sí, de lo que depende que
+  *Hoy* muestre o esconda la sesión del día.
 
 Sin `-O`: en release los `assert` se compilan fuera y el check no verificaría nada.

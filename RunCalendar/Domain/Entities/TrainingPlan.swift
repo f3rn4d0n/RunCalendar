@@ -71,6 +71,56 @@ struct PlannedDay: Identifiable, Equatable, Sendable {
     var weekPosition: Int { Self.position(of: weekday) }
 }
 
+/// Por qué esta semana **no se mide** contra el plan. Sin esto, la adherencia castiga con 0% al
+/// atleta que no entrenó por gripe o lesión — o sea, le dice que falló justo cuando acertó.
+///
+/// No genera un plan alterno: solo pausa la medición. Inventar un "plan de rehabilitación" sería
+/// dar consejo médico que la app no está en posición de dar.
+enum WeekStatus: String, CaseIterable, Identifiable, Sendable {
+    case injured = "Lesionado"
+    case sick    = "Enfermo"
+    case deload  = "Descarga"
+
+    var id: String { rawValue }
+    var displayName: String { rawValue }
+
+    /// ¿Esta semana **no** se entrena? Lesión y enfermedad sí paran; una descarga es entrenar
+    /// menos, no dejar de entrenar, así que la sesión del día sigue teniendo sentido.
+    var pausesTraining: Bool { self != .deload }
+
+    var systemImage: String {
+        switch self {
+        case .injured: return "bandage.fill"
+        case .sick:    return "thermometer.medium"
+        case .deload:  return "arrow.down.circle"
+        }
+    }
+
+    /// Qué le decimos al atleta en lugar de un porcentaje.
+    var message: String {
+        switch self {
+        case .injured:
+            return "Semana marcada como lesión: la adherencia queda en pausa. Recuperarte es el "
+                + "entrenamiento de esta semana."
+        case .sick:
+            return "Semana marcada como enfermedad: la adherencia queda en pausa. Entrenar enfermo "
+                + "no adelanta nada y alarga el cuadro."
+        case .deload:
+            return "Semana de descarga: la adherencia queda en pausa. Menos volumen a propósito, "
+                + "para que el cuerpo asimile lo anterior."
+        }
+    }
+
+    /// Ayuda del selector, para que el atleta sepa cuál elegir.
+    var hint: String {
+        switch self {
+        case .injured: return "Molestia o lesión que impide correr."
+        case .sick:    return "Gripe, infección, fiebre."
+        case .deload:  return "Bajas el volumen a propósito para asimilar."
+        }
+    }
+}
+
 /// Qué tanto cumpliste el plan de la semana: sesiones y kilómetros hechos vs. planificados.
 /// Responde "¿cómo voy respecto al plan?" sin regañar: cuenta lo hecho, no lo fallado.
 struct PlanAdherence: Equatable, Sendable {

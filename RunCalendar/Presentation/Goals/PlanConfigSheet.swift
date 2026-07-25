@@ -33,6 +33,8 @@ struct PlanConfigSheet: View {
                         + "tempo y series según esto.")
                 }
 
+                weekStatusSection
+
                 Section {
                     weekdayPicker
                 } header: {
@@ -73,6 +75,31 @@ struct PlanConfigSheet: View {
                 Text("Corre unas cuantas veces (y deja que Salud las importe) para poder sugerirte "
                     + "un plan desde tu historial.")
             }
+        }
+    }
+
+    /// Marcar la semana cuando no se puede (o no se debe) entrenar. Pausa la adherencia en vez de
+    /// dejar que marque 0% a alguien que hizo lo correcto al no correr.
+    @ViewBuilder private var weekStatusSection: some View {
+        Section {
+            Picker("Esta semana", selection: $viewModel.weekStatus) {
+                Text("Normal").tag(WeekStatus?.none)
+                ForEach(WeekStatus.allCases) { status in
+                    Label(status.displayName, systemImage: status.systemImage)
+                        .tag(Optional(status))
+                }
+            }
+            if let status = viewModel.weekStatus {
+                Text(status.hint).font(.mCaption).foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Estado de la semana")
+        } footer: {
+            Text(viewModel.weekStatus == nil
+                 ? "Si te lesionas, te enfermas o toca semana de descarga, márcalo aquí: la "
+                   + "adherencia se pausa en vez de contarte como semana fallada."
+                 : "La adherencia está en pausa. Vuelve a «Normal» cuando retomes el plan — al "
+                   + "empezar la semana siguiente se limpia solo.")
         }
     }
 

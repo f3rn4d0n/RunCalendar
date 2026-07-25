@@ -364,10 +364,42 @@ final class GoalsViewModel {
         ))
     }
 
-    /// La misión de hoy (sesión planificada), si el plan pide entrenar hoy.
-    var todayMission: PlannedDay? { currentPlan?.today() }
+    /// La misión de hoy (sesión planificada), si el plan pide entrenar hoy. `nil` en semana de
+    /// lesión o enfermedad: empujar la sesión a alguien que ya dijo que no puede entrenar es
+    /// exactamente el consejo que no queremos dar. Una descarga sí la conserva (se entrena menos,
+    /// no se deja de entrenar).
+    var todayMission: PlannedDay? {
+        guard weekStatus?.pausesTraining != true else { return nil }
+        return currentPlan?.today()
+    }
 
-    /// Adherencia de **esta** semana: lo corrido vs. lo que el plan pide. `nil` sin plan.
+    /// Estado de la semana en curso (lesión / enfermedad / descarga), o `nil` si es una semana
+    /// normal. **Caduca solo**: se guarda junto a su `weekStart`, así que al cambiar de semana
+    /// vuelve a `nil` sin tener que limpiar nada — que es el comportamiento correcto, una semana
+    /// nueva arranca en blanco.
+    ///
+    /// ponytail: en UserDefaults como `planConfig`, y sin historial. Guardar las semanas lesionadas
+    /// tendría sentido el día que exista adherencia histórica (que pide persistir el plan); hoy no
+    /// hay quién las consuma.
+    var weekStatus: WeekStatus? {
+        get {
+            let defaults = UserDefaults.standard
+            guard let raw = defaults.string(forKey: Self.weekStatusKey),
+                  let status = WeekStatus(rawValue: raw),
+                  let saved = defaults.object(forKey: Self.weekStatusWeekKey) as? Date,
+                  Calendar.current.isDate(saved, inSameDayAs: Self.currentWeekStart())
+            else { return nil }
+            return status
+        }
+        set {
+            let defaults = UserDefaults.standard
+            defaults.set(newValue?.rawValue, forKey: Self.weekStatusKey)
+            defaults.set(newValue == nil ? nil : Self.currentWeekStart(), forKey: Self.weekStatusWeekKey)
+        }
+    }
+
+    /// Adherencia de **esta** semana: lo corrido vs. lo que el plan pide. `nil` sin plan
+    /// **o si la semana está en pausa** (lesión / enfermedad / descarga).
     ///
     /// Compara totales de la semana (sesiones y km), no día por día: si el plan pedía series el
     /// martes y corriste el miércoles, cuenta igual — lo que importa es la carga, no el calendario.
@@ -375,7 +407,7 @@ final class GoalsViewModel {
     /// así que regenerarlo para semanas pasadas daría un plan distinto al que viste entonces;
     /// para adherencia histórica hay que guardar un snapshot del plan por semana.
     var weekAdherence: PlanAdherence? {
-        guard let plan = currentPlan else { return nil }
+        guard let plan = currentPlan, weekStatus == nil else { return nil }
         let done = runningSessions(since: plan.weekStart)
         let hardDays = plan.days.filter { $0.kind.isHard }
         let todayPosition = PlannedDay.position(of: Calendar.current.component(.weekday, from: Date()))
@@ -453,6 +485,8 @@ final class GoalsViewModel {
     /// secundarias); no se guarda nada nuevo.
     var campaign: Campaign? {
         guard let anchor = planAnchorGoal else { return nil }
+        // En semana pausada no hay `weekAdherence`, así que las misiones del plan desaparecen solas
+        // y quedan las de las metas: no se marca como fallado lo que no se estaba midiendo.
         var missions = weekAdherence.map(Campaign.planMissions) ?? []
         // Las metas secundarias entran como misiones propias: son las victorias que no salen de
         // correr (bajar de peso, bajar la FC en reposo) y también acercan a la principal.
@@ -516,6 +550,8 @@ final class GoalsViewModel {
         Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now
     }
 
+    private static let weekStatusKey = "week.status"
+    private static let weekStatusWeekKey = "week.status.weekStart"
     private static let planDaysKey = "plan.daysPerWeek"
     private static let planWeekdaysKey = "plan.weekdays"
 

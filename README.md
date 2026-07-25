@@ -58,6 +58,9 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   de *Hoy*, sesiones y km hechos vs. planificados con barra y una frase; se toca para ver la semana
   **día por día** (qué pedía cada día y qué corriste). Cuenta **totales**, no calendario (mover una
   sesión no castiga); el volumen pesa el doble que la frecuencia y correr de más no pasa de 100%.
+  Si te lesionas, te enfermas o toca **semana de descarga**, se marca en *Tu plan* y la adherencia
+  **se pausa** (`WeekStatus`) en vez de marcarte 0% por haber hecho lo correcto; en lesión y
+  enfermedad *Hoy* además deja de empujarte la sesión del día.
   Las **sesiones de calidad** se detectan por el tipo planeado **o** RPE ≥ 7, así que valen aunque
   muevas el tempo de día. De ahí sale el **aviso de sobreesfuerzo**: reprogramar está bien, pero
   deja un día fácil en medio — lo que lesiona es *encadenar* intensidad para compensar. Es aviso,
@@ -605,7 +608,8 @@ Lo que hay que saber sin abrirlo:
 
 | | |
 |---|---|
-| **P0 · roto hoy** | El **entitlement de Sign in with Apple** está borrado: el botón compila y falla en runtime. Y **no hay modo lesión/enfermedad**, así que la adherencia marca 0% al atleta que hizo lo médicamente correcto |
+| **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
+| **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
 | **P1 · antes de tener usuarios** | **Observabilidad** (solo hay `os.log`: en el teléfono de alguien más no se sabe que algo falló) · **target de pruebas unitarias** (hoy son tres scripts en `Scripts/` que no corren solos y solo alcanzan a `Domain/Entities`) · decidir **dark-only vs. adaptable**, que bloquea cerrar el Kit |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
