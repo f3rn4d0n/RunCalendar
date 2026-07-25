@@ -320,6 +320,13 @@ final class GoalsViewModel {
         }
     }
 
+    /// Sesiones de correr completadas desde una fecha (para medir la semana del plan).
+    private func runningSessions(since start: Date) -> [TrainingSession] {
+        trainingViewModel.sessions.filter {
+            $0.completed && $0.type == .running && $0.date >= start && $0.date <= Date()
+        }
+    }
+
     private var runningWeeklyKm: Double {
         runningSessions(withinDays: 7).compactMap(\.distanceKm).reduce(0, +)
     }
@@ -360,8 +367,129 @@ final class GoalsViewModel {
     /// La misión de hoy (sesión planificada), si el plan pide entrenar hoy.
     var todayMission: PlannedDay? { currentPlan?.today() }
 
+    /// Adherencia de **esta** semana: lo corrido vs. lo que el plan pide. `nil` sin plan.
+    ///
+    /// Compara totales de la semana (sesiones y km), no día por día: si el plan pedía series el
+    /// martes y corriste el miércoles, cuenta igual — lo que importa es la carga, no el calendario.
+    /// ponytail: solo la semana en curso. El plan no se persiste (es función de tu volumen de hoy),
+    /// así que regenerarlo para semanas pasadas daría un plan distinto al que viste entonces;
+    /// para adherencia histórica hay que guardar un snapshot del plan por semana.
+    var weekAdherence: PlanAdherence? {
+        guard let plan = currentPlan else { return nil }
+        let done = runningSessions(since: plan.weekStart)
+        let hardDays = plan.days.filter { $0.kind.isHard }
+        let todayPosition = PlannedDay.position(of: Calendar.current.component(.weekday, from: Date()))
+        let hardWeekdays = Set(done.filter { isHard($0, plan: plan) }
+            .map { Calendar.current.component(.weekday, from: $0.date) })
+        return PlanAdherence(
+            plannedSessions: plan.days.count,
+            completedSessions: done.count,
+            plannedKm: plan.totalKm,
+            completedKm: done.compactMap(\.distanceKm).reduce(0, +),
+            plannedHardSessions: hardDays.count,
+            completedHardSessions: done.filter { isHard($0, plan: plan) }.count,
+            missedHardDays: hardDays.filter {
+                $0.weekPosition < todayPosition && !hardWeekdays.contains($0.weekday)
+            }.count,
+            completedMinutes: done.compactMap(\.durationMin).reduce(0, +)
+        )
+    }
+
+    /// La semana día por día: qué pedía el plan y qué corriste. Vacío sin plan.
+    /// Los días que aún no llegan salen como `.upcoming`: no se juzga lo que no tocó todavía.
+    var weekOutcomes: [PlanDayOutcome] {
+        guard let plan = currentPlan else { return [] }
+        let done = Dictionary(grouping: runningSessions(since: plan.weekStart)) {
+            Calendar.current.component(.weekday, from: $0.date)
+        }
+        let todayPosition = PlannedDay.position(of: Calendar.current.component(.weekday, from: Date()))
+        // En orden real de la semana del usuario, no 1…7 (si empieza en lunes, el domingo va al final).
+        return (1...7)
+            .sorted { PlannedDay.position(of: $0) < PlannedDay.position(of: $1) }
+            .map { weekday in
+                let planned = plan.days.first { $0.weekday == weekday }
+                let sessions = done[weekday] ?? []
+                let km = sessions.compactMap(\.distanceKm).reduce(0, +)
+                return PlanDayOutcome(
+                    weekday: weekday,
+                    plannedKind: planned?.kind,
+                    plannedKm: planned?.targetKm,
+                    doneKm: km,
+                    doneMinutes: sessions.compactMap(\.durationMin).reduce(0, +),
+                    status: PlanDayOutcome.status(
+                        plannedKm: planned?.targetKm, doneKm: km,
+                        hasPassed: PlannedDay.position(of: weekday) < todayPosition
+                    )
+                )
+            }
+    }
+
+    /// RPE desde el que una sesión cuenta como de calidad (duro). 7 = "vigoroso" en la escala 1–10.
+    private static let hardRPE = 7
+
+    /// ¿Fue una sesión de calidad? **Unión de dos señales**, no una prioridad:
+    ///
+    /// - el **tipo que el plan pedía ese día**: unas series bien controladas pueden salir en RPE 6
+    ///   y siguen siendo calidad, así que el RPE solo se quedaría corto;
+    /// - el **RPE ≥ 7**, que no depende del día: si moviste el tempo, o si repetiste las series en
+    ///   un día fácil, la intensidad ocurrió y el plan por sí solo no la vería.
+    ///
+    /// Suma de más a propósito: para el aviso de carga interesa **toda** la intensidad de la
+    /// semana, venga del plan o no (un trail duro cuenta como carga aunque no sustituya al tempo).
+    /// El límite queda documentado en `docs/adherencia.md`.
+    private func isHard(_ session: TrainingSession, plan: TrainingPlan) -> Bool {
+        let weekday = Calendar.current.component(.weekday, from: session.date)
+        let plannedHard = plan.days.first { $0.weekday == weekday }?.kind.isHard ?? false
+        return plannedHard || (session.rpe ?? 0) >= Self.hardRPE
+    }
+
     /// Explicación pedagógica de una sesión planificada (qué es, cómo, para qué, por qué ese número).
     func guide(for day: PlannedDay) -> WorkoutGuide { describeWorkout(day) }
+
+    // MARK: - Campaña (Fase 3)
+
+    /// La campaña en curso: tu meta principal convertida en misiones de esta semana. `nil` si no
+    /// hay meta que la ancle. Se arma de lo que ya existe (meta ancla + plan + adherencia + metas
+    /// secundarias); no se guarda nada nuevo.
+    var campaign: Campaign? {
+        guard let anchor = planAnchorGoal else { return nil }
+        var missions = weekAdherence.map(Campaign.planMissions) ?? []
+        // Las metas secundarias entran como misiones propias: son las victorias que no salen de
+        // correr (bajar de peso, bajar la FC en reposo) y también acercan a la principal.
+        for goal in goals where goal.id != anchor.id {
+            let progress = progress(for: goal)
+            missions.append(CampaignMission(
+                title: "\(goal.type.displayName): \(Goal.format(goal.targetValue, type: goal.type))",
+                detail: progress.deltaText,
+                isDone: progress.achieved,
+                systemImage: goal.type.systemImage
+            ))
+        }
+        return Campaign(
+            title: campaignTitle(for: anchor),
+            goalHeadline: anchor.type == .raceTime && anchor.distance != nil
+                ? "\(anchor.distance!.displayName) en \(Goal.formatTime(Int(anchor.targetValue)))"
+                : "\(anchor.type.displayName): \(Goal.format(anchor.targetValue, type: anchor.type))",
+            deadline: anchor.deadline ?? targetRace(for: anchor)?.date,
+            missions: missions
+        )
+    }
+
+    /// Nombre de la campaña: el de la carrera objetivo si la hay (es lo que el atleta tiene en la
+    /// cabeza), si no la meta misma.
+    private func campaignTitle(for anchor: Goal) -> String {
+        targetRace(for: anchor)?.name ?? anchor.type.displayName
+    }
+
+    /// La carrera que persigue esta meta: la próxima inscrita o prioritaria de esa distancia.
+    private func targetRace(for anchor: Goal) -> Race? {
+        let today = Calendar.current.startOfDay(for: Date())
+        let upcoming = racesViewModel.races
+            .filter { $0.status == .upcoming && $0.date >= today }
+            .filter { anchor.distance == nil || $0.discipline == anchor.distance }
+            .sorted { $0.date < $1.date }
+        return upcoming.first { $0.isRegistered || $0.isPriority } ?? upcoming.first
+    }
 
     /// Sugerencia de plan desde tu historial de carreras (días/semana, días y meta de volumen).
     /// `nil` si aún no hay historial suficiente. Solo calcula; no aplica nada.

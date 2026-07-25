@@ -54,8 +54,20 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
 - **"Sugerir plan"** (como "Sugerir meta"): infiere de tu historial de carreras los días/semana, tus
   días y una meta de volumen (+20% en 8 sem); todo editable. `SuggestPlanUseCase`.
 - **Solo carrera**: el volumen del plan usa sesiones de tipo carrera (no camina/senderismo).
-- **Pendiente de la fase**: **adherencia** (planificado vs. `TrainingSession.completed`) y el modelo
-  de **Campañas**. Ver [Roadmap](#roadmap-y-backlog).
+- **Adherencia de la semana** → **[docs/adherencia.md](docs/adherencia.md)**. En corto: en la card
+  de *Hoy*, sesiones y km hechos vs. planificados con barra y una frase; se toca para ver la semana
+  **día por día** (qué pedía cada día y qué corriste). Cuenta **totales**, no calendario (mover una
+  sesión no castiga); el volumen pesa el doble que la frecuencia y correr de más no pasa de 100%.
+  Las **sesiones de calidad** se detectan por el tipo planeado **o** RPE ≥ 7, así que valen aunque
+  muevas el tempo de día. De ahí sale el **aviso de sobreesfuerzo**: reprogramar está bien, pero
+  deja un día fácil en medio — lo que lesiona es *encadenar* intensidad para compensar. Es aviso,
+  no candado. Mide si seguiste el plan, **no** qué tan bien entrenaste (eso vive en *Progreso*).
+  `PlanAdherence` · `PlanDayOutcome` · `WeekAdherenceView`.
+- **Campañas** (`Campaign`, en *Objetivos*): tu meta principal convertida en **misiones de la
+  semana** con las victorias marcadas desde datos reales — km del plan, sesiones del plan, y una
+  misión por cada meta secundaria (peso, FC en reposo). El título es el de tu carrera objetivo (la
+  próxima inscrita o prioritaria de esa distancia). **Derivada, no persistida**: se arma de la meta
+  ancla + el plan + la adherencia + las metas, sin colección nueva ni CRUD. Una campaña a la vez.
 
 ### 🎯 Objetivos
 - Metas del atleta (entidad `Goal`): **tiempo por distancia**, **VO₂max**, **peso**,
@@ -554,7 +566,7 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 |------|-----|-------|
 | **1. Objetivos** ✅ | Entidad `Goal` + CRUD + tab con progreso (tiempo vs. PRs, VO₂max/peso vs. Salud) y **"Sugerir meta"** (Riegel/IMC, sin IA) | Marco del que cuelga todo; también abre el rediseño de navegación |
 | **2. Review dominical** ✅ | Check-in semanal: peso y cintura (→ Salud) + energía y hambre (→ `bodyLogs`), con card en *Hoy* los domingos. **Fotos pendientes** (requieren Firebase Storage) | Reusa el patrón de `recoveryLogs`. La **cintura** detecta *recomposición*: peso estancado pero cintura bajando |
-| **3. Plan + Campañas** 🚧 | ✅ **Generación automática** de la semana (motor determinista sin IA), **misión de hoy** en Hoy, **detalle** de sesión, **"Sugerir plan"** desde historial, preview con descansos. **Falta**: adherencia (planificado vs. `completed`) y el modelo de **Campañas** | Responde "¿qué hago hoy?". Ver [Plan](#-plan-fase-3) |
+| **3. Plan + Campañas** ✅ | **Generación automática** de la semana (motor determinista sin IA), **misión de hoy** en Hoy, **detalle** de sesión, **"Sugerir plan"** desde historial, preview con descansos, **adherencia** de la semana y **Campañas** (misiones derivadas del plan + las metas) | Responde "¿qué hago hoy?" y "¿cómo voy?". Ver [Plan](#-plan-fase-3) |
 | **4. Nutrición** | **Solo objetivos + adherencia (checkbox)**: macros/kcal objetivo, hidratación, ¿cumpliste hoy? — **no** food-logger | Dominio nuevo; acotado a propósito para no volverse contador de calorías |
 | **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app** |
 
@@ -579,14 +591,15 @@ exportar carreras/kit al Calendario (EventKit, con coordenadas/URL/alarma). **Ob
 cualitativa, Coach Insight y ritmo semanal esperado. **Rediseño del Kit** (paleta/tipografía/superficies/
 rings) y **navegación por ciclo del atleta** (Hoy · Entrenar · Objetivos · Progreso). **Plan (Fase 3):**
 generación automática de la semana (motor determinista), misión de hoy, detalle de sesión, "Sugerir plan"
-desde historial, preview con descansos.
+desde historial, preview con descansos, **adherencia de la semana** y **Campañas** (misiones derivadas).
 
 **Pendiente:**
 
 - [x] **Marca → "Rumbo"** (`CFBundleDisplayName` + branding). Identificadores técnicos (bundle id,
   target, scheme, Firebase) se mantienen como *RunCalendar*. Rename técnico: opcional y riesgoso, sin prisa.
-- [ ] **Fase 3 — cerrar:** **adherencia** (planificado vs. `TrainingSession.completed`) y modelo de
-  **Campañas**. Opcional: meta de volumen **solo-carrera** (hoy cuenta caminata) y **tab Plan** propia.
+- [x] **Fase 3 — cerrada:** **adherencia** de la semana y modelo de **Campañas** (derivado, sin
+  persistir). Opcional pendiente: **adherencia histórica** (pide guardar un snapshot del plan por
+  semana), varias campañas simultáneas con misiones manuales, y **tab Plan** propia.
 - [ ] **Fases 4–5** de la visión (ver tabla): Nutrición → IA + reportes por correo.
 - [x] **Nuevos objetivos** auto-medibles (Tier 1): **volumen semanal**, **FC en reposo**, **tirada larga**.
 - [ ] **Registro de fuerza + PR de levantamiento** — la mitad "híbrida" (dominio nuevo: ejercicio × peso × reps).

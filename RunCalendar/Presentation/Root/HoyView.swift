@@ -17,6 +17,7 @@ struct HoyView: View {
     @State private var showWeightSheet = false
     @State private var showReviewSheet = false
     @State private var showPlanConfig = false
+    @State private var showWeekDetail = false
     @State private var detailDay: PlannedDay?
 
     /// La próxima carrera **que te importa**: inscrita o marcada como prioritaria. Entre las
@@ -74,6 +75,11 @@ struct HoyView: View {
             .sheet(isPresented: $showPlanConfig) {
                 PlanConfigSheet(viewModel: goalsViewModel)
             }
+            .sheet(isPresented: $showWeekDetail) {
+                if let adherence = goalsViewModel.weekAdherence {
+                    WeekAdherenceView(adherence: adherence, outcomes: goalsViewModel.weekOutcomes)
+                }
+            }
             .sheet(item: $detailDay) { day in
                 WorkoutDetailView(day: day, viewModel: goalsViewModel)
             }
@@ -109,8 +115,40 @@ struct HoyView: View {
         }
     }
 
+    /// Adherencia de la semana: "¿cómo voy respecto al plan?" en una barra y una frase.
+    @ViewBuilder private var adherenceRow: some View {
+        if let adherence = goalsViewModel.weekAdherence, adherence.plannedSessions > 0 {
+            Divider().overlay(Color.primary.opacity(0.06))
+            Button { showWeekDetail = true } label: {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text("Esta semana").font(.mCaption2).tracking(1).foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(adherence.completedSessions)/\(adherence.plannedSessions) sesiones · "
+                         + "\(Goal.trim(adherence.completedKm))/\(Goal.trim(adherence.plannedKm)) km")
+                        .font(.mCaption.monospacedDigit()).foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right").font(.mCaption2).foregroundStyle(.tertiary)
+                }
+                ProgressView(value: adherence.fraction)
+                    .tint(Neon.green)
+                Text(adherence.summary).font(.mCaption).foregroundStyle(.secondary)
+                // Aviso, no candado: reponer una sesión dura suma carga que la semana no traía.
+                if let warning = adherence.extraLoadWarning {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.mCaption2).foregroundStyle(Neon.orange)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityHint("Ver la semana día por día")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     /// Aviso del coach (si el volumen no cabe en los días dados) + acceso a ajustar la config.
     @ViewBuilder private var planFooter: some View {
+        adherenceRow
         if let note = goalsViewModel.currentPlan?.note {
             Label(note, systemImage: "exclamationmark.triangle.fill")
                 .font(.mCaption2).foregroundStyle(Neon.orange)

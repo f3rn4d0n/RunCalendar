@@ -18,6 +18,12 @@ struct GoalsView: View {
                     )
                 } else {
                     List {
+                        if let campaign = viewModel.campaign {
+                            CampaignCard(campaign: campaign)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
                         ForEach(viewModel.goals) { goal in
                             GoalHeroCard(
                                 goal: goal,
@@ -202,5 +208,44 @@ struct CoachInsightView: View {
             RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(Neon.accent.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
         )
+    }
+}
+
+/// Campaña: la meta principal convertida en misiones de la semana, con las victorias marcadas.
+/// Va arriba de las metas porque responde primero "¿cuál es mi objetivo ahora y cómo voy?".
+struct CampaignCard: View {
+    let campaign: Campaign
+
+    var body: some View {
+        DashCard(eyebrow: "Campaña", accent: Neon.gold) {
+            Text(campaign.title).font(.mTitle3.bold()).foregroundStyle(.primary)
+            HStack(spacing: 6) {
+                Text(campaign.goalHeadline).font(.mSubheadline).foregroundStyle(Neon.gold)
+                if let weeks = campaign.weeksLeft() {
+                    Text("· \(weeks == 0 ? "esta semana" : "en ~\(weeks) semanas")")
+                        .font(.mCaption).foregroundStyle(.secondary)
+                }
+            }
+            if !campaign.missions.isEmpty {
+                Text("\(campaign.doneCount) de \(campaign.missions.count) misiones")
+                    .font(.mCaption2).tracking(1).foregroundStyle(.secondary)
+                ProgressView(value: campaign.progress).tint(Neon.gold)
+                ForEach(campaign.missions) { mission in
+                    HStack(spacing: 10) {
+                        Image(systemName: mission.isDone ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(mission.isDone ? AnyShapeStyle(Neon.green) : AnyShapeStyle(.tertiary))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(mission.title).font(.mSubheadline)
+                                .strikethrough(mission.isDone, color: .secondary)
+                            Text(mission.detail).font(.mCaption2).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: mission.systemImage)
+                            .font(.mCaption).foregroundStyle(.tertiary)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
     }
 }
