@@ -25,10 +25,13 @@ final class HealthViewModel {
 
     private(set) var state: State
 
-    /// Readiness por distancia si ya se cargó (para el detalle de carrera). Vacío si no.
-    var readinessByDistance: [RaceReadiness] {
-        if case .loaded(let data) = state { return data.readiness }
-        return []
+    /// Readiness para **una carrera concreta**: el mismo cálculo, pero consciente de cuántas
+    /// semanas faltan. Con 6 semanas tiene sentido subir la tirada larga; con 1, mantener.
+    func readiness(for race: Race) -> RaceReadiness? {
+        guard case .loaded(let data) = state else { return nil }
+        let weeks = max(0, race.date.daysFromNow()) / 7
+        return assessReadiness(data.summary, weeksAvailable: weeks)
+            .first { $0.distance == race.discipline }
     }
 
     /// ¿Hay datos de salud disponibles en este dispositivo? (falso en Mac).

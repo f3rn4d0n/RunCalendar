@@ -88,8 +88,11 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   (→ mapa y tiempo de viaje del sistema), URL de inscripción y alarma. Acceso solo-escritura
   (privado); dedupe best-effort ("Ya en tu calendario").
 - Detalle con **mapa de la ruta** (si la carrera se corrió y tiene GPS).
-- **Readiness por carrera**: qué tan listo estás para cada distancia, consciente de la
-  fecha (una 5K esta semana vs. una 42K la próxima).
+- **Readiness por carrera**: qué tan listo estás para cada distancia y **qué cambia según las
+  semanas que faltan** — con 6 semanas te dice cuántas necesitas para subir la tirada larga a
+  ritmo seguro (+1–2 km/semana); si no alcanzan, deja de pedírtelo y recomienda mantener o bajar
+  de distancia; la última semana es de afinamiento y ya solo aconseja llegar descansado.
+  `RaceReadiness.timing` + `AssessReadinessUseCase`; check en `Scripts/check-readiness-timing.swift`.
 - **Recordatorios locales** (Perfil → Recordatorios): avisos de carrera (anticipado, víspera,
   día del evento), **entrega de kit** (víspera y día mismo, con lugar y hora), y de
   entrenamientos (a la hora, y un aviso de los que dejaste pendientes). Sin backend.

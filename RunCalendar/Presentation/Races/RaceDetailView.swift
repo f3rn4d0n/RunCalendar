@@ -38,8 +38,10 @@ struct RaceDetailView: View {
             && Self.standardDistances.contains(race.discipline)
     }
 
+    /// Consciente de la fecha de **esta** carrera: subir la tirada larga solo se aconseja
+    /// si quedan semanas para hacerlo.
     private var raceReadiness: RaceReadiness? {
-        healthViewModel.readinessByDistance.first { $0.distance == race.discipline }
+        healthViewModel.readiness(for: race)
     }
 
     @ViewBuilder
