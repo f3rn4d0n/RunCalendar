@@ -286,14 +286,7 @@ struct RaceRow: View {
                 Text(race.discipline.displayName)
                     .font(.mSubheadline.weight(sort == .distance ? .semibold : .regular))
                     .foregroundStyle(sort == .distance ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                if race.isRegistered {
-                    Text("Inscrito")
-                        .font(.mCaption2.bold())
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Neon.teal.opacity(0.2), in: Capsule())
-                        .foregroundStyle(Neon.teal)
-                }
+                if race.isRegistered { RegisteredTag() }
                 if let seconds = race.finishTimeSeconds {
                     Text(seconds.durationString())
                         .font(.mCaption.monospacedDigit())
@@ -302,5 +295,17 @@ struct RaceRow: View {
             }
         }
         .padding(.vertical, 2)
+    }
+}
+
+/// Etiqueta "Inscrito" (lista de carreras y card de *Hoy*).
+struct RegisteredTag: View {
+    var body: some View {
+        Text("Inscrito")
+            .font(.mCaption2.bold())
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Neon.teal.opacity(0.2), in: Capsule())
+            .foregroundStyle(Neon.teal)
     }
 }

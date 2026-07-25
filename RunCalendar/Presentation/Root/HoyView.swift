@@ -19,11 +19,15 @@ struct HoyView: View {
     @State private var showPlanConfig = false
     @State private var detailDay: PlannedDay?
 
+    /// La próxima carrera **que te importa**: inscrita o marcada como prioritaria. Entre las
+    /// que solo estás considerando no hay nada que preparar, y tapaban a la de verdad.
+    /// Si ninguna lo es todavía, muestra la más próxima: mejor eso que un "sin carreras".
     private var nextRace: Race? {
         let today = Calendar.current.startOfDay(for: Date())
-        return racesViewModel.races
+        let upcoming = racesViewModel.races
             .filter { $0.status == .upcoming && $0.date >= today }
-            .min { $0.date < $1.date }
+            .sorted { $0.date < $1.date }
+        return upcoming.first { $0.isRegistered || $0.isPriority } ?? upcoming.first
     }
 
     private var todaySessions: [TrainingSession] {
@@ -173,7 +177,14 @@ struct HoyView: View {
                                trainingViewModel: trainingViewModel, healthViewModel: healthViewModel)
             } label: {
                 DashCard(eyebrow: "Próxima carrera", accent: Neon.teal) {
-                    Text(race.name).font(.mHeadline).foregroundStyle(.primary)
+                    HStack(spacing: 5) {
+                        if race.isPriority {
+                            Image(systemName: "star.fill").font(.mCaption).foregroundStyle(Neon.gold)
+                                .accessibilityLabel("Evento prioritario")
+                        }
+                        Text(race.name).font(.mHeadline).foregroundStyle(.primary)
+                        if race.isRegistered { RegisteredTag() }
+                    }
                     Text(race.date.countdownText()).font(.marker(26)).foregroundStyle(Neon.teal)
                     Text("\(race.discipline.displayName) · \(race.location.name)")
                         .font(.mCaption).foregroundStyle(.secondary)
