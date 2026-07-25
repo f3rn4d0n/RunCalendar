@@ -60,6 +60,155 @@ struct PlannedDay: Identifiable, Equatable, Sendable {
         let symbols = Calendar.current.weekdaySymbols
         return (1...7).contains(weekday) ? symbols[weekday - 1] : "—"
     }
+
+    /// Posición del día dentro de la semana **del usuario** (0 = su primer día). Necesaria para
+    /// decir "ese día ya pasó": el número de `weekday` es 1=domingo, pero si la semana empieza en
+    /// lunes, el domingo es el último día y aun así tiene el número más bajo.
+    static func position(of weekday: Int, calendar: Calendar = .current) -> Int {
+        (weekday - calendar.firstWeekday + 7) % 7
+    }
+
+    var weekPosition: Int { Self.position(of: weekday) }
+}
+
+/// Qué tanto cumpliste el plan de la semana: sesiones y kilómetros hechos vs. planificados.
+/// Responde "¿cómo voy respecto al plan?" sin regañar: cuenta lo hecho, no lo fallado.
+struct PlanAdherence: Equatable, Sendable {
+    let plannedSessions: Int
+    let completedSessions: Int
+    let plannedKm: Double
+    let completedKm: Double
+    /// Sesiones de calidad (tempo/series) que el plan pidió esta semana.
+    let plannedHardSessions: Int
+    /// Sesiones de calidad que de hecho hiciste (por RPE alto, o por caer en un día duro del plan).
+    let completedHardSessions: Int
+    /// Días duros del plan que ya pasaron sin una sesión de calidad. Los que tientan a "reponer".
+    let missedHardDays: Int
+    /// Minutos de carrera de la semana. Informativo: el plan da km, no minutos.
+    let completedMinutes: Int
+
+    /// Fracción 0–1, topada: correr de más no cuenta como >100% (el plan es un piso, no una cuota).
+    static func fraction(_ done: Double, of planned: Double) -> Double {
+        planned > 0 ? min(done / planned, 1) : (done > 0 ? 1 : 0)
+    }
+
+    var sessionFraction: Double { Self.fraction(Double(completedSessions), of: Double(plannedSessions)) }
+    var kmFraction: Double { Self.fraction(completedKm, of: plannedKm) }
+
+    /// El avance que manda es el volumen: 2 sesiones largas pueden cumplir el km de 4 cortas.
+    /// Las sesiones entran con la mitad del peso para que la frecuencia también cuente.
+    var fraction: Double { (kmFraction * 2 + sessionFraction) / 3 }
+
+    /// Aviso de carga extra. La tentación natural es "reponer" la sesión de calidad que se perdió,
+    /// pero reponer no recupera nada: **suma** una sesión dura que la semana no tenía. El plan
+    /// reparte duro/fácil precisamente para que el cuerpo asimile; meter calidad de más es la vía
+    /// rápida a la lesión y al sobreentrenamiento. `nil` cuando no hay nada que advertir.
+    ///
+    /// Es un aviso, no un candado: la app no impide entrenar, solo dice el costo.
+    static func extraLoadWarning(plannedHard: Int, completedHard: Int, missedHard: Int) -> String? {
+        if completedHard > plannedHard {
+            return "Llevas \(completedHard) sesiones de calidad y el plan pedía \(plannedHard). "
+                + "El exceso de intensidad no acelera nada: baja el resto de la semana a fácil."
+        }
+        if missedHard > 0 {
+            // El problema real no es reprogramar: es *encadenar* intensidad para compensar.
+            // Mover el tempo del martes al miércoles suele estar bien; hacerlo el día siguiente
+            // a otra sesión dura, no.
+            return "Se te fue \(missedHard == 1 ? "una sesión" : "\(missedHard) sesiones") de calidad. "
+                + "Si la reprogramas, deja al menos un día fácil o de descanso entre sesiones "
+                + "intensas — lo que hace daño es acumularlas para compensar, no moverlas."
+        }
+        if plannedHard > 0, completedHard >= plannedHard {
+            return "Ya cubriste tus \(plannedHard) sesiones de calidad de la semana. "
+                + "Lo que falte, en fácil."
+        }
+        return nil
+    }
+
+    /// El aviso para esta semana (ver `extraLoadWarning(plannedHard:completedHard:missedHard:)`).
+    var extraLoadWarning: String? {
+        Self.extraLoadWarning(plannedHard: plannedHardSessions,
+                              completedHard: completedHardSessions,
+                              missedHard: missedHardDays)
+    }
+
+    /// Cómo va la semana, en una frase.
+    var summary: String {
+        switch fraction {
+        case 1:      return "Semana completa. Así se construye."
+        case 0.8...: return "Vas al día con tu plan."
+        case 0.5...: return "Vas a medias: aún hay semana para cerrar."
+        case 0.01...: return "Arrancaste. Suma una sesión más."
+        default:     return "Sin sesiones de carrera esta semana."
+        }
+    }
+}
+
+/// Cómo salió un día de la semana: lo que el plan pedía vs. lo que de hecho corriste. Sirve para
+/// explicar **por qué** faltaron sesiones ("el lunes pedía tempo de 8 km y corriste 5.2") en vez
+/// de solo decir "2 de 4".
+struct PlanDayOutcome: Identifiable, Equatable, Sendable {
+    enum Status: Sendable {
+        case done       // se cumplió (con tolerancia)
+        case partial    // se corrió, pero menos de lo pedido
+        case missed     // el día ya pasó y no hubo sesión
+        case extra      // era descanso y se corrió
+        case rest       // descanso respetado
+        case upcoming   // el día aún no llega: nada que juzgar
+    }
+
+    let weekday: Int
+    let plannedKind: PlannedWorkoutKind?
+    let plannedKm: Double?
+    let doneKm: Double
+    let doneMinutes: Int
+    let status: Status
+
+    var id: Int { weekday }
+
+    /// Nadie clava el kilometraje exacto (GPS, semáforos, dar la vuelta antes), así que hay
+    /// tolerancia. **Híbrida, no un porcentaje fijo**: un 10% de 4 km son 400 m (irrelevantes) y
+    /// un 10% de 20 km son 2 km (media hora de trote). El piso absoluto cubre lo corto y la
+    /// fracción cubre lo largo, y manda el mayor de los dos.
+    static let toleranceFloorKm = 0.5
+    static let toleranceFraction = 0.05
+
+    /// Kilómetros mínimos para que el día cuente como cumplido.
+    static func minimumKm(for plannedKm: Double) -> Double {
+        plannedKm - max(toleranceFloorKm, plannedKm * toleranceFraction)
+    }
+
+    static func status(plannedKm: Double?, doneKm: Double, hasPassed: Bool) -> Status {
+        guard let plannedKm, plannedKm > 0 else { return doneKm > 0 ? .extra : .rest }
+        if doneKm <= 0 { return hasPassed ? .missed : .upcoming }
+        return doneKm >= minimumKm(for: plannedKm) ? .done : .partial
+    }
+
+    var weekdayName: String {
+        let symbols = Calendar.current.weekdaySymbols
+        return (1...7).contains(weekday) ? symbols[weekday - 1] : "—"
+    }
+
+    /// Lo pedido vs. lo hecho, en una frase. En español llano, sin regañar.
+    var summary: String {
+        let asked = plannedKm.map { "\(plannedKind?.rawValue ?? "Carrera") de \(Goal.trim($0)) km" }
+        let did = "\(Goal.trim(doneKm)) km" + (doneMinutes > 0 ? " en \(doneMinutes) min" : "")
+        switch status {
+        case .done:
+            return "pedía \(asked ?? "—") · hiciste \(did)"
+        case .partial:
+            let missing = (plannedKm ?? 0) - doneKm
+            return "pedía \(asked ?? "—") · hiciste \(did), faltaron \(Goal.trim(missing)) km"
+        case .missed:
+            return "pedía \(asked ?? "—") · sin sesión ese día"
+        case .extra:
+            return "era descanso · corriste \(did)"
+        case .rest:
+            return "descanso"
+        case .upcoming:
+            return "toca \(asked ?? "—")"
+        }
+    }
 }
 
 /// Plan sugerido desde el historial: config (días/semana + días preferidos) + una meta de volumen,
