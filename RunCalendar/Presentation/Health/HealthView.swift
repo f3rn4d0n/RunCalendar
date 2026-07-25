@@ -165,8 +165,9 @@ struct HealthView: View {
     @ViewBuilder
     private func raceReadinessSection(data: HealthLoaded) -> some View {
         let rows = targetRaces
+            // Consciente de la fecha: el consejo de cada carrera depende de las semanas que faltan.
             .compactMap { race -> (Race, RaceReadiness)? in
-                data.readiness.first { $0.distance == race.discipline }.map { (race, $0) }
+                viewModel.readiness(for: race).map { (race, $0) }
             }
             // Solo lo accionable: oculta las que ya estás listo (eso queda en el detalle).
             .filter { $0.1.level != .ready }

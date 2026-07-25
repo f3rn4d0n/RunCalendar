@@ -331,7 +331,11 @@ struct AssessReadinessUseCase: Sendable {
         Target(distance: .marathon, longRunKm: 32, weeklyMinKm: 50)
     ]
 
-    func callAsFunction(_ summary: FitnessSummary) -> [RaceReadiness] {
+    /// `weeksAvailable` = semanas hasta la carrera. Con ese dato el consejo cambia: subir la
+    /// tirada larga solo tiene sentido si el tiempo alcanza; si no, lo sano es mantener y llegar
+    /// descansado. `nil` = sin carrera de referencia (la sección "¿Listo para…?"), y entonces
+    /// el consejo es el de siempre.
+    func callAsFunction(_ summary: FitnessSummary, weeksAvailable: Int? = nil) -> [RaceReadiness] {
         targets.map { target in
             let level = level(for: target, summary: summary)
             return RaceReadiness(
@@ -341,10 +345,17 @@ struct AssessReadinessUseCase: Sendable {
                 recommendedLongRunKm: target.longRunKm,
                 currentWeeklyKm: summary.weeklyDistanceKm,
                 recommendedWeeklyKm: target.weeklyMinKm,
-                note: note(for: target, level: level, summary: summary),
-                recommendations: recommendations(for: target, summary: summary)
+                note: note(for: target, level: level, summary: summary, weeksAvailable: weeksAvailable),
+                recommendations: recommendations(for: target, summary: summary,
+                                                 weeksAvailable: weeksAvailable)
             )
         }
+    }
+
+    private func timing(for target: Target, summary: FitnessSummary,
+                        weeksAvailable: Int?) -> (usable: Int, needed: Int)? {
+        RaceReadiness.timing(gapKm: target.longRunKm - summary.longestRunKm,
+                             weeksAvailable: weeksAvailable)
     }
 
     /// El nivel se decide por la carrera más larga vs. el long run recomendado.
@@ -356,27 +367,57 @@ struct AssessReadinessUseCase: Sendable {
         return .building
     }
 
-    private func note(for target: Target, level: ReadinessLevel, summary: FitnessSummary) -> String {
+    private func note(for target: Target, level: ReadinessLevel, summary: FitnessSummary,
+                      weeksAvailable: Int?) -> String {
         let longest = summary.longestRunKm.formatted(.number.precision(.fractionLength(0)))
         switch level {
         case .ready:
             var text = "Tu carrera más larga (\(longest) km) cubre esta distancia."
-            if summary.weeklyDistanceKm < target.weeklyMinKm {
+            if let weeksAvailable, weeksAvailable <= RaceReadiness.taperWeeks {
+                text += " Estás en semana de afinamiento: baja el volumen y llega descansado."
+            } else if summary.weeklyDistanceKm < target.weeklyMinKm {
                 text += " Para más comodidad, sube tu volumen hacia \(Int(target.weeklyMinKm)) km/semana."
             }
             return text
-        case .almost:
-            return "Casi. Sube tu long run hacia \(Int(target.longRunKm)) km."
-        case .building:
-            return "Construye base: apunta a \(Int(target.longRunKm)) km de long run y "
-                + "\(Int(target.weeklyMinKm)) km semanales."
+        case .almost, .building:
+            let goal = level == .almost
+                ? "Casi. Sube tu long run hacia \(Int(target.longRunKm)) km."
+                : "Construye base: apunta a \(Int(target.longRunKm)) km de long run y "
+                    + "\(Int(target.weeklyMinKm)) km semanales."
+            guard let timing = timing(for: target, summary: summary, weeksAvailable: weeksAvailable) else {
+                return goal
+            }
+            if timing.usable <= 0 {
+                return "Tu carrera es esta semana y tu long run va en \(longest) km: no subas nada, "
+                    + "llega descansado y corre a un ritmo conservador."
+            }
+            if timing.needed <= timing.usable {
+                return goal + " Te alcanza: \(timing.needed) "
+                    + (timing.needed == 1 ? "semana" : "semanas") + " a +1–2 km y llegas."
+            }
+            return "No te alcanza con seguridad: subir a \(Int(target.longRunKm)) km pediría "
+                + "~\(timing.needed) semanas y tienes \(timing.usable). Mantén tu long run de "
+                + "\(longest) km y llega descansado."
         }
     }
 
     /// Recomendaciones concretas de qué mejorar para llegar listo a la distancia.
-    private func recommendations(for target: Target, summary: FitnessSummary) -> [String] {
+    private func recommendations(for target: Target, summary: FitnessSummary,
+                                 weeksAvailable: Int?) -> [String] {
         var recs: [String] = []
-        if summary.longestRunKm < target.longRunKm {
+        let timing = timing(for: target, summary: summary, weeksAvailable: weeksAvailable)
+        // Con la carrera encima, subir la tirada larga es la peor idea: primero el afinamiento.
+        if let timing, timing.usable <= 0 {
+            recs.append("Tu carrera es esta semana: no subas volumen. Corre suave, duerme bien y "
+                + "ajusta tu ritmo a los \(fmt(summary.longestRunKm)) km que ya tienes cubiertos.")
+            recs.append(contentsOf: focusTips(for: target.distance))
+            return recs
+        }
+        if let timing, timing.needed > timing.usable {
+            recs.append("Con \(timing.usable) \(timing.usable == 1 ? "semana" : "semanas") de trabajo "
+                + "no se llega sano a \(Int(target.longRunKm)) km (pediría ~\(timing.needed)). "
+                + "Mantén tu long run, o busca una distancia menor para este evento.")
+        } else if summary.longestRunKm < target.longRunKm {
             let gap = target.longRunKm - summary.longestRunKm
             recs.append("Sube tu carrera más larga de \(fmt(summary.longestRunKm)) a "
                 + "\(Int(target.longRunKm)) km (≈ +\(fmt(gap)) km), sumando 1–2 km por semana.")
@@ -387,7 +428,10 @@ struct AssessReadinessUseCase: Sendable {
         }
         recs.append(contentsOf: focusTips(for: target.distance))
         if summary.longestRunKm >= target.longRunKm && summary.weeklyDistanceKm >= target.weeklyMinKm {
-            recs.insert("¡Vas listo! Mantén tu rutina y llega descansado al evento.", at: 0)
+            let close = (weeksAvailable ?? .max) <= RaceReadiness.taperWeeks
+            recs.insert(close
+                ? "¡Vas listo! Es tu semana de afinamiento: menos volumen, nada de sesiones nuevas."
+                : "¡Vas listo! Mantén tu rutina y llega descansado al evento.", at: 0)
         }
         return recs
     }
