@@ -16,7 +16,7 @@ Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Au
 > (qué existe hoy) y el [Mapa del código](#mapa-del-código-para-retomar-rápido) (dónde vive qué +
 > cableado de ViewModels), luego [Notas para desarrolladores](#notas-para-desarrolladores--ia)
 > (convenciones y trampas) y [Troubleshooting](#troubleshooting). El [Roadmap](#roadmap-y-backlog)
-> tiene la visión y lo pendiente.
+> tiene la visión; [Pendientes](docs/pendientes.md) tiene el backlog priorizado.
 
 ---
 
@@ -300,7 +300,7 @@ users/{uid}/bodyLogs/{yyyy-MM-dd}    # review semanal: energía y hambre (fase 2
 > sincronización con la app Salud salen gratis, y el progreso de la meta de peso —que ya
 > leía de Salud— se mueve solo. Por eso `bodyLogs` guarda **solo lo subjetivo**.
 
-### Modelo de datos futuro (fases 1–4, tentativo)
+### Modelo de datos futuro (tentativo)
 
 Boceto para que las fases de la visión se implementen con estructura consistente. Todo cuelga
 de `users/{uid}/…` y hereda las mismas reglas de seguridad. **Aún no existe** — es guía de diseño.
@@ -310,13 +310,15 @@ users/{uid}/goals/{goalId}          # ✅ fase 1 (ya existe): tipo, targetValue,
 users/{uid}/plan/{planId}           # plantilla del plan (semanas, días)                       (fase 2)
 users/{uid}/plan/{planId}/days/{d}  # día planificado: tipo, descripción (p. ej. 8×1'/2')       (fase 2)
 users/{uid}/bodyLogs/{yyyy-MM-dd}   # ✅ fase 2: energía y hambre (peso/cintura viven en Salud)
-users/{uid}/nutrition/{profileId}   # objetivos: kcal, macros, hidratación; adherencia diaria   (fase 4)
+users/{uid}/strength/{sessionId}     # fuerza: ejercicio × peso × reps; PR de levantamiento      (fase 4)
+users/{uid}/nutrition/{profileId}   # objetivos: kcal, macros, hidratación             (post-MVP, ver Pendientes)
 ```
 
-Notas: la **adherencia** del plan (fase 2) sale de cruzar el día planificado con las
-`TrainingSession.completed` que ya importa Salud; el **review corporal** (fase 3) reusa el patrón
-de `recoveryLogs`; la **nutrición** (fase 4) se acota a *objetivos + adherencia (checkbox)*, no a
-un registro de alimentos.
+Notas: la **adherencia** del plan ya existe y **no** persiste nada — se calcula cruzando el plan de
+la semana (derivado) con las `TrainingSession.completed`; persistir `plan/{planId}` es justamente lo
+que falta para tener adherencia **histórica** (ver [Pendientes](docs/pendientes.md)). El **review
+corporal** reusa el patrón de `recoveryLogs`. La **nutrición** sale del MVP; si vuelve, se acota a
+*objetivos + adherencia (checkbox)*, no a un registro de alimentos.
 
 ---
 
@@ -541,8 +543,9 @@ IA** que, sobre tus objetivos, tu plan, tu adherencia y tus tendencias reales, g
 entrenamiento y de alimentación personalizados** y te entregue **reportes por correo**. El artefacto
 objetivo es un [Manual del Atleta Híbrido](docs/ejemplo-manual-atleta.md) (objetivos → carrera +
 técnica + hidratación → nutrición/macros → seguimiento) — hoy hecho a mano; la app debería generarlo.
-La base de métricas fiables ya existe; falta la estructura (objetivos, plan, nutrición) sobre la que
-la IA pueda razonar — por eso la IA es la **última** fase, no la primera.
+La base de métricas fiables ya existe; falta la estructura (objetivos, plan, fuerza) sobre la que la
+IA pueda razonar — por eso la IA es la **última** fase, no la primera. La **nutrición sale del MVP**:
+la primera versión del reporte razonará sobre entrenamiento y condición, no sobre alimentación.
 
 **No competimos contra Strava/Garmin; competimos contra el papel.** La app es el **dashboard**; el
 [Manual](docs/ejemplo-manual-atleta.md) es la **fuente de conocimiento/metodología**. Cada mañana el
@@ -567,8 +570,9 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 | **1. Objetivos** ✅ | Entidad `Goal` + CRUD + tab con progreso (tiempo vs. PRs, VO₂max/peso vs. Salud) y **"Sugerir meta"** (Riegel/IMC, sin IA) | Marco del que cuelga todo; también abre el rediseño de navegación |
 | **2. Review dominical** ✅ | Check-in semanal: peso y cintura (→ Salud) + energía y hambre (→ `bodyLogs`), con card en *Hoy* los domingos. **Fotos pendientes** (requieren Firebase Storage) | Reusa el patrón de `recoveryLogs`. La **cintura** detecta *recomposición*: peso estancado pero cintura bajando |
 | **3. Plan + Campañas** ✅ | **Generación automática** de la semana (motor determinista sin IA), **misión de hoy** en Hoy, **detalle** de sesión, **"Sugerir plan"** desde historial, preview con descansos, **adherencia** de la semana y **Campañas** (misiones derivadas del plan + las metas) | Responde "¿qué hago hoy?" y "¿cómo voy?". Ver [Plan](#-plan-fase-3) |
-| **4. Nutrición** | **Solo objetivos + adherencia (checkbox)**: macros/kcal objetivo, hidratación, ¿cumpliste hoy? — **no** food-logger | Dominio nuevo; acotado a propósito para no volverse contador de calorías |
-| **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app** |
+| **4. Fuerza** | Registro de fuerza + **PR de levantamiento** (dominio nuevo: ejercicio × peso × reps). La mitad **híbrida** del producto | Es la brecha más grande entre lo que la app promete y lo que hace: hoy solo sirve a corredores |
+| **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app**. Indefendible sin target de pruebas (ver [Pendientes](docs/pendientes.md)) |
+| ~~Nutrición~~ | **Movida a post-MVP.** Incluso acotada (objetivos + checkbox, sin food-logger) arrastra dominio, UI y un modelo de adherencia propios | Demasiado para ahora y no es lo que sostiene el MVP. Detalle en [Pendientes](docs/pendientes.md#post-mvp) |
 
 > **Reestructura UX:** ✅ hecha en su mayoría — 4 tabs por *ciclo del atleta* (**Hoy · Entrenar ·
 > Objetivos · Progreso**), Carreras/Calendario dentro de Hoy, Perfil como avatar. **Hoy** ya tiene la
@@ -580,7 +584,7 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 > (recuperación/ACWR/readiness) y la vista **"misión"** en Objetivos. Pendiente: decidir **dark-only** vs.
 > adaptable y rodar el look "misión" a más pantallas. Patrones en [Diseño / UI](#dirección-de-rediseño-en-curso).
 >
-> Boceto de colecciones para estas fases: ver [Modelo de datos futuro](#modelo-de-datos-futuro-fases-1-4-tentativo).
+> Boceto de colecciones para estas fases: ver [Modelo de datos futuro](#modelo-de-datos-futuro-tentativo).
 
 **Hecho** (resumen): importación auto de Salud (todos los tipos, incl. "Otro") + rutas + splits,
 búsqueda de ubicación + "Cómo llegar", Condición completa (recuperación, ACWR, VO₂max, tendencias,
@@ -593,17 +597,16 @@ rings) y **navegación por ciclo del atleta** (Hoy · Entrenar · Objetivos · P
 generación automática de la semana (motor determinista), misión de hoy, detalle de sesión, "Sugerir plan"
 desde historial, preview con descansos, **adherencia de la semana** y **Campañas** (misiones derivadas).
 
-**Pendiente:**
+## Pendiente
 
-- [x] **Marca → "Rumbo"** (`CFBundleDisplayName` + branding). Identificadores técnicos (bundle id,
-  target, scheme, Firebase) se mantienen como *RunCalendar*. Rename técnico: opcional y riesgoso, sin prisa.
-- [x] **Fase 3 — cerrada:** **adherencia** de la semana y modelo de **Campañas** (derivado, sin
-  persistir). Opcional pendiente: **adherencia histórica** (pide guardar un snapshot del plan por
-  semana), varias campañas simultáneas con misiones manuales, y **tab Plan** propia.
-- [ ] **Fases 4–5** de la visión (ver tabla): Nutrición → IA + reportes por correo.
-- [x] **Nuevos objetivos** auto-medibles (Tier 1): **volumen semanal**, **FC en reposo**, **tirada larga**.
-- [ ] **Registro de fuerza + PR de levantamiento** — la mitad "híbrida" (dominio nuevo: ejercicio × peso × reps).
-- [ ] **Decisión de diseño:** ¿comprometer **dark-only** ("oscuro-primero" del Kit) o mantener adaptable?
-- [ ] **Widget de cuenta regresiva** (WidgetKit) — espera membresía de pago (App Groups).
-- [ ] Target de **Apple Watch** (watchOS).
-- [ ] **Catálogo de carreras** compartido entre usuarios.
+Backlog completo, priorizado y con el porqué de cada prioridad: **[docs/pendientes.md](docs/pendientes.md)**.
+
+Lo que hay que saber sin abrirlo:
+
+| | |
+|---|---|
+| **P0 · roto hoy** | El **entitlement de Sign in with Apple** está borrado: el botón compila y falla en runtime. Y **no hay modo lesión/enfermedad**, así que la adherencia marca 0% al atleta que hizo lo médicamente correcto |
+| **P1 · antes de tener usuarios** | **Observabilidad** (solo hay `os.log`: en el teléfono de alguien más no se sabe que algo falló) · **target de pruebas unitarias** (hoy son tres scripts en `Scripts/` que no corren solos y solo alcanzan a `Domain/Entities`) · decidir **dark-only vs. adaptable**, que bloquea cerrar el Kit |
+| **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
+| **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
+| **Post-MVP** | **Nutrición** |
