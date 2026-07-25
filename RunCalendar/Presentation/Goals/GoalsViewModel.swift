@@ -214,7 +214,8 @@ final class GoalsViewModel {
     /// Meta sugerida (editable) para un tipo/distancia, con datos reales.
     func recommendation(type: GoalType, distance: RaceDiscipline?) -> GoalRecommendation? {
         let records = PersonalRecords.compute(races: racesViewModel.races,
-                                              sessions: trainingViewModel.sessions)
+                                              sessions: trainingViewModel.sessions,
+                                              splits: trainingViewModel.bestSplits)
         // Las metas auto-medibles se sugieren desde tu valor actual real (volumen, tirada, FC).
         return recommendGoal(type: type, distance: distance, records: records, metrics: metrics,
                              current: currentValue(type: type, distance: distance))
@@ -265,7 +266,8 @@ final class GoalsViewModel {
     }
 
     private func records() -> [PersonalRecord] {
-        PersonalRecords.compute(races: racesViewModel.races, sessions: trainingViewModel.sessions)
+        PersonalRecords.compute(races: racesViewModel.races, sessions: trainingViewModel.sessions,
+                                splits: trainingViewModel.bestSplits)
     }
 
     /// Valor actual del atleta para la meta. `nil` si aún no hay dato.

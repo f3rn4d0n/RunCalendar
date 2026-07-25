@@ -351,13 +351,89 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
                     type: type,
                     date: workout.startDate,
                     distanceKm: km,
-                    durationMin: workout.duration > 0 ? Int(workout.duration / 60) : nil,
+                    // Redondea, no trunca: `Int(_:)` convertía 25:45 en 25 min y todo lo derivado
+                    // (ritmo, velocidad) salía siempre a favor del atleta.
+                    // ponytail: la sesión solo guarda minutos, así que quedan ±30 s. Donde importa
+                    // —los récords— el tiempo viene de las muestras de Salud con segundos exactos;
+                    // si algún día hace falta el ritmo exacto por sesión, hay que guardar segundos.
+                    durationMin: workout.duration > 0 ? Int((workout.duration / 60).rounded()) : nil,
                     avgHeartRate: averageHeartRate(of: workout),
                     cadenceSPM: cadenceSPM(of: workout),
                     perceivedEffort: efforts[workout.uuid.uuidString]
                 )
             }
             .sorted { $0.date > $1.date }
+    }
+
+    // MARK: - Récords por tramo
+
+    /// Cuántas corridas se consultan a la vez al buscar tramos. Cada una es una consulta
+    /// de muestras a HealthKit; en serie el historial completo tarda demasiado, y sin límite
+    /// se cargarían todas las muestras de todas las corridas en memoria a la vez.
+    private static let splitBatchSize = 8
+
+    func fetchBestSplits(distancesKm: [Double]) async throws -> [BestSplit] {
+        guard isAvailable(), let shortest = distancesKm.min() else { return [] }
+        // Solo las corridas que cubren al menos la distancia más corta pueden contener un tramo.
+        let candidates = try await runningWorkouts(since: .distantPast)
+            .filter { workoutDistanceKm($0) >= shortest }
+        Log.health.info("fetchBestSplits: \(candidates.count, privacy: .public) corridas candidatas")
+
+        var best: [Double: BestSplit] = [:]
+        for start in stride(from: 0, to: candidates.count, by: Self.splitBatchSize) {
+            let batch = candidates[start..<min(start + Self.splitBatchSize, candidates.count)]
+            let found = await withTaskGroup(of: [BestSplit].self) { group in
+                for workout in batch {
+                    group.addTask { await self.splits(in: workout, distancesKm: distancesKm) }
+                }
+                return await group.reduce(into: [BestSplit]()) { $0 += $1 }
+            }
+            for split in found where (best[split.distanceKm]?.seconds ?? .max) > split.seconds {
+                best[split.distanceKm] = split
+            }
+        }
+        return distancesKm.compactMap { best[$0] }
+    }
+
+    /// El mejor tramo de cada distancia dentro de una sola corrida.
+    private func splits(in workout: HKWorkout, distancesKm: [Double]) async -> [BestSplit] {
+        let km = workoutDistanceKm(workout)
+        let curve = await distanceCurve(of: workout)
+        guard curve.count >= 2 else { return [] }
+        return distancesKm.filter { $0 <= km }.compactMap { target in
+            guard let seconds = BestSplit.fastestWindow(curve, meters: target * 1000) else { return nil }
+            return BestSplit(workoutID: workout.uuid.uuidString, distanceKm: target,
+                             seconds: seconds, date: workout.startDate, workoutKm: km)
+        }
+    }
+
+    /// Distancia acumulada (metros) contra segundos desde el inicio de la corrida.
+    private func distanceCurve(of workout: HKWorkout) async -> [BestSplit.CurvePoint] {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) else { return [] }
+        let predicate = HKQuery.predicateForObjects(from: workout)
+        let sort = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        let samples: [HKQuantitySample] = await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: sort
+            ) { _, samples, _ in
+                continuation.resume(returning: (samples as? [HKQuantitySample]) ?? [])
+            }
+            store.execute(query)
+        }
+        var cumulative = 0.0
+        var curve: [BestSplit.CurvePoint] = [(0, 0)]
+        for sample in samples {
+            cumulative += sample.quantity.doubleValue(for: .meter())
+            // Muestras solapadas o fuera de orden: suman metros al último punto en vez de
+            // crear uno nuevo, para que el tiempo de la curva quede siempre creciente.
+            let seconds = sample.endDate.timeIntervalSince(workout.startDate)
+            if seconds > curve[curve.count - 1].seconds {
+                curve.append((seconds, cumulative))
+            } else {
+                curve[curve.count - 1].meters = cumulative
+            }
+        }
+        return curve
     }
 
     func fetchAthleteMetrics() async throws -> AthleteMetrics {

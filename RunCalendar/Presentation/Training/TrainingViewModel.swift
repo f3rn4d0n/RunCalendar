@@ -7,6 +7,9 @@ final class TrainingViewModel {
 
     private(set) var sessions: [TrainingSession] = []
     private(set) var recentWorkouts: [HealthWorkout] = []
+    /// Mejores tramos de Salud (el 5K/10K/… más rápido dentro de cualquier corrida).
+    private(set) var bestSplits: [BestSplit] = []
+    private(set) var isLoadingSplits = false
     var errorMessage: String?
     private var hasStarted = false
     private var sessionsLoaded = false
@@ -21,6 +24,7 @@ final class TrainingViewModel {
     private let updateTraining: UpdateTrainingUseCase
     private let deleteTraining: DeleteTrainingUseCase
     private let fetchRecentWorkouts: FetchRecentWorkoutsUseCase
+    private let fetchBestSplits: FetchBestSplitsUseCase
     private let fetchWorkoutRoute: FetchWorkoutRouteUseCase
     private let fetchWeather: FetchRaceWeatherUseCase
 
@@ -31,6 +35,7 @@ final class TrainingViewModel {
         updateTraining: UpdateTrainingUseCase,
         deleteTraining: DeleteTrainingUseCase,
         fetchRecentWorkouts: FetchRecentWorkoutsUseCase,
+        fetchBestSplits: FetchBestSplitsUseCase,
         fetchWorkoutRoute: FetchWorkoutRouteUseCase,
         fetchWeather: FetchRaceWeatherUseCase
     ) {
@@ -40,6 +45,7 @@ final class TrainingViewModel {
         self.updateTraining = updateTraining
         self.deleteTraining = deleteTraining
         self.fetchRecentWorkouts = fetchRecentWorkouts
+        self.fetchBestSplits = fetchBestSplits
         self.fetchWorkoutRoute = fetchWorkoutRoute
         self.fetchWeather = fetchWeather
     }
@@ -122,6 +128,17 @@ final class TrainingViewModel {
             await importWorkout(workout)
         }
         await backfillEffort()
+        await loadBestSplits()
+    }
+
+    /// Busca en Salud el mejor tramo de cada distancia con récord. Es la única forma de ver
+    /// el mismo 5K que muestra el Watch: ese récord suele vivir dentro de una corrida más larga.
+    /// Caro (una consulta por corrida del historial), así que se calcula una vez por arranque.
+    func loadBestSplits() async {
+        guard !isLoadingSplits, bestSplits.isEmpty else { return }
+        isLoadingSplits = true
+        defer { isLoadingSplits = false }
+        bestSplits = (try? await fetchBestSplits(distancesKm: PersonalRecords.targetsKm)) ?? []
     }
 
     /// Rellena RPE y cadencia de carreras ya importadas con lo que Salud ahora expone.

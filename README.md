@@ -108,6 +108,11 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   **lee automáticamente del Apple Watch** (`workoutEffortScore`, iOS 18+) al importar;
   las ya importadas se rellenan solas (backfill idempotente). Si un entrenamiento reciente
   quedó **sin RPE**, una card discreta en Entrenar te invita a calificarlo de un toque.
+- **Récords personales** (botón 🏅 en la barra de *Entrenar*) por distancia (5K/10K/15K/21K/42K):
+  mejor tiempo, velocidad promedio, ritmo y progresión. Junta carreras con tiempo y
+  entrenamientos, y sobre todo busca el **tramo más rápido dentro de cualquier corrida**
+  (tu mejor 5K puede venir de una corrida de 10 km, igual que los récords del Apple Watch).
+  Ver `BestSplit.fastestWindow`, `HealthKitService.fetchBestSplits` y `PersonalRecords`.
 - Detalle de **solo lectura** (editar es explícito).
 
 ### 📈 Progreso · Condición (Apple Salud / HealthKit)
@@ -121,7 +126,6 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   extra los días que aplican. Se activa con ~2 semanas de registros.
 - **Carga de entrenamiento (ACWR)**: ratio agudo:crónico con zonas (óptimo / riesgo),
   ponderada por **esfuerzo (RPE)** — una sesión intensa pesa más que una suave de igual duración.
-- **Récords personales** por distancia y velocidad promedio.
 - Cards **educativas** por métrica (qué es, rangos por edad, tu valoración).
 - **Review semanal** (fase 2): peso · cintura · energía · hambre. Las medidas se escriben en
   **Salud**; energía y hambre van a `bodyLogs`. Card en *Hoy* los **domingos**, que desaparece

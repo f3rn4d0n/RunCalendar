@@ -33,9 +33,18 @@ enum PersonalRecords {
     /// Tolerancia de distancia para asignar un esfuerzo a una distancia estándar (±5%).
     private static let tolerance = 0.05
 
-    static func compute(races: [Race], sessions: [TrainingSession]) -> [PersonalRecord] {
-        let efforts = raceEfforts(races) + trainingEfforts(sessions)
-        let standard: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
+    /// Distancias con récord, en orden.
+    static let standard: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
+
+    /// Las mismas distancias en km, para pedirle los tramos a Salud.
+    static let targetsKm: [Double] = standard.compactMap(\.standardDistanceKm)
+
+    /// `splits` son los mejores tramos que Salud encontró **dentro** de cualquier corrida
+    /// (tu 5K más rápido puede venir de una corrida de 10 km). Vacío en Mac o sin permiso:
+    /// ahí el récord se calcula solo con carreras y entrenamientos completos, como antes.
+    static func compute(races: [Race], sessions: [TrainingSession],
+                        splits: [BestSplit] = []) -> [PersonalRecord] {
+        let efforts = raceEfforts(races) + trainingEfforts(sessions, coveredBy: splits) + splitEfforts(splits)
         return standard.compactMap { distance in
             guard let target = distance.standardDistanceKm else { return nil }
             let bucket = efforts.filter { abs($0.distanceKm - target) / target <= tolerance }
@@ -56,15 +65,31 @@ enum PersonalRecords {
         }
     }
 
-    /// Entrenamientos de carrera con distancia y duración.
-    private static func trainingEfforts(_ sessions: [TrainingSession]) -> [RunEffort] {
+    /// Entrenamientos de carrera con distancia y duración, menos los que ya aportaron un tramo:
+    /// para esos, el tramo mide lo mismo o mejor y con segundos exactos (la sesión guarda
+    /// minutos redondeados), así que la fila del entrenamiento sobra.
+    private static func trainingEfforts(_ sessions: [TrainingSession],
+                                        coveredBy splits: [BestSplit]) -> [RunEffort] {
         sessions.compactMap { session in
             guard session.type == .running,
                   let km = session.distanceKm, km > 0,
-                  let minutes = session.durationMin, minutes > 0
+                  let minutes = session.durationMin, minutes > 0,
+                  // Mismo entrenamiento de Salud: la sesión se importó con `workout.startDate`.
+                  !splits.contains(where: { abs($0.date.timeIntervalSince(session.date)) < 1 })
             else { return nil }
             return RunEffort(id: "train-\(session.id)", source: .training, name: session.title,
                              date: session.date, distanceKm: km, timeSeconds: minutes * 60)
+        }
+    }
+
+    /// El mejor tramo de cada distancia, tal como lo cuenta el Watch.
+    private static func splitEfforts(_ splits: [BestSplit]) -> [RunEffort] {
+        splits.map { split in
+            let km = split.workoutKm.formatted(.number.precision(.fractionLength(1)))
+            return RunEffort(id: "split-\(split.id)", source: .training,
+                             name: "dentro de tu corrida de \(km) km",
+                             date: split.date, distanceKm: split.distanceKm,
+                             timeSeconds: split.seconds)
         }
     }
 }
