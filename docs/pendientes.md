@@ -64,15 +64,23 @@ se denegó, una escritura a Firestore que rebota — todo se ve igual desde aqu�
 
 Alcance propuesto, en orden:
 
-1. **Crashlytics.** Firebase ya está en el proyecto, así que es agregar el paquete y el `configure`.
-   Lo más caro por lo más barato: sin esto un crash reproducible solo en un dispositivo es
-   indetectable.
-2. **Errores no fatales en los caminos frágiles**, que ya están identificados porque cada uno tiene
-   su `Log.*.error` hoy: permisos de HealthKit, lectura de rutas GPS, escritura de medidas a Salud,
-   snapshots de Firestore, geocodificación y clima.
-3. **Cuatro o cinco eventos**, no analítica exhaustiva: importó de Salud (cuántos workouts), generó
-   plan, completó sesión, hizo review dominical. Suficiente para saber si la app se **usa** o solo
-   se abre.
+1. ✅ **Crashlytics.** Hecho. `FirebaseCrashlytics` en el target, `Log.configureCrashReporting()`
+   después de `FirebaseApp.configure()`, y subida de dSYM en un `postBuildScript` **solo en
+   Release** (Debug no genera dSYM y ahí el reporte está apagado). `DEBUG_INFORMATION_FORMAT` se
+   fija explícito en Release: sin dSYM los reportes llegan como direcciones de memoria.
+2. ✅ **Errores no fatales en los caminos frágiles.** Hecho vía `Logger.failure(_:_:)`, que escribe
+   al log del sistema **y** a Crashlytics. Los 10 `catch` que había se convirtieron: autorización y
+   escritura de HealthKit, traza GPS, clima (carrera y entrenamiento), check-in de recuperación y
+   los cuatro snapshots de Firestore. Cualquier `catch` nuevo lo hereda con solo usar `failure`.
+3. **Cuatro o cinco eventos** — pendiente, y es lo único que queda de este punto. No analítica
+   exhaustiva: importó de Salud (cuántos workouts), generó plan, completó sesión, hizo review
+   dominical. Suficiente para saber si la app se **usa** o solo se abre. Requiere
+   `FirebaseAnalytics`, que sí es un paquete aparte.
+
+**Lo que falta antes de una beta real:** el panel de Crashlytics no muestra nada hasta que haya un
+build de Release en un dispositivo. Y al enviar a App Store hay que declarar la recolección de
+**datos de diagnóstico** en el App Privacy del listing (el SDK ya trae su privacy manifest, pero la
+declaración del listing es responsabilidad de la app).
 
 Lo que **no** entra: analítica de producto por pantalla, embudos, o cualquier cosa que pida
 consentimiento adicional. Esto es para saber que la app funciona, no para medir gente.

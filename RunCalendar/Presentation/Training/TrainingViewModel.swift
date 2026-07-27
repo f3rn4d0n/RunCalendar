@@ -68,7 +68,7 @@ final class TrainingViewModel {
             }
             return .success(weather)
         } catch {
-            Log.health.error("weather(training): \(error.localizedDescription, privacy: .public)")
+            Log.health.failure("weather(training)", error)
             return .failure(.serviceUnreachable)
         }
     }
@@ -81,7 +81,7 @@ final class TrainingViewModel {
         do {
             return try await fetchWorkoutRoute(onDay: date, distanceKm: distanceKm)
         } catch {
-            Log.health.error("route: error al leer ruta: \(error.localizedDescription, privacy: .public)")
+            Log.health.failure("route: al leer la traza GPS", error)
             return nil
         }
     }

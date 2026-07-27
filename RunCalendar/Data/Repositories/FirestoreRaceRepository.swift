@@ -18,7 +18,7 @@ final class FirestoreRaceRepository: RaceRepository, @unchecked Sendable {
                 .order(by: "date")
                 .addSnapshotListener { snapshot, error in
                     if let error {
-                        Log.races.error("Error en snapshot de races: \(error.localizedDescription, privacy: .public)")
+                        Log.races.failure("snapshot de races", error)
                         continuation.yield([])
                         return
                     }

@@ -64,10 +64,31 @@ targets:
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "YES"
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: "YES"
+      configs:
+        # Explícito, no por defecto: sin dSYM los crashes de Crashlytics llegan como
+        # direcciones de memoria y el panel deja de servir para nada.
+        Release:
+          DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+    # Sube los dSYM a Crashlytics al terminar el build. Sin esto los reportes llegan
+    # sin simbolizar (direcciones de memoria, no nombres de función).
+    # Solo en Release: Debug no genera dSYM y ahí el reporte está apagado de todos modos
+    # (ver `Log.configureCrashReporting`), así que correrlo solo dejaría un warning en cada build.
+    postBuildScripts:
+      - name: Crashlytics · subir dSYM
+        script: |
+          if [ "$CONFIGURATION" = "Release" ]; then
+            "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run"
+          fi
+        inputFiles:
+          - ${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}
+          - $(SRCROOT)/$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: Firebase
         product: FirebaseAuth
       - package: Firebase
         product: FirebaseFirestore
+      - package: Firebase
+        product: FirebaseCrashlytics
       - package: GoogleSignIn
         product: GoogleSignIn

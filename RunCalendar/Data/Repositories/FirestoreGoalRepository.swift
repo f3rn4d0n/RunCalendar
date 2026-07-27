@@ -17,7 +17,7 @@ final class FirestoreGoalRepository: GoalRepository, @unchecked Sendable {
                 .order(by: "createdAt")
                 .addSnapshotListener { snapshot, error in
                     if let error {
-                        Log.races.error("Error en snapshot de goals: \(error.localizedDescription, privacy: .public)")
+                        Log.races.failure("snapshot de goals", error)
                         continuation.yield([])
                         return
                     }

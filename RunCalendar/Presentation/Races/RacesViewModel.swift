@@ -89,7 +89,7 @@ final class RacesViewModel {
             }
             return .success(weather)
         } catch {
-            Log.races.error("weather: \(error.localizedDescription, privacy: .public)")
+            Log.races.failure("weather(race)", error)
             return .failure(.serviceUnreachable)
         }
     }
