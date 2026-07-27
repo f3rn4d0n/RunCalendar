@@ -16,7 +16,7 @@ final class FirestoreProfileRepository: ProfileRepository, @unchecked Sendable {
             Log.profile.info("Suscribiendo a users/\(userID, privacy: .public)")
             let listener = document(userID).addSnapshotListener { snapshot, error in
                 if let error {
-                    Log.profile.error("snapshot perfil: \(error.localizedDescription, privacy: .public)")
+                    Log.profile.failure("snapshot de perfil", error)
                     continuation.yield(nil)
                     return
                 }

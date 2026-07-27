@@ -75,7 +75,7 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
             Log.health.info("Autorización de Salud solicitada")
             return true
         } catch {
-            Log.health.error("Error de autorización de Salud: \(error.localizedDescription, privacy: .public)")
+            Log.health.failure("autorización de Salud", error)
             return false
         }
     }
@@ -471,7 +471,8 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
             Log.health.info("\(measure.displayName, privacy: .public) guardado en Salud")
         } catch {
             let code = (error as? HKError)?.code
-            Log.health.error("Error al guardar \(measure.displayName, privacy: .public) [código \((error as NSError).code, privacy: .public)]: \(error.localizedDescription, privacy: .public)")
+            Log.health.failure("guardar \(measure.displayName) en Salud "
+                + "[código \((error as NSError).code)]", error)
             // Solo si HealthKit dice que es de permisos mostramos la ruta para activarlo;
             // cualquier otro fallo se propaga tal cual en vez de culpar al permiso.
             if code == .errorAuthorizationDenied || code == .errorAuthorizationNotDetermined {

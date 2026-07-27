@@ -221,7 +221,7 @@ final class HealthViewModel {
             recentCheckIns.append(checkIn)
             Haptics.success()
         } catch {
-            Log.health.error("submitCheckIn: \(error.localizedDescription, privacy: .public)")
+            Log.health.failure("submitCheckIn", error)
         }
     }
 

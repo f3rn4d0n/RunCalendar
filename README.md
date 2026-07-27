@@ -398,6 +398,16 @@ Los del **plan** (puros, sin repo): `GeneratePlanUseCase` (el motor), `InferPrim
 Transversal: `Theme/Neon.swift` (paleta adaptable claro/oscuro), fuentes (`.mCaption`, `.mTitle3`…),
 `Haptics`, `Log`. **Todo cambio de color/tipografía va aquí** para que aplique a toda la app.
 
+**Logging y crashes** (`Core/Utils/Log.swift`): `Log.health.info(...)` para el log del sistema
+(`os.Logger`, visible en Console.app por subsistema/categoría), y en los `catch`
+**`Log.health.failure("contexto", error)`** — escribe al log **y** manda el fallo no fatal a
+Crashlytics. Usa `failure` en todo `catch` nuevo: es el único punto donde se conecta el reporte,
+así que basta con eso para que aparezca en el panel.
+
+El `context` es texto nuestro, **nunca datos del usuario**: viaja a un servicio externo. En Debug
+el reporte está apagado (`Log.configureCrashReporting`), y los dSYM se suben en un
+`postBuildScript` solo en Release.
+
 ---
 
 ## Diseño / UI
@@ -610,7 +620,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad** (solo hay `os.log`: en el teléfono de alguien más no se sabe que algo falló) · **target de pruebas unitarias** (hoy son tres scripts en `Scripts/` que no corren solos y solo alcanzan a `Domain/Entities`) · decidir **dark-only vs. adaptable**, que bloquea cerrar el Kit |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **target de pruebas unitarias** (hoy son tres scripts en `Scripts/` que no corren solos y solo alcanzan a `Domain/Entities`) · decidir **dark-only vs. adaptable**, que bloquea cerrar el Kit |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

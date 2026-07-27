@@ -18,7 +18,7 @@ final class FirestoreTrainingRepository: TrainingRepository, @unchecked Sendable
                 .order(by: "date", descending: true)
                 .addSnapshotListener { snapshot, error in
                     if let error {
-                        Log.training.error("snapshot trainings: \(error.localizedDescription, privacy: .public)")
+                        Log.training.failure("snapshot de trainings", error)
                         continuation.yield([])
                         return
                     }

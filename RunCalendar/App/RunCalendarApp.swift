@@ -13,6 +13,7 @@ struct RunCalendarApp: App {
         // Firebase DEBE configurarse antes de crear el AppContainer, porque éste
         // instancia repositorios que acceden a Auth.auth() / Firestore.firestore().
         FirebaseApp.configure()
+        Log.configureCrashReporting()
         let projectID = FirebaseApp.app()?.options.projectID ?? "nil"
         Log.app.info("Firebase configurado, projectID=\(projectID, privacy: .public)")
         Self.configureNavigationAppearance()
