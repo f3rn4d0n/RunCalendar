@@ -36,6 +36,10 @@ targets:
       path: RunCalendar/Resources/Info.plist
       properties:
         CFBundleDisplayName: Rumbo
+        # La identidad Neon es dark-first: la app se fija en oscuro y no sigue al sistema.
+        # Aquí y no con `.preferredColorScheme(.dark)` para que también cubra lo que presenta
+        # UIKit (alertas, teclado, hojas de Salud/Calendario), fuera del alcance de SwiftUI.
+        UIUserInterfaceStyle: Dark
         UILaunchScreen: {}
         UIApplicationSupportsIndirectInputEvents: true
         UISupportedInterfaceOrientations:

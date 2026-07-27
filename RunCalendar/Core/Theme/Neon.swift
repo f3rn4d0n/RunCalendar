@@ -1,22 +1,22 @@
 import SwiftUI
 import UIKit
 
-/// Paleta neón adaptable de la app. Cada color tiene una variante para modo claro
-/// (más profunda/saturada, legible sobre blanco) y otra para modo oscuro (con brillo).
+/// Paleta neón de la app. **Dark-only**: la app fija `UIUserInterfaceStyle: Dark`
+/// (ver `project.yml`), así que estos son los valores del RunCalendar UI Kit tal cual,
+/// sin variante clara. Cambia aquí y se propaga a toda la app.
 enum Neon {
-    // Valores del RunCalendar UI Kit: dark = identidad insignia; light = tono armonizado, legible.
-    static let accent = adaptive(light: 0x2E6FE6, dark: 0x3D8BFF) // azul periwinkle
-    static let green  = adaptive(light: 0x0E9E6A, dark: 0x34D399) // esmeralda
-    static let teal   = adaptive(light: 0x0FA9A2, dark: 0x2DD4CE)
-    static let orange = adaptive(light: 0xD97A22, dark: 0xFF9F45)
-    static let purple = adaptive(light: 0x7C5CE0, dark: 0xA78BFA)
-    static let pink   = adaptive(light: 0xD14E86, dark: 0xFF6FA8)
-    static let gold   = adaptive(light: 0xB7841E, dark: 0xFFD166)
+    static let accent = color(0x3D8BFF) // azul periwinkle
+    static let green  = color(0x34D399) // esmeralda
+    static let teal   = color(0x2DD4CE)
+    static let orange = color(0xFF9F45)
+    static let purple = color(0xA78BFA)
+    static let pink   = color(0xFF6FA8)
+    static let gold   = color(0xFFD166)
 
-    // Superficies del Kit (dark = identidad insignia; light armonizado).
-    static let background      = adaptive(light: 0xF3F5FA, dark: 0x0A0C10) // fondo de pantalla
-    static let surface         = adaptive(light: 0xFFFFFF, dark: 0x14171D) // card
-    static let surfaceElevated = adaptive(light: 0xF3F5FA, dark: 0x1A1E26) // card sobre card / casillas
+    // Superficies del Kit.
+    static let background      = color(0x0A0C10) // fondo de pantalla
+    static let surface         = color(0x14171D) // card
+    static let surfaceElevated = color(0x1A1E26) // card sobre card / casillas
 
     /// Degradado para botones primarios (azul → púrpura, del Kit).
     static let buttonGradient = LinearGradient(
@@ -41,10 +41,8 @@ enum Neon {
         endPoint: .bottomTrailing
     )
 
-    private static func adaptive(light: UInt, dark: UInt) -> Color {
-        Color(uiColor: UIColor { traits in
-            UIColor(rgb: traits.userInterfaceStyle == .dark ? dark : light)
-        })
+    private static func color(_ rgb: UInt) -> Color {
+        Color(uiColor: UIColor(rgb: rgb))
     }
 }
 
