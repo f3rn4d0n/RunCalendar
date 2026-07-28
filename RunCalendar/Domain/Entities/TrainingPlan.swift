@@ -279,12 +279,39 @@ struct WorkoutGuide: Equatable, Sendable {
     let steps: [GuideStep]  // calentamiento · principal · enfriamiento
     let purpose: String     // para qué sirve
     let rationale: String   // por qué este número (de dónde sale, no una tabla)
+    /// La misma sesión en números. `steps` es prosa para leer; esto es para **ejecutarla**.
+    let structure: WorkoutStructure
 }
 
 /// Un paso de la sesión (calentamiento, bloque principal, enfriamiento).
 struct GuideStep: Equatable, Sendable {
     let label: String
     let detail: String
+}
+
+/// La sesión en números, no en prosa: lo que hace falta para mandarla al Apple Watch.
+/// Los textos de `WorkoutGuide.steps` se derivan de aquí, así que el reloj y la tarjeta
+/// **no pueden decir cosas distintas**.
+struct WorkoutStructure: Equatable, Sendable {
+    var warmupMinutes: Double?
+    var intervals: IntervalSpec?  // series
+    var steadyKm: Double?         // tramo continuo (tempo, fácil, tirada larga)
+    var cooldownMinutes: Double?
+
+    init(warmupMinutes: Double? = nil, intervals: IntervalSpec? = nil,
+         steadyKm: Double? = nil, cooldownMinutes: Double? = nil) {
+        self.warmupMinutes = warmupMinutes
+        self.intervals = intervals
+        self.steadyKm = steadyKm
+        self.cooldownMinutes = cooldownMinutes
+    }
+}
+
+/// Un bloque de repeticiones: `reps` × `repMeters` con `recoverySeconds` de trote entre cada una.
+struct IntervalSpec: Equatable, Sendable {
+    var reps: Int
+    var repMeters: Double
+    var recoverySeconds: Double
 }
 
 /// Configuración del plan que da el usuario: cuántos días puede entrenar y cuáles.

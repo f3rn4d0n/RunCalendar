@@ -51,6 +51,13 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
 - **Detalle de la sesión** (`WorkoutDetailView`): qué es, cómo se hace (series como "5 × 600 m
   fuerte" con cal./enf.), para qué sirve y **por qué ese número**. Ritmos cualitativos (no inventa
   ritmos exactos).
+- **Enviar al Apple Watch** (`WatchWorkoutBuilder`, WorkoutKit): la sesión deja de ser lectura y se
+  vuelve **ejecutable**. Desde el detalle, un botón manda el entrenamiento estructurado al reloj y
+  la app **Entrenamiento nativa** lo corre: háptico y voz al cerrar cada repetición, avance solo
+  entre pasos, y el workout termina en Salud → tu import lo levanta y cuenta para la adherencia.
+  **Sin target de watchOS**: el motor ya vive en el reloj. La estructura en números es
+  `WorkoutStructure`/`IntervalSpec`, y los textos de la guía se **derivan** de ella, así que la
+  tarjeta y el reloj no pueden decir cosas distintas.
 - **"Sugerir plan"** (como "Sugerir meta"): infiere de tu historial de carreras los días/semana, tus
   días y una meta de volumen (+20% en 8 sem); todo editable. `SuggestPlanUseCase`.
 - **Solo carrera**: el volumen del plan usa sesiones de tipo carrera (no camina/senderismo).
@@ -391,7 +398,8 @@ Los del **plan** (puros, sin repo): `GeneratePlanUseCase` (el motor), `InferPrim
 ### Data (`Data/`)
 - **Repos** `Firestore*Repository` implementan los protocolos de `Domain/Repositories`.
 - **Services**: `HealthKitService` (todas las queries de Salud), `EventKitService` (Calendario),
-  `OpenMeteoService` (clima REST), `LocalNotificationService`, `GoogleSignInService`.
+  `OpenMeteoService` (clima REST), `LocalNotificationService`, `GoogleSignInService`,
+  `WatchWorkoutBuilder` (sesión del plan → entrenamiento de Apple Watch, WorkoutKit).
 - **DTOs** en `Data/DTO` mapean Firestore ↔ entidades.
 
 ### Core (`Core/`)

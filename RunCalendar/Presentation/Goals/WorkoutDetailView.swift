@@ -1,13 +1,21 @@
 import SwiftUI
+import WorkoutKit
 
 /// Explica una sesión del plan al tocarla: qué es, cómo se hace (con esquema de repeticiones),
-/// para qué sirve y por qué ese número. Convierte "Series 3.3 km" en algo accionable.
+/// para qué sirve y por qué ese número. Convierte "Series 3.3 km" en algo accionable — y con
+/// "Enviar al Apple Watch", en algo **ejecutable**.
 struct WorkoutDetailView: View {
     let day: PlannedDay
     let viewModel: GoalsViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var showingWatchPreview = false
 
     private var guide: WorkoutGuide { viewModel.guide(for: day) }
+
+    /// `nil` en Mac o si la sesión no tiene bloques: el botón simplemente no aparece.
+    private var watchPlan: WorkoutPlan? {
+        WatchWorkoutBuilder.plan(for: guide, displayName: "\(guide.title) · \(guide.headline)")
+    }
 
     var body: some View {
         NavigationStack {
@@ -15,6 +23,7 @@ struct WorkoutDetailView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     hero
                     howTo
+                    if let watchPlan { sendToWatch(watchPlan) }
                     DashCard(eyebrow: "Para qué sirve", accent: Neon.teal) {
                         Text(guide.purpose).font(.mSubheadline).foregroundStyle(.secondary)
                     }
@@ -44,6 +53,24 @@ struct WorkoutDetailView: View {
                 .font(.mCaption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// El reloj se encarga del resto: háptico y voz al cerrar cada repetición, y avance solo.
+    private func sendToWatch(_ plan: WorkoutPlan) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                Haptics.light()
+                showingWatchPreview = true
+            } label: {
+                Label("Enviar al Apple Watch", systemImage: "applewatch")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(NeonButtonStyle())
+            Text("El reloj te avisa con vibración al cerrar cada tramo y avanza solo.")
+                .font(.mCaption).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .workoutPreview(plan, isPresented: $showingWatchPreview)
     }
 
     private var howTo: some View {
