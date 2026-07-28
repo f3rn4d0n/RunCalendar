@@ -55,10 +55,16 @@ struct FetchFitnessTrendUseCase: Sendable {
 /// reciente. Heurística **orientativa** y transparente, no es consejo médico.
 struct AssessRecoveryUseCase: Sendable {
 
+    /// Techo del estimado. Se aplica **al final**, después de los factores y de la calibración:
+    /// aplicarlo solo a las horas de carga no topaba nada, porque HRV × FC × sueño × calibración
+    /// multiplican después (hasta 4×) y el anillo de *Hoy* llegaba a decir "12 d para estar listo".
+    /// ponytail: constante sin calibrar; 72 h es el orden de magnitud aceptado para una sesión dura.
+    static let maxRecoveryHours: Double = 72
+
     func callAsFunction(_ s: RecoverySnapshot, calibration: RecoveryCalibration = .identity) -> RecoveryEstimate {
-        // Carga acumulada → horas base de recuperación (≈ 1 h por cada 6 min entrenados,
-        // acotado a 72 h). ponytail: constante calibrable; ajústala con datos reales.
-        let loadHours = min(Double(s.recentLoadMinutes) / 6.0, 72)
+        // Carga acumulada → horas base de recuperación (≈ 1 h por cada 6 min entrenados).
+        // ponytail: constante calibrable; ajústala con datos reales.
+        let loadHours = Double(s.recentLoadMinutes) / 6.0
 
         // HRV por debajo de tu base = recuperación más lenta; por encima = más rápida.
         var hrvFactor = 1.0
@@ -93,7 +99,8 @@ struct AssessRecoveryUseCase: Sendable {
         }
 
         // Ajuste personal aprendido de tus check-ins (1 si aún no hay suficientes).
-        let needed = loadHours * hrvFactor * rhrFactor * sleepFactor * calibration.factor
+        let needed = min(loadHours * hrvFactor * rhrFactor * sleepFactor * calibration.factor,
+                         Self.maxRecoveryHours)
         let elapsed = s.hoursSinceLastWorkout ?? needed
         let remaining = max(0, Int((needed - elapsed).rounded()))
 
