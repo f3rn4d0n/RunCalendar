@@ -96,3 +96,32 @@ targets:
         product: FirebaseCrashlytics
       - package: GoogleSignIn
         product: GoogleSignIn
+
+  RunCalendarTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: RunCalendarTests
+    dependencies:
+      - target: RunCalendar
+    settings:
+      base:
+        # Hospedadas en la app para poder `@testable import RunCalendar`: así las pruebas llegan a
+        # los casos de uso (y mañana a los ViewModels), no solo a lo que compila aislado.
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/RunCalendar.app/RunCalendar
+        BUNDLE_LOADER: $(TEST_HOST)
+        GENERATE_INFOPLIST_FILE: "YES"
+
+# Explícito para que `xcodebuild test -scheme RunCalendar` corra las pruebas. Sin esto Xcode
+# autogenera el scheme y el target de tests queda fuera.
+schemes:
+  RunCalendar:
+    build:
+      targets:
+        RunCalendar: all
+    test:
+      targets:
+        - RunCalendarTests
+    run:
+      config: Debug

@@ -88,41 +88,44 @@ consentimiento adicional. Esto es para saber que la app funciona, no para medir 
 > Por qué P1 y no P2: es requisito para una beta, no una mejora. Y hay que meterlo **antes** de
 > tener usuarios, porque después los crashes de las primeras semanas ya se perdieron.
 
-### Target de pruebas unitarias
+### Pruebas unitarias
 
-**No hay target de tests.** Lo que hay son tres scripts que compilan contra los archivos reales y
-corren asserts sin simulador:
+**Target `RunCalendarTests`** (Swift Testing), hospedado en la app para que `@testable import
+RunCalendar` alcance los casos de uso y no solo lo que compila aislado. ⌘U, o:
 
-| Script | Qué cubre | Asserts |
+```bash
+xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
+```
+
+| Suite | Qué cubre | Pruebas |
 |---|---|---|
-| `Scripts/check-best-split.swift` | `BestSplit.fastestWindow` (récords por tramo) | 5 |
-| `Scripts/check-readiness-timing.swift` | `RaceReadiness.timing` (readiness vs. semanas) | 8 |
-| `Scripts/check-adherence.swift` | `PlanAdherence`, `Campaign`, `PlanDayOutcome` | 40 |
-| `Scripts/check-workout-structure.swift` | `WorkoutStructure` vs. la prosa de la guía | 16 |
+| `BestSplitTests` | `BestSplit.fastestWindow` (récords por tramo) | 4 |
+| `RaceReadinessTests` | `RaceReadiness.timing` (readiness vs. semanas) | 6 |
+| `PlanAdherenceTests` | adherencia, campañas, día por día, `WeekStatus` | 19 |
+| `WorkoutStructureTests` | `WorkoutStructure` vs. la prosa de la guía | 10 |
+| `GeneratePlanTests` | **el motor del plan**, por invariantes | 12 |
 
-Fueron la decisión correcta para no montar andamio antes de tener qué probar, y cubren la
-matemática que más duele si se rompe. Pero el techo ya se ve:
+Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
 
-- **no corren solos** — hay que acordarse de invocarlos;
-- **solo llegan a `Domain/Entities`** — nada de use cases, ViewModels ni repositorios, porque en
-  cuanto un tipo importa HealthKit o Firebase deja de compilar aislado;
-- **no hay dobles de prueba**, así que `GeneratePlanUseCase`, `AssessRecoveryUseCase` y la
-  calibración —lo más delicado del producto— no tienen una sola prueba.
+Al motor se le prueban **invariantes** (80/20, techo de progresión, tirada larga como día más
+largo, taper, días duros no encadenados, determinismo), **no números exactos**. Es deliberado: las
+constantes están sin calibrar (ver abajo) y fijarlas en una prueba cementaría valores que nadie ha
+comprobado contra datos reales — la prueba pasaría a defender el número en vez de la regla.
 
-Alcance propuesto:
+**Lo que falta:**
 
-1. **Target `RunCalendarTests`** en `project.yml` (XcodeGen lo genera; el proyecto no se versiona).
-2. **Migrar los tres scripts** a Swift Testing tal cual — los asserts ya existen, es mover.
-3. **Cubrir los use cases deterministas primero**: `GeneratePlanUseCase`, `SuggestPlanUseCase`,
-   `AssessReadinessUseCase`, `AssessRecoveryUseCase`, `RecoveryCalibration`, `PersonalRecords`. Son
-   funciones puras sobre entidades: no necesitan dobles, solo entradas.
-4. **Fakes de los repositorios** (`HealthRepository` ya es un protocolo con una sola
+1. **Dobles de los repositorios** (`HealthRepository` ya es un protocolo con una sola
    implementación — se le puede hacer un doble sin tocar nada) para llegar a los ViewModels.
-5. **CI en GitHub Actions** que corra el target en cada PR.
+2. **CI en GitHub Actions** que corra el target en cada PR. El repo es público, así que los runners
+   de macOS no cuestan minutos.
+3. **Recuperación y calibración** (`AssessRecoveryUseCase`, `RecoveryCalibration`): se dejaron
+   fuera a propósito en la primera tanda. Son heurísticas cuyo resultado "correcto" no está
+   definido; lo que sí tiene sentido probarles son propiedades (monotonía: peor HRV nunca debe dar
+   *menos* horas de recuperación), no valores.
 
 > Por qué P1: cada fase que sigue mete lógica de dominio nueva, y la **Fase IA** es indefendible
 > sin pruebas — un motor determinista se puede leer y verificar a mano; un plan generado por un
-> modelo, no. El momento correcto de tener el target es *antes* de esa fase, no después.
+> modelo, no.
 
 ### ~~Decisión de diseño: dark-only o adaptable~~ ✅ resuelto: **dark-only**
 
