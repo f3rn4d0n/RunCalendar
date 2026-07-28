@@ -123,11 +123,16 @@ Alcance propuesto:
 > sin pruebas — un motor determinista se puede leer y verificar a mano; un plan generado por un
 > modelo, no. El momento correcto de tener el target es *antes* de esa fase, no después.
 
-### Decisión de diseño: dark-only o adaptable
+### ~~Decisión de diseño: dark-only o adaptable~~ ✅ resuelto: **dark-only**
 
-Bloquea cerrar el UI Kit y rodar el look "misión" al resto de las pantallas: hasta que se decida,
-cada card nueva se diseña dos veces o se diseña a medias. Es una decisión, no una tarea — pero
-mientras siga abierta, todo el trabajo visual paga interés.
+La app fija `UIUserInterfaceStyle: Dark` en `project.yml` — en el Info.plist y no con
+`.preferredColorScheme(.dark)`, para que también cubra lo que presenta UIKit (alertas, teclado,
+hojas de Salud/Calendario). `Neon` perdió las variantes `light` y quedó en un solo valor por color.
+
+**Por qué dark-only:** la identidad del Kit es dark-first, todo el diseño existente se hizo así, y
+sostener una paleta clara en paralelo obligaba a diseñar cada card nueva dos veces por un modo que
+nadie pidió. Consecuencia para quien siga: **no agregues variantes claras ni ramas `colorScheme`**;
+si algún día se quiere modo claro, se restituye el helper `adaptive(light:dark:)` en `Neon.swift`.
 
 ---
 

@@ -425,12 +425,16 @@ no por pantalla.
   - **Fuente del sistema (San Francisco)** para cuerpo, filas, descripciones y captions
     (`.mHeadline … .mCaption2` mapean a los estilos nativos). Limpia, cercana a Inter, Dynamic Type.
     Se eligió SF sobre bundlear Inter (nativo, cero peso; ~95% del look del Kit).
+- **La app es dark-only.** `UIUserInterfaceStyle: Dark` en `project.yml` (no
+  `.preferredColorScheme`, para que también cubra lo que presenta UIKit: alertas, teclado, hojas de
+  Salud/Calendario). La identidad `Neon` es dark-first y mantener una paleta clara en paralelo
+  significaba diseñar cada card dos veces. **No agregues variantes claras ni ramas `colorScheme`.**
 - **Paleta `Neon`** (`Core/Theme/Neon.swift`): valores del **RunCalendar UI Kit** — `accent`
   `#3D8BFF`, `green` `#34D399` (esmeralda), `teal` `#2DD4CE`, `orange` `#FF9F45`, `purple`
-  `#A78BFA`, `pink` `#FF6FA8`, `gold` `#FFD166` (dark, identidad insignia) + variantes `light`
-  armonizadas. Degradados `buttonGradient` (azul→púrpura) y `logoGradient` (arcoíris de branding).
+  `#A78BFA`, `pink` `#FF6FA8`, `gold` `#FFD166`. Degradados `buttonGradient` (azul→púrpura) y
+  `logoGradient` (arcoíris de branding).
   **Cambia aquí y se propaga a toda la app.** Superficies del Kit (`Neon.background`/`surface`/
-  `surfaceElevated`, dark-first, adaptables) aplicadas en **todas las pestañas** (fondo `Neon.background`
+  `surfaceElevated`) aplicadas en **todas las pestañas** (fondo `Neon.background`
   + `scrollContentBackground(.hidden)` + filas `Neon.surface`). El cuerpo usa SF en vez de Inter (nativo, cero peso).
 - **`ProgressRing`** (`Core/Components`): anillo del Kit (pista tenue + arco de color, contenido al
   centro). Reutilizable — en **recuperación**, **ACWR** (fracción `ratio/1.5×`) y **readiness**
@@ -594,8 +598,9 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 >
 > **Rediseño visual (RunCalendar UI Kit):** ✅ en su mayoría — paleta, tipografía (Permanent Marker en
 > display + San Francisco en cuerpo), **superficies dark-first** en todas las tabs, **`ProgressRing`**
-> (recuperación/ACWR/readiness) y la vista **"misión"** en Objetivos. Pendiente: decidir **dark-only** vs.
-> adaptable y rodar el look "misión" a más pantallas. Patrones en [Diseño / UI](#dirección-de-rediseño-en-curso).
+> (recuperación/ACWR/readiness) y la vista **"misión"** en Objetivos. **Dark-only decidido** ✅ (la app
+> fija el estilo oscuro; no hay paleta clara). Pendiente: rodar el look "misión" a más pantallas.
+> Patrones en [Diseño / UI](#dirección-de-rediseño-en-curso).
 >
 > Boceto de colecciones para estas fases: ver [Modelo de datos futuro](#modelo-de-datos-futuro-tentativo).
 
@@ -620,7 +625,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **target de pruebas unitarias** (hoy son tres scripts en `Scripts/` que no corren solos y solo alcanzan a `Domain/Entities`) · decidir **dark-only vs. adaptable**, que bloquea cerrar el Kit |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **target de pruebas unitarias** (hoy son tres scripts en `Scripts/` que no corren solos y solo alcanzan a `Domain/Entities`) |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |
