@@ -85,24 +85,36 @@ struct DescribeWorkoutUseCase: Sendable {
         let qualityM = km * 1000
         let repM = qualityM <= 2400 ? 400.0 : (qualityM <= 4000 ? 600.0 : 800.0)
         let reps = max(3, Int((qualityM / repM).rounded()))
-        let recovery = repM <= 400 ? "60–90 s" : "90 s – 2 min"
+        // La recuperación era un rango ("90 s – 2 min"); al poder mandar la sesión al reloj hay que
+        // comprometerse con un número. Se toma el extremo largo: si el paso avanza solo, quedarse
+        // corto de recuperación arruina la repetición siguiente; sobrar no cuesta nada.
+        let structure = WorkoutStructure(
+            warmupMinutes: 12,
+            intervals: IntervalSpec(reps: reps, repMeters: repM,
+                                    recoverySeconds: repM <= 400 ? 90 : 120),
+            cooldownMinutes: 10
+        )
         return WorkoutGuide(
             title: "Series",
             headline: "\(reps) × \(Int(repM)) m fuerte",
             pace: "Ritmo ~5K: rápido pero repetible, esfuerzo 8–9 de 10 (no un sprint).",
             steps: [
                 GuideStep(label: "Calentamiento",
-                          detail: "10–15 min de trote muy suave + 3–4 aceleraciones cortas."),
+                          detail: "\(Self.mins(structure.warmupMinutes)) de trote muy suave "
+                              + "+ 3–4 aceleraciones cortas."),
                 GuideStep(label: "Bloque principal",
                           detail: "\(reps) repeticiones de \(Int(repM)) m a ritmo ~5K, con "
-                              + "\(recovery) de trote suave (o caminar) entre cada una."),
-                GuideStep(label: "Enfriamiento", detail: "10 min de trote muy suave.")
+                              + "\(Self.secs(structure.intervals?.recoverySeconds)) de trote suave "
+                              + "(o caminar) entre cada una."),
+                GuideStep(label: "Enfriamiento",
+                          detail: "\(Self.mins(structure.cooldownMinutes)) de trote muy suave.")
             ],
             purpose: "Suben tu velocidad y tu VO₂max: enseñan al cuerpo a correr rápido y a tolerar "
                 + "el esfuerzo. Es el estímulo de intensidad de la semana.",
             rationale: "Los ~\(Goal.trim(km)) km fuertes son cerca del 15% de tu volumen semanal, "
                 + "topados a propósito para que sean calidad sin vaciarte. Por eso el número no es "
-                + "redondo: sale de tu volumen actual, no de una tabla genérica."
+                + "redondo: sale de tu volumen actual, no de una tabla genérica.",
+            structure: structure
         )
     }
 
@@ -120,7 +132,8 @@ struct DescribeWorkoutUseCase: Sendable {
             purpose: "Sube tu umbral de lactato: el ritmo más rápido que puedes sostener sin "
                 + "fundirte. Es lo que más mueve tu marca en carreras largas.",
             rationale: "Un bloque continuo moderado; su tamaño está topado (≤ 14 km) para que sea "
-                + "sostenible y no se convierta en una carrera de práctica."
+                + "sostenible y no se convierta en una carrera de práctica.",
+            structure: WorkoutStructure(warmupMinutes: 10, steadyKm: km, cooldownMinutes: 10)
         )
     }
 
@@ -137,7 +150,8 @@ struct DescribeWorkoutUseCase: Sendable {
             purpose: "Construye tu base aeróbica y tu resistencia: acostumbra al cuerpo a usar grasa "
                 + "y a aguantar tiempo en pie. Es la sesión más importante para distancias largas.",
             rationale: "Crece ~1 km por semana hacia tu meta de tirada, y está topada al 60% de tu "
-                + "volumen (máx. 30 km) para no meter una corrida que te lesione."
+                + "volumen (máx. 30 km) para no meter una corrida que te lesione.",
+            structure: WorkoutStructure(steadyKm: km)
         )
     }
 
@@ -154,8 +168,21 @@ struct DescribeWorkoutUseCase: Sendable {
             purpose: "Recuperación activa y volumen aeróbico barato: suma kilómetros que construyen "
                 + "fitness sin costo de fatiga, y ayudan a que las sesiones duras rindan.",
             rationale: "Reparte el resto de tu volumen entre los días fáciles, con un piso de 4 km "
-                + "para que la salida valga la pena."
+                + "para que la salida valga la pena.",
+            structure: WorkoutStructure(steadyKm: km)
         )
+    }
+
+    /// Formatean los números de `WorkoutStructure` para la prosa, para que la tarjeta y el reloj
+    /// no puedan decir cosas distintas.
+    private static func mins(_ value: Double?) -> String {
+        guard let value else { return "unos minutos" }
+        return "\(Int(value)) min"
+    }
+
+    private static func secs(_ value: Double?) -> String {
+        guard let value else { return "un trote" }
+        return value < 120 ? "\(Int(value)) s" : "\(Int(value / 60)) min"
     }
 }
 
