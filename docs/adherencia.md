@@ -6,7 +6,7 @@
 >
 > Código: `PlanAdherence` y `PlanDayOutcome` en `Domain/Entities/TrainingPlan.swift`,
 > armado en `GoalsViewModel.weekAdherence` / `weekOutcomes`, mostrado en la card de misión de
-> *Hoy* y en `WeekAdherenceView`. Verificación: `Scripts/check-adherence.swift`.
+> *Hoy* y en `WeekAdherenceView`. Verificación: `RunCalendarTests/PlanAdherenceTests.swift`.
 
 ---
 
@@ -303,13 +303,11 @@ simulador. Cualquiera de estas extensiones entra ahí sin tocar la UI.
 ## Verificación
 
 ```bash
-swiftc RunCalendar/Domain/Entities/TrainingPlan.swift RunCalendar/Domain/Entities/Goal.swift \
-  RunCalendar/Domain/Entities/Campaign.swift RunCalendar/Domain/Entities/Race.swift \
-  Scripts/check-adherence.swift -module-name check -o /tmp/check-adherence && /tmp/check-adherence
+xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
 ```
 
-51 asserts sobre la matemática pura, sin simulador ni target de tests. Los que valen la pena
-mirar antes de cambiar algo:
+`RunCalendarTests/PlanAdherenceTests.swift`, 19 pruebas sobre la matemática pura. Las que valen la
+pena mirar antes de cambiar algo:
 
 - que 2 sesiones largas cubriendo el km **superen** a 4 cortas a medias (el peso del volumen);
 - que correr de más **no** pase de 100%;

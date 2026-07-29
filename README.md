@@ -114,7 +114,7 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   semanas que faltan** — con 6 semanas te dice cuántas necesitas para subir la tirada larga a
   ritmo seguro (+1–2 km/semana); si no alcanzan, deja de pedírtelo y recomienda mantener o bajar
   de distancia; la última semana es de afinamiento y ya solo aconseja llegar descansado.
-  `RaceReadiness.timing` + `AssessReadinessUseCase`; check en `Scripts/check-readiness-timing.swift`.
+  `RaceReadiness.timing` + `AssessReadinessUseCase`; pruebas en `RunCalendarTests/RaceReadinessTests.swift`.
 - **Recordatorios locales** (Perfil → Recordatorios): avisos de carrera (anticipado, víspera,
   día del evento), **entrega de kit** (víspera y día mismo, con lugar y hora), y de
   entrenamientos (a la hora, y un aviso de los que dejaste pendientes). Sin backend.
@@ -532,8 +532,19 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **No hay target de tests**: la verificación es `xcodebuild … build` (BUILD SUCCEEDED) + correr la app.
-  No intentes `xcodebuild test` ni asumas un suite; la lógica no trivial deja un check propio si aplica.
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 51 pruebas en 9 suites. Se corren con ⌘U o con
+  ```bash
+  xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
+  ```
+  Hospedadas en la app (`@testable import RunCalendar`), así que alcanzan casos de uso, no solo
+  entidades. Cubren `BestSplit`, `RaceReadiness.timing`, adherencia/campañas/`WeekStatus`,
+  `WorkoutStructure` y el motor **`GeneratePlanUseCase`**. Antes eran scripts sueltos en `Scripts/`
+  que había que invocar a mano; ya no existen.
+  Al motor se le prueban **invariantes** (80/20, techo de progresión, tirada larga como día más
+  largo, taper), no números exactos: las constantes están sin calibrar a propósito y fijarlas
+  cementaría valores que nadie ha comprobado. Ver *Umbrales sin calibrar* en
+  [Pendientes](docs/pendientes.md).
+  Sigue faltando **CI** y dobles de repositorio para llegar a los ViewModels.
 - **Convenciones de código**:
   - ViewModels `@Observable`; la UI solo conoce **casos de uso** (nunca Firebase directo).
   - Cada caso de uso = una responsabilidad, recibe su repositorio por **protocolo**.
@@ -633,7 +644,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **target de pruebas unitarias** (hoy son tres scripts en `Scripts/` que no corren solos y solo alcanzan a `Domain/Entities`) |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **pruebas**: target ✅ + 51 pruebas ✅; faltan **CI** y dobles de repositorio para llegar a los ViewModels |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |
