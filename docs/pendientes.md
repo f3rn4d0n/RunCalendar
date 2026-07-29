@@ -104,6 +104,7 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `PlanAdherenceTests` | adherencia, campañas, día por día, `WeekStatus` | 19 |
 | `WorkoutStructureTests` | `WorkoutStructure` vs. la prosa de la guía | 10 |
 | `GeneratePlanTests` | **el motor del plan**, por invariantes | 12 |
+| `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
 
@@ -118,10 +119,9 @@ comprobado contra datos reales — la prueba pasaría a defender el número en v
    implementación — se le puede hacer un doble sin tocar nada) para llegar a los ViewModels.
 2. **CI en GitHub Actions** que corra el target en cada PR. El repo es público, así que los runners
    de macOS no cuestan minutos.
-3. **Recuperación y calibración** (`AssessRecoveryUseCase`, `RecoveryCalibration`): se dejaron
-   fuera a propósito en la primera tanda. Son heurísticas cuyo resultado "correcto" no está
-   definido; lo que sí tiene sentido probarles son propiedades (monotonía: peor HRV nunca debe dar
-   *menos* horas de recuperación), no valores.
+3. ~~**Recuperación y calibración**~~ ✅ hecho: 16 pruebas de **propiedad** (monotonía por HRV /
+   sueño / carga / FC, acotamiento, ausencia de datos, clamp y dirección del ajuste). Atraparon un
+   defecto real, ver *El techo de la recuperación* abajo.
 
 > Por qué P1: cada fase que sigue mete lógica de dominio nueva, y la **Fase IA** es indefendible
 > sin pruebas — un motor determinista se puede leer y verificar a mano; un plan generado por un
@@ -141,6 +141,39 @@ si algún día se quiere modo claro, se restituye el helper `adaptive(light:dark
 ---
 
 ## P2 · Deuda con costo visible
+
+### El modelo de recuperación
+
+~~**El techo de 72 h no topaba nada.**~~ ✅ resuelto: el tope se aplicaba a las horas de carga y
+los factores (HRV × FC × sueño × calibración, hasta ~4×) multiplicaban **después**, así que el
+estimado llegaba a **194 h — 8 días — y a 290 h con la calibración al máximo**, y el anillo de
+*Hoy* lo mostraba tal cual. Ahora se topa el resultado final (`AssessRecoveryUseCase
+.maxRecoveryHours`) y hay dos pruebas que lo fijan.
+
+Lo que **sigue pendiente** del modelo, por orden de valor:
+
+1. **El HRV se usa crudo, de un solo día.** La FC en reposo se promedia a 7 días *"porque el dato
+   de un día es muy ruidoso"* (README) y el HRV es **más** ruidoso (±10–20% noche a noche). Aplicar
+   el mismo criterio —media de 3–7 días— es la mejora que más estabiliza el número, y usa una regla
+   que el proyecto ya tomó.
+2. **Los escalones dan saltos absurdos.** Un ratio de HRV de 0.899 da factor 1.3 y 0.901 da 1.0:
+   **0.2% de cambio mueve el estimado 30%**. Interpolar linealmente entre los mismos umbrales
+   conserva el modelo y quita el salto. Igual en los tramos de sueño.
+3. **Sin fecha del último entreno se declara "recuperado".** `elapsed = hoursSinceLastWorkout ??
+   needed` convierte la falta de dato en la afirmación más optimista posible. Debería ser un estado
+   desconocido, no un verde.
+4. **`isHighLoad` no es una condición adversa.** Se define como *por encima de la mediana*, o sea
+   **la mitad de los días por construcción**: el segmento siempre se activa y no distingue nada.
+   Debería ser un percentil alto o un umbral absoluto.
+5. **Los tres offsets se suman como si fueran independientes.** HRV baja, poco sueño y carga alta
+   están correlacionados (la mala noche *después* de la sesión dura *baja* el HRV): es un evento
+   contado tres veces. El clamp evita que explote, pero eso significa que justo en los días que más
+   importan la corrección **satura** y deja de informar.
+6. **La calibración no mide si mejora.** Existe la gráfica "¿acierta el modelo?" pero nada compara
+   el error medio antes y después de calibrar — que es lo único que responde si la feature sirve.
+
+> **1–3 se pueden hacer ya** (son del modelo, no de los datos). **4–6 esperan usuarios reales**:
+> recalibrar segmentos sin registros de nadie es justo lo que dice *Umbrales sin calibrar*.
 
 ### Huecos documentados de la adherencia
 
