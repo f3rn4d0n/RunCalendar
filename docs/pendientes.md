@@ -103,10 +103,14 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `RaceReadinessTests` | `RaceReadiness.timing` (readiness vs. semanas) | 6 |
 | `PlanAdherenceTests` | adherencia, campañas, día por día, `WeekStatus` | 19 |
 | `WorkoutStructureTests` | `WorkoutStructure` vs. la prosa de la guía | 10 |
-| `GeneratePlanTests` | **el motor del plan**, por invariantes | 12 |
+| `GeneratePlanTests` | **el motor del plan**, por invariantes | 20 |
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
+| `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
+También se borraron los dos `selfCheck()` de andamio — uno corría en **cada arranque** de la app en
+DEBUG y el otro vivía en un preview de SwiftUI, así que en la práctica **nunca corría** (al migrarlo
+falló a la primera, ver *El plan descarta volumen sin avisar* abajo).
 
 Al motor se le prueban **invariantes** (80/20, techo de progresión, tirada larga como día más
 largo, taper, días duros no encadenados, determinismo), **no números exactos**. Es deliberado: las
@@ -117,8 +121,12 @@ comprobado contra datos reales — la prueba pasaría a defender el número en v
 
 1. **Dobles de los repositorios** (`HealthRepository` ya es un protocolo con una sola
    implementación — se le puede hacer un doble sin tocar nada) para llegar a los ViewModels.
-2. **CI en GitHub Actions** que corra el target en cada PR. El repo es público, así que los runners
-   de macOS no cuestan minutos.
+2. ~~**CI en GitHub Actions**~~ ✅ hecho: `.github/workflows/pruebas.yml` corre el target en cada
+   PR y en cada push a `main`. El repo es público, así que los runners de macOS no cuestan minutos.
+   Los archivos gitignored (`Secrets.xcconfig`, `GoogleService-Info.plist`) se crean como
+   placeholders en el runner; el `API_KEY` falso **debe** tener el formato que Firebase valida
+   (39 caracteres, empieza con `A`) o la app anfitriona lanza una excepción al arrancar y el
+   runner de pruebas muere antes de conectarse.
 3. ~~**Recuperación y calibración**~~ ✅ hecho: 16 pruebas de **propiedad** (monotonía por HRV /
    sueño / carga / FC, acotamiento, ausencia de datos, clamp y dirección del ajuste). Atraparon un
    defecto real, ver *El techo de la recuperación* abajo.
@@ -199,6 +207,21 @@ Todos en [adherencia.md](adherencia.md#límites-conocidos):
 `HealthKitService` guarda `durationMin` redondeado, así que todo lo derivado carga ±30 s por sesión.
 Los récords no dependen de eso (leen las muestras de Salud), el ritmo del detalle sí. Arreglarlo es
 guardar segundos: migración de esquema en Firestore.
+
+### El plan descarta volumen sin avisar
+
+Con las sesiones de calidad topadas, parte del volumen no cabe: `allocate` devuelve el sobrante
+(`unfit`) y el plan solo avisa **arriba de `unfitThresholdKm` (5 km)**. Debajo de ese umbral los
+kilómetros simplemente desaparecen.
+
+Caso real, encontrado al migrar los self-checks a pruebas: **40 km en 3 días** genera un plan de
+37 km y `note == nil`. El atleta pidió 40, recibe 37, y nada se lo dice — mientras el README
+promete *"si aún no cabe, avisa subir días en vez de inflar"*.
+
+No se arregló aquí porque el arreglo es **elegir un número nuevo** (¿1 km? ¿un % del volumen?) y
+eso es calibrar a ojo, justo lo que dice *Umbrales sin calibrar*. Lo defendible sin datos es que
+el aviso dependa de la **fracción** del volumen, no de un absoluto: 3 km sobre 40 es 7.5% y merece
+mención; 3 km sobre 120 no.
 
 ### Periodización lineal
 

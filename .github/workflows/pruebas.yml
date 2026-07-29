@@ -1,0 +1,80 @@
+name: Pruebas
+
+# El repo es público, así que los runners de macOS no consumen minutos.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # Un push nuevo al mismo PR cancela la corrida anterior: no sirve esperar a un commit viejo.
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Usar el Xcode más nuevo del runner
+        # Por versión instalada y no fijo: el proyecto pide Xcode 26+ y la imagen del runner
+        # cambia sin avisar. `sort -V` ordena por número, no alfabéticamente (Xcode_9 < Xcode_16).
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Placeholders de los archivos gitignored
+        # `Secrets.xcconfig` y `GoogleService-Info.plist` no están en el repo (ver §Puesta en
+        # marcha del README) y sin ellos ni siquiera corre `xcodegen`. Para pruebas de lógica
+        # basta con que existan y tengan el formato correcto: no se hace ninguna llamada real.
+        #
+        # El API_KEY NO puede ser cualquier texto: FirebaseInstallations lo valida al arrancar
+        # (39 caracteres, empieza con "A") y si no cuadra la app anfitriona lanza una excepción
+        # y el runner de pruebas muere antes de conectarse. Verificado en un clon limpio.
+        run: |
+          printf 'REVERSED_CLIENT_ID = com.googleusercontent.apps.ci-placeholder\nDEVELOPMENT_TEAM =\n' \
+            > RunCalendar/Resources/Secrets.xcconfig
+          cat > RunCalendar/Resources/GoogleService-Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+          	<key>API_KEY</key><string>A00000000000000000000000000000000000000</string>
+          	<key>GCM_SENDER_ID</key><string>000000000000</string>
+          	<key>PROJECT_ID</key><string>ci-placeholder</string>
+          	<key>STORAGE_BUCKET</key><string>ci-placeholder.appspot.com</string>
+          	<key>GOOGLE_APP_ID</key><string>1:000000000000:ios:0000000000000000000000</string>
+          	<key>BUNDLE_ID</key><string>com.fercho.runcalendar.app</string>
+          	<key>CLIENT_ID</key><string>ci-placeholder.apps.googleusercontent.com</string>
+          	<key>REVERSED_CLIENT_ID</key><string>com.googleusercontent.apps.ci-placeholder</string>
+          	<key>IS_ADS_ENABLED</key><false/>
+          	<key>IS_ANALYTICS_ENABLED</key><false/>
+          	<key>IS_APPINVITE_ENABLED</key><true/>
+          	<key>IS_GCM_ENABLED</key><true/>
+          	<key>IS_SIGNIN_ENABLED</key><true/>
+          	<key>PLIST_VERSION</key><string>1</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Generar el proyecto
+        # El .xcodeproj no se versiona (ver README): se genera siempre.
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Correr las pruebas
+        # El simulador se elige por UDID del primero disponible en vez de por nombre: la imagen
+        # del runner no siempre trae el mismo modelo y un nombre fijo rompe el día que cambie.
+        # `CODE_SIGNING_ALLOWED=NO` porque en simulador no hace falta firmar y el runner no tiene
+        # el certificado (ni el DEVELOPMENT_TEAM real, que vive en Secrets.xcconfig).
+        run: |
+          SIM=$(xcrun simctl list devices available \
+                | grep -m1 "iPhone" \
+                | grep -oE "[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}")
+          echo "Simulador: $SIM"
+          xcodebuild test \
+            -scheme RunCalendar \
+            -destination "id=$SIM" \
+            CODE_SIGNING_ALLOWED=NO

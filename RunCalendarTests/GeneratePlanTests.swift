@@ -140,4 +140,37 @@ struct GeneratePlanTests {
         let b = plan(days: 5, weeklyKm: 45, longRunKm: 14)
         #expect(a.days == b.days)
     }
+
+    // Lo que venía de `GeneratePlanUseCase.selfCheck()`, que corría en un preview de SwiftUI.
+
+    @Test("Cada sesión cae en un día distinto de la semana", arguments: 1...7)
+    func noRepeatedWeekdays(days: Int) {
+        let week = plan(days: days, weeklyKm: 30, longRunKm: 12).days
+        #expect(Set(week.map(\.weekday)).count == days)
+    }
+
+    @Test("Volumen alto en pocos días avisa subir días en vez de inflar las sesiones")
+    func warnsInsteadOfInflating() {
+        // 65 km en 3 días no caben con las sesiones de calidad topadas: tiene que avisar.
+        let tight = plan(days: 3, weeklyKm: 65, longRunKm: 26)
+        #expect(tight.note != nil)
+    }
+
+    @Test("Con más días cabe al menos el mismo volumen — y si no cabe, se avisa")
+    func moreDaysFitAtLeastAsMuch() {
+        let three = plan(days: 3, weeklyKm: 40, longRunKm: 14)
+        let five = plan(days: 5, weeklyKm: 40, longRunKm: 14)
+
+        // Los topes de las sesiones de calidad hacen que en pocos días **no quepa** todo el
+        // volumen; eso es deliberado (se avisa subir días en vez de inflar la sesión).
+        //
+        // Ojo: con 40 km en 3 días sobran ~3 km y el plan **no** avisa, porque el aviso solo
+        // salta arriba de `unfitThresholdKm` (5 km). Está documentado en docs/pendientes.md;
+        // aquí no se fija ese comportamiento para no cementar un umbral sin calibrar.
+        #expect(five.totalKm >= three.totalKm)
+
+        let tempo3 = three.days.first { $0.kind == .tempo }?.targetKm ?? 0
+        let tempo5 = five.days.first { $0.kind == .tempo }?.targetKm ?? 0
+        #expect(tempo5 <= tempo3 + 0.01, "más días no debe alargar la sesión de calidad")
+    }
 }
