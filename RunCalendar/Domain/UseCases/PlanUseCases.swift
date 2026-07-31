@@ -76,7 +76,36 @@ struct DescribeWorkoutUseCase: Sendable {
         case .tempo:     return tempo(km)
         case .longRun:   return longRun(km)
         case .easy:      return easy(km)
+        case .race:      return race(day)
         }
+    }
+
+    /// Una carrera inscrita no se "explica" como un entrenamiento: ya está decidida. La guía dice
+    /// qué es, que el día es fijo y cómo llegar a ella, sin inventarle ritmo.
+    private func race(_ day: PlannedDay) -> WorkoutGuide {
+        let km = day.targetKm
+        return WorkoutGuide(
+            title: "Carrera",
+            headline: day.label,
+            pace: "El ritmo lo decides tú el día del evento. Sal conservador: los primeros "
+                + "kilómetros se sienten fáciles a propósito.",
+            steps: [
+                GuideStep(label: "Antes",
+                          detail: "Llega descansado: los dos días previos, suave o descanso. "
+                              + "Desayuna lo de siempre, nada nuevo el día de la carrera."),
+                GuideStep(label: "La carrera",
+                          detail: km.map { "Los \(Goal.trim($0)) km del evento." }
+                              ?? "La distancia del evento."),
+                GuideStep(label: "Después",
+                          detail: "Camina al terminar y deja 1–2 días fáciles antes de volver a "
+                              + "meter calidad.")
+            ],
+            purpose: "Es tu sesión dura de la semana y la prueba real de dónde estás. El plan se "
+                + "acomoda alrededor de ella, no al revés.",
+            rationale: "Este día es fijo: ya estás inscrito, así que no es una sugerencia que el "
+                + "plan pueda mover. El resto de la semana se reparte contando estos kilómetros.",
+            structure: WorkoutStructure(steadyKm: km)
+        )
     }
 
     /// Series: el volumen "fuerte" se parte en repeticiones. Distancia de repetición según el total,
@@ -208,17 +237,22 @@ struct GeneratePlanUseCase: Sendable {
         var config: PlanConfig
         var currentWeeklyKm: Double
         var currentLongRunKm: Double?
+        /// Carreras del atleta. Las **inscritas** que caen en esta semana se anclan al plan: no son
+        /// una sugerencia del motor, son un hecho de su calendario.
+        var races: [Race]
         var weekStart: Date
         var now: Date
 
         init(primary: Goal, secondaries: [Goal] = [], config: PlanConfig,
              currentWeeklyKm: Double, currentLongRunKm: Double? = nil,
+             races: [Race] = [],
              weekStart: Date = Date(), now: Date = Date()) {
             self.primary = primary
             self.secondaries = secondaries
             self.config = config
             self.currentWeeklyKm = currentWeeklyKm
             self.currentLongRunKm = currentLongRunKm
+            self.races = races
             self.weekStart = weekStart
             self.now = now
         }
@@ -238,29 +272,48 @@ struct GeneratePlanUseCase: Sendable {
         let tapering = weeksLeft(input.primary.deadline, input.now).map { $0 <= 1 } ?? false
         if tapering { weekKm *= 0.6 }
 
-        let structure = structure(for: days)             // alternado duro/fácil, tirada larga al final
+        // Carreras inscritas de esta semana: días fijos. Ocupan su lugar antes que nada, porque no
+        // son una decisión del motor sino un compromiso ya adquirido.
+        let raceDays = registeredRaces(in: input)
+        let raceKm = raceDays.compactMap(\.targetKm).reduce(0, +)
+
+        // La carrera **sustituye** a la sesión que se le parece: correr un 10K a tope ya es la
+        // sesión dura de la semana, y una carrera larga ya es la tirada larga.
+        var structure = structure(for: days)
+        for race in raceDays {
+            if let index = replaceableIndex(in: structure, forRaceKm: race.targetKm) {
+                structure.remove(at: index)
+            }
+        }
 
         // Tirada larga: progresa +1 km/sem hacia su target; acotada por la fracción base y por un
         // **máximo absoluto** (una tirada no crece sin límite aunque el volumen sea alto).
         let frac = longFraction(days: days)
         let longCeiling = min(weekKm * 0.6, maxLongKm)
         let progressed = input.currentLongRunKm.map { min($0 + 1, longRunTarget ?? .greatestFiniteMagnitude) }
-        let longKm = round1(clampD(progressed ?? weekKm * frac, weekKm * frac, longCeiling))
+        let longKm = structure.contains(.longRun)
+            ? round1(clampD(progressed ?? weekKm * frac, weekKm * frac, longCeiling))
+            : 0
 
         // El resto del volumen se **reparte** entre las demás sesiones por pesos, con tope por tipo
         // (series/tempo no escalan). Así, a más días la misma carga se divide en sesiones más cortas
         // —en vez de apilar rodajes con un piso fijo— y lo que no quepa se reporta (faltan días).
+        // Los km de la carrera salen del presupuesto: ya los vas a correr.
         let others = structure.filter { $0 != .longRun }
-        let (othersKm, unfit) = allocate(others, budget: weekKm - longKm, longKm: longKm)
+        let budget = max(0, weekKm - longKm - raceKm)
+        let (othersKm, unfit) = allocate(others, budget: budget, longKm: max(longKm, raceKm))
         var othersIter = othersKm.makeIterator()
         let kmByIndex = structure.map { $0 == .longRun ? longKm : round1(othersIter.next() ?? 0) }
 
-        // Asigna días de la semana: preferidos (ordenados) o un reparto por defecto espaciado.
-        let weekdays = weekdays(for: input.config, count: structure.count)
-        let planned: [PlannedDay] = zip(weekdays, zip(structure, kmByIndex)).map { weekday, pair in
+        // Asigna días de la semana: preferidos (ordenados) o un reparto por defecto espaciado,
+        // **sin pisar** los días de carrera.
+        let taken = Set(raceDays.map(\.weekday))
+        let weekdays = weekdays(for: input.config, count: structure.count, excluding: taken)
+        let generated: [PlannedDay] = zip(weekdays, zip(structure, kmByIndex)).map { weekday, pair in
             PlannedDay(weekday: weekday, kind: pair.0, targetKm: pair.1,
                        label: label(pair.0, km: pair.1), detail: detail(pair.0))
         }
+        let planned = (generated + raceDays).sorted { $0.weekPosition < $1.weekPosition }
 
         let note = planNote(planned: planned, weekKm: weekKm, days: days, unfit: unfit)
 
@@ -328,6 +381,7 @@ struct GeneratePlanUseCase: Sendable {
         case .intervals: return 1.0
         case .easy:      return 1.3
         case .longRun:   return 0
+        case .race:      return 0      // sus km son un hecho, no se reparten
         }
     }
 
@@ -337,6 +391,7 @@ struct GeneratePlanUseCase: Sendable {
         case .intervals: return maxIntervalsKm
         case .easy:      return longKm      // un rodaje fácil nunca más largo que la tirada larga
         case .longRun:   return .greatestFiniteMagnitude
+        case .race:      return .greatestFiniteMagnitude
         }
     }
 
@@ -399,17 +454,61 @@ struct GeneratePlanUseCase: Sendable {
         case .tempo:     return "Ritmo umbral (cómodo-duro), tu \"fase 2\"."
         case .intervals: return "Repeticiones a ritmo ~5K con recuperación entre cada una."
         case .easy:      return "Rodaje suave de recuperación."
+        case .race:      return "Carrera inscrita: el día es fijo."
         }
     }
 
     /// Días de la semana a usar. Si los preferidos alcanzan, se toman ordenados; si no, un reparto
     /// por defecto espaciado (Mar/Jue/Sáb/Lun/Mié/Dom).
-    private func weekdays(for config: PlanConfig, count: Int) -> [Int] {
-        let prefs = Array(Set(config.preferredWeekdays)).filter { (1...7).contains($0) }.sorted()
+    private func weekdays(for config: PlanConfig, count: Int, excluding taken: Set<Int> = []) -> [Int] {
+        guard count > 0 else { return [] }
+        let prefs = Array(Set(config.preferredWeekdays)).filter { (1...7).contains($0) }
+            .filter { !taken.contains($0) }.sorted()
         if prefs.count >= count { return Array(prefs.prefix(count)) }
-        if count >= 7 { return Array(1...7) }            // toda la semana
-        let spread = [3, 5, 7, 2, 4, 1]                  // Calendar: 1=Dom … 7=Sáb
+        let spread = [3, 5, 7, 2, 4, 1, 6].filter { !taken.contains($0) }  // Calendar: 1=Dom … 7=Sáb
         return Array(spread.prefix(count)).sorted()
+    }
+
+    // MARK: - Carreras inscritas (días fijos)
+
+    /// Las carreras a las que el atleta **ya se inscribió** y que caen en la semana del plan.
+    /// Solo `isRegistered`: una carrera que estás considerando no debe reestructurarte la semana.
+    private func registeredRaces(in input: Input) -> [PlannedDay] {
+        let cal = Calendar.current
+        let weekEnd = cal.date(byAdding: .day, value: 7, to: input.weekStart) ?? input.weekStart
+        return input.races
+            .filter { $0.isRegistered && $0.status == .upcoming }
+            .filter { $0.date >= input.weekStart && $0.date < weekEnd }
+            .sorted { $0.date < $1.date }
+            .map { race in
+                // Distancia oficial de la disciplina, o la que capturó el atleta. En Trail/Otra sin
+                // km no se inventa un número: el día se fija igual y el aviso pide capturarlo.
+                let km = race.discipline.standardDistanceKm ?? race.distanceKm
+                return PlannedDay(
+                    weekday: cal.component(.weekday, from: race.date),
+                    kind: .race,
+                    targetKm: km,
+                    label: race.name,
+                    detail: km.map { "Carrera de \(Goal.trim($0)) km. Es la sesión del día." }
+                        ?? "Carrera inscrita. Captura su distancia para ajustar tu volumen.",
+                    raceId: race.id
+                )
+            }
+    }
+
+    /// Qué sesión sustituye la carrera. Una carrera larga ocupa el lugar de la tirada larga; una
+    /// corta o media, el de la sesión de calidad — porque eso es lo que de hecho vas a hacer ese
+    /// día. Sin km conocidos se asume que sustituye a la calidad (lo más conservador: no borra la
+    /// tirada larga de la semana por una carrera de distancia desconocida).
+    private func replaceableIndex(in structure: [PlannedWorkoutKind], forRaceKm km: Double?) -> Int? {
+        let isLong = (km ?? 0) >= 15
+        let order: [PlannedWorkoutKind] = isLong
+            ? [.longRun, .intervals, .tempo, .easy]
+            : [.intervals, .tempo, .easy, .longRun]
+        for kind in order {
+            if let index = structure.firstIndex(of: kind) { return index }
+        }
+        return nil
     }
 
     private func weeksLeft(_ deadline: Date?, _ now: Date) -> Int? {

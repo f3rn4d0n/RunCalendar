@@ -61,6 +61,16 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
 - **"Sugerir plan"** (como "Sugerir meta"): infiere de tu historial de carreras los días/semana, tus
   días y una meta de volumen (+20% en 8 sem); todo editable. `SuggestPlanUseCase`.
 - **Solo carrera**: el volumen del plan usa sesiones de tipo carrera (no camina/senderismo).
+- **Carreras inscritas dentro del plan**: si tienes una carrera **inscrita** (`isRegistered`) esta
+  semana, el plan la ancla como **día fijo** (`PlannedDay.raceId`, `PlannedWorkoutKind.race`) en vez
+  de ignorarla. Tres consecuencias: (1) no te pide otra sesión ese día — antes te ponía "Tirada
+  larga 18 km" el domingo que corrías un 21K; (2) sus km **salen del presupuesto** de la semana, no
+  se suman encima (correr 45 km planeados + 21 de carrera es un salto del 45% bajo un techo del
+  10%); (3) **sustituye a la sesión de calidad** que más se le parece — una carrera larga ocupa el
+  lugar de la tirada larga, una corta el de las series, porque correr a tope *es* el día duro.
+  Las que solo estás **considerando** no reestructuran nada: solo cuenta lo que ya pagaste.
+  Una Trail/Otra sin distancia capturada fija el día pero **no inventa km**: pide el dato.
+  El día es fijo también en la UI (candado en *Ajustar*, explicación en el detalle).
 - **Adherencia de la semana** → **[docs/adherencia.md](docs/adherencia.md)**. En corto: en la card
   de *Hoy*, sesiones y km hechos vs. planificados con barra y una frase; se toca para ver la semana
   **día por día** (qué pedía cada día y qué corriste). Cuenta **totales**, no calendario (mover una
@@ -382,8 +392,8 @@ RunCalendar/
   (`Workload.swift`), `FitnessSummary`, `FitnessTrend`, `WorkoutRoute`, `RaceWeather`.
 - **Cuerpo** (fase 2): `BodyMeasure` (peso/cintura: unidad y rango válido), `MeasurementEntry`
   (un registro leído de Salud), `BodyLog` (review semanal: energía, hambre, notas).
-- **Plan** (fase 3, `TrainingPlan.swift`): `TrainingPlan`, `PlannedDay`, `PlanConfig`,
-  `PlannedWorkoutKind` (largo/tempo/series/fácil), `GoalRole` (driver/parámetro/resultado +
+- **Plan** (fase 3, `TrainingPlan.swift`): `TrainingPlan`, `PlannedDay` (con `raceId` para los
+  días fijos), `PlanConfig`, `PlannedWorkoutKind` (largo/tempo/series/fácil/**carrera**), `GoalRole` (driver/parámetro/resultado +
   `GoalType.planRole`), `WorkoutGuide`/`GuideStep` (detalle de sesión), `PlanSuggestion`.
 - **Otros**: `AppUser`, `UserProfile`, `ReminderPreferences`, `CalendarEvent`.
 
@@ -532,7 +542,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 75 pruebas en 12 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 87 pruebas en 13 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -646,7 +656,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **pruebas**: target ✅ + 75 pruebas ✅ + CI ✅; faltan dobles de repositorio para llegar a los ViewModels |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **pruebas**: target ✅ + 87 pruebas ✅ + CI ✅; faltan dobles de repositorio para llegar a los ViewModels |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

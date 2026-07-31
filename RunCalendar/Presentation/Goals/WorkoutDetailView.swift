@@ -22,6 +22,7 @@ struct WorkoutDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     hero
+                    if day.isFixed { fixedDayBanner }
                     howTo
                     if let watchPlan { sendToWatch(watchPlan) }
                     DashCard(eyebrow: "Para qué sirve", accent: Neon.teal) {
@@ -40,6 +41,23 @@ struct WorkoutDetailView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Listo") { dismiss() } }
             }
         }
+    }
+
+    /// Un día de carrera no es una sugerencia editable: ya hay una inscripción de por medio.
+    /// Se dice explícitamente para que no parezca que el plan se equivocó al no ofrecer cambiarlo.
+    private var fixedDayBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "lock.fill").font(.mCaption).foregroundStyle(Neon.gold)
+            Text(day.targetKm.map {
+                "Día fijo: estás inscrito a esta carrera de \(Goal.trim($0)) km. "
+                    + "El resto de la semana se acomoda alrededor."
+            } ?? "Día fijo: estás inscrito a esta carrera. Captura su distancia para que el plan "
+                + "ajuste tu volumen de la semana.")
+                .font(.mCaption).foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Neon.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var hero: some View {

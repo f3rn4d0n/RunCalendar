@@ -106,6 +106,7 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `GeneratePlanTests` | **el motor del plan**, por invariantes | 20 |
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 | `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
+| `RacesInPlanTests` | carreras inscritas ancladas al plan de la semana | 12 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
 También se borraron los dos `selfCheck()` de andamio — uno corría en **cada arranque** de la app en
@@ -207,6 +208,17 @@ Todos en [adherencia.md](adherencia.md#límites-conocidos):
 `HealthKitService` guarda `durationMin` redondeado, así que todo lo derivado carga ±30 s por sesión.
 Los récords no dependen de eso (leen las muestras de Salud), el ritmo del detalle sí. Arreglarlo es
 guardar segundos: migración de esquema en Firestore.
+
+### Una carrera sin distancia se ve como "descanso" en la semana
+
+`PlanDayOutcome.status` decide con `plannedKm`. Una carrera Trail/Otra **sin distancia capturada**
+entra al plan con `targetKm == nil`, así que ese día aparece como *Descanso* (o *Extra* si la
+corriste) en la vista día por día, en vez de como la carrera que es.
+
+Es el borde de un borde —hace falta una carrera de distancia variable *y* no haber capturado los
+km, y el propio plan ya pide capturarlos— así que no se arregló: la solución honesta es que
+`PlanDayOutcome` distinga "día fijo sin meta de km" de "descanso", y eso es un caso más en un
+enum que hoy nadie está pidiendo.
 
 ### El plan descarta volumen sin avisar
 

@@ -132,10 +132,19 @@ struct PlanConfigSheet: View {
     }
 
     private func sessionRow(_ day: PlannedDay) -> some View {
+        // Los días de carrera se distinguen a propósito: el atleta tiene que ver de un vistazo
+        // cuáles puede mover con los controles de arriba y cuál ya no.
         HStack(spacing: 12) {
-            Image(systemName: day.kind.systemImage).foregroundStyle(Neon.accent).frame(width: 26)
+            Image(systemName: day.kind.systemImage)
+                .foregroundStyle(day.isFixed ? Neon.gold : Neon.accent).frame(width: 26)
             VStack(alignment: .leading, spacing: 2) {
-                Text(day.weekdayName.capitalized).font(.mCaption2).foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text(day.weekdayName.capitalized).font(.mCaption2).foregroundStyle(.secondary)
+                    if day.isFixed {
+                        Image(systemName: "lock.fill").font(.system(size: 8))
+                            .foregroundStyle(Neon.gold)
+                    }
+                }
                 SessionHeadline(day: day)
                 Text(day.detail).font(.mCaption2).foregroundStyle(.tertiary)
             }
