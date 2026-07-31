@@ -360,6 +360,7 @@ final class GoalsViewModel {
             config: planConfig,
             currentWeeklyKm: runningWeeklyKm,
             currentLongRunKm: runningLongestKm,
+            races: racesViewModel.races,
             weekStart: Self.currentWeekStart()
         ))
     }

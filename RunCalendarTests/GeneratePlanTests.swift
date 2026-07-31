@@ -91,6 +91,7 @@ struct GeneratePlanTests {
             case .tempo:     #expect((day.targetKm ?? 0) <= 14)
             case .longRun:   #expect((day.targetKm ?? 0) <= 30)
             case .easy:      break
+            case .race:      break   // sin carreras en esta entrada; su distancia es un hecho
             }
         }
     }

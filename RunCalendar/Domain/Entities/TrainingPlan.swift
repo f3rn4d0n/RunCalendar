@@ -30,9 +30,13 @@ enum PlannedWorkoutKind: String, Sendable, Equatable, CaseIterable {
     case tempo     = "Tempo"       // ritmo umbral, la "fase 2"
     case intervals = "Series"
     case easy      = "Fácil"
+    /// Una carrera a la que el atleta **ya está inscrito**. No es un tipo de entrenamiento que el
+    /// motor elija: es un hecho de su calendario, y el plan se acomoda alrededor.
+    case race      = "Carrera"
 
-    /// Días duros del 80/20 (la intensidad pesa más que el volumen).
-    var isHard: Bool { self == .tempo || self == .intervals }
+    /// Días duros del 80/20 (la intensidad pesa más que el volumen). Una carrera es el día más
+    /// duro que existe: se corre a tope y por eso sustituye a la sesión de calidad de la semana.
+    var isHard: Bool { self == .tempo || self == .intervals || self == .race }
 
     var systemImage: String {
         switch self {
@@ -40,6 +44,7 @@ enum PlannedWorkoutKind: String, Sendable, Equatable, CaseIterable {
         case .tempo:     return "speedometer"
         case .intervals: return "bolt.fill"
         case .easy:      return "figure.run"
+        case .race:      return "flag.checkered"
         }
     }
 }
@@ -52,8 +57,14 @@ struct PlannedDay: Identifiable, Equatable, Sendable {
     var targetKm: Double?
     var label: String      // "Series 6 km"
     var detail: String     // guía de ritmo
+    /// Id de la carrera si este día **es** una carrera inscrita. No nulo ⇒ el día es un hecho,
+    /// no una sugerencia: ya pagaste inscripción para correr esa distancia ese día.
+    var raceId: String? = nil
 
     var id: String { String(weekday) }
+
+    /// Un día fijo no se mueve ni se reprograma: el plan se acomoda alrededor de él.
+    var isFixed: Bool { raceId != nil }
 
     /// Nombre del día ("lunes", "martes"…), según el calendario actual.
     var weekdayName: String {
