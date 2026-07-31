@@ -11,11 +11,18 @@ concurrency:
   group: pruebas-${{ github.ref }}
   cancel-in-progress: true
 
+# Mínimo indispensable, declarado aquí y no heredado de la config del repo: estas pruebas solo
+# necesitan leer el código. Si algún día alguien cambia el default del repo a "write", este
+# workflow sigue sin poder escribir nada.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      # Fijado al SHA de v4: un tag es mutable y puede reapuntarse; un SHA no.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Usar el Xcode más nuevo del runner
         # Por versión instalada y no fijo: el proyecto pide Xcode 26+ y la imagen del runner
@@ -60,9 +67,22 @@ jobs:
 
       - name: Generar el proyecto
         # El .xcodeproj no se versiona (ver README): se genera siempre.
+        #
+        # XcodeGen se baja de su release fijado y se **verifica por SHA-256** en vez de
+        # `brew install xcodegen`: Homebrew resuelve la fórmula en tiempo de ejecución, así que
+        # instalaría lo que sea que esté publicado ese día. Esto es la única descarga de terceros
+        # del workflow, y así queda inmutable y comprobable.
+        env:
+          XCODEGEN_VERSION: "2.45.4"
+          XCODEGEN_SHA256: "090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef"
         run: |
-          brew install xcodegen
-          xcodegen generate
+          curl -sSL --fail -o xcodegen.zip \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip"
+          echo "${XCODEGEN_SHA256}  xcodegen.zip" | shasum -a 256 -c -
+          unzip -q xcodegen.zip -d "$RUNNER_TEMP/xcodegen"
+          # El binario necesita su carpeta `share` hermana (presets de settings), así que se
+          # invoca desde donde se extrajo en vez de copiar solo el ejecutable.
+          "$RUNNER_TEMP/xcodegen/xcodegen/bin/xcodegen" generate
 
       - name: Correr las pruebas
         # El simulador se elige por UDID del primero disponible en vez de por nombre: la imagen
