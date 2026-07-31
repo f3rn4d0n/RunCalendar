@@ -532,19 +532,21 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 51 pruebas en 9 suites. Se corren con ⌘U o con
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 75 pruebas en 12 suites, **en CI en cada PR**
+  (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
   ```
   Hospedadas en la app (`@testable import RunCalendar`), así que alcanzan casos de uso, no solo
   entidades. Cubren `BestSplit`, `RaceReadiness.timing`, adherencia/campañas/`WeekStatus`,
-  `WorkoutStructure` y el motor **`GeneratePlanUseCase`**. Antes eran scripts sueltos en `Scripts/`
-  que había que invocar a mano; ya no existen.
+  `WorkoutStructure`, el motor **`GeneratePlanUseCase`**, la recuperación/calibración (por
+  propiedades) y la recomposición. Antes eran scripts sueltos en `Scripts/` y dos `selfCheck()` de
+  andamio (uno en cada arranque en DEBUG, otro en un preview); ya no existen.
   Al motor se le prueban **invariantes** (80/20, techo de progresión, tirada larga como día más
   largo, taper), no números exactos: las constantes están sin calibrar a propósito y fijarlas
   cementaría valores que nadie ha comprobado. Ver *Umbrales sin calibrar* en
   [Pendientes](docs/pendientes.md).
-  Sigue faltando **CI** y dobles de repositorio para llegar a los ViewModels.
+  Sigue faltando dobles de repositorio para llegar a los ViewModels.
 - **Convenciones de código**:
   - ViewModels `@Observable`; la UI solo conoce **casos de uso** (nunca Firebase directo).
   - Cada caso de uso = una responsabilidad, recibe su repositorio por **protocolo**.
@@ -644,7 +646,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **pruebas**: target ✅ + 51 pruebas ✅; faltan **CI** y dobles de repositorio para llegar a los ViewModels |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **pruebas**: target ✅ + 75 pruebas ✅ + CI ✅; faltan dobles de repositorio para llegar a los ViewModels |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |
