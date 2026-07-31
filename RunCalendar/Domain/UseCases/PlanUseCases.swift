@@ -223,7 +223,7 @@ struct DescribeWorkoutUseCase: Sendable {
 /// - **Tirada larga**: +~1 km/sem hacia su target; acotada para no ser una corrida monstruo y para
 ///   ser siempre el día más largo.
 /// - **80/20**: series y tempo aportan poco volumen (el 20% duro); los fáciles se llevan el grueso.
-/// - **Taper**: la última semana antes de la meta baja el volumen.
+/// - **Taper**: las 2 últimas semanas antes de la meta bajan el **volumen**, no la intensidad.
 ///
 /// `// ponytail:` v1 lineal. Periodización real (mesociclos, deloads cada 4ª sem, taper por tipo de
 /// carrera) y espaciado inteligente de días duros se difieren; llegan con la IA si de verdad hacen falta.
@@ -268,10 +268,6 @@ struct GeneratePlanUseCase: Sendable {
         var weekKm = min(base * 1.08, volumeTarget ?? base * 1.08)
         weekKm = max(weekKm, base)                       // nunca por debajo del actual
 
-        // Taper: última semana antes de la meta.
-        let tapering = weeksLeft(input.primary.deadline, input.now).map { $0 <= 1 } ?? false
-        if tapering { weekKm *= 0.6 }
-
         // Carreras inscritas de esta semana: días fijos. Ocupan su lugar antes que nada, porque no
         // son una decisión del motor sino un compromiso ya adquirido.
         let raceDays = registeredRaces(in: input)
@@ -286,24 +282,25 @@ struct GeneratePlanUseCase: Sendable {
             }
         }
 
-        // Tirada larga: progresa +1 km/sem hacia su target; acotada por la fracción base y por un
-        // **máximo absoluto** (una tirada no crece sin límite aunque el volumen sea alto).
-        let frac = longFraction(days: days)
-        let longCeiling = min(weekKm * 0.6, maxLongKm)
-        let progressed = input.currentLongRunKm.map { min($0 + 1, longRunTarget ?? .greatestFiniteMagnitude) }
-        let longKm = structure.contains(.longRun)
-            ? round1(clampD(progressed ?? weekKm * frac, weekKm * frac, longCeiling))
-            : 0
-
-        // El resto del volumen se **reparte** entre las demás sesiones por pesos, con tope por tipo
-        // (series/tempo no escalan). Así, a más días la misma carga se divide en sesiones más cortas
-        // —en vez de apilar rodajes con un piso fijo— y lo que no quepa se reporta (faltan días).
-        // Los km de la carrera salen del presupuesto: ya los vas a correr.
-        let others = structure.filter { $0 != .longRun }
-        let budget = max(0, weekKm - longKm - raceKm)
-        let (othersKm, unfit) = allocate(others, budget: budget, longKm: max(longKm, raceKm))
-        var othersIter = othersKm.makeIterator()
-        let kmByIndex = structure.map { $0 == .longRun ? longKm : round1(othersIter.next() ?? 0) }
+        // Taper. Dos repartos: el volumen fácil (rodajes y tirada larga) sale del recorte completo,
+        // y las sesiones de calidad de un recorte a la mitad — menos repeticiones, mismo ritmo.
+        // Fuera de taper `taper` es nil y solo se hace el reparto normal.
+        let taper = taperFactor(weeksLeft(input.primary.deadline, input.now))
+        let taperedKm = weekKm * (taper ?? 1)
+        // Afinando, la tirada larga deja de progresar: sigue al volumen recortado y no al historial.
+        // Si no, se queda pegada a los km de la semana pasada y acapara media semana de taper.
+        let longHistory = taper == nil ? input.currentLongRunKm : nil
+        let (volumeKm, unfit) = distribute(structure, weekKm: taperedKm, raceKm: raceKm, days: days,
+                                           currentLongRunKm: longHistory,
+                                           longRunTarget: longRunTarget)
+        var kmByIndex = volumeKm
+        if let taper {
+            let (qualityKm, _) = distribute(structure, weekKm: weekKm * (1 + taper) / 2,
+                                            raceKm: raceKm, days: days,
+                                            currentLongRunKm: longHistory,
+                                            longRunTarget: longRunTarget)
+            kmByIndex = zip(structure, zip(volumeKm, qualityKm)).map { $0.0.isHard ? $0.1.1 : $0.1.0 }
+        }
 
         // Asigna días de la semana: preferidos (ordenados) o un reparto por defecto espaciado,
         // **sin pisar** los días de carrera.
@@ -331,7 +328,7 @@ struct GeneratePlanUseCase: Sendable {
         }
         let planned = (generated + raceDays).sorted { $0.weekPosition < $1.weekPosition }
 
-        let note = planNote(planned: planned, weekKm: weekKm, days: days, unfit: unfit)
+        let note = planNote(planned: planned, weekKm: taperedKm, days: days, unfit: unfit, taper: taper)
 
         return TrainingPlan(
             primaryGoalId: input.primary.id,
@@ -411,6 +408,47 @@ struct GeneratePlanUseCase: Sendable {
         }
     }
 
+    /// Km por sesión para un volumen semanal dado. La tirada larga primero (progresa +1 km/sem hacia
+    /// su target, acotada por la fracción base y por un **máximo absoluto**: una tirada no crece sin
+    /// límite aunque el volumen sea alto); el resto se **reparte** por pesos con tope por tipo, así
+    /// que a más días la misma carga se divide en sesiones más cortas en vez de apilar rodajes con
+    /// un piso fijo. Los km de la carrera salen del presupuesto: ya los vas a correr. Devuelve
+    /// también lo que no cupo (topes saturados ⇒ faltan días).
+    private func distribute(_ structure: [PlannedWorkoutKind], weekKm: Double, raceKm: Double,
+                            days: Int, currentLongRunKm: Double?,
+                            longRunTarget: Double?) -> ([Double], Double) {
+        let frac = longFraction(days: days)
+        let longCeiling = min(weekKm * 0.6, maxLongKm)
+        let progressed = currentLongRunKm.map { min($0 + 1, longRunTarget ?? .greatestFiniteMagnitude) }
+        let longKm = structure.contains(.longRun)
+            ? round1(clampD(progressed ?? weekKm * frac, weekKm * frac, longCeiling))
+            : 0
+
+        let others = structure.filter { $0 != .longRun }
+        let budget = max(0, weekKm - longKm - raceKm)
+        let (othersKm, unfit) = allocate(others, budget: budget, longKm: max(longKm, raceKm))
+        var iter = othersKm.makeIterator()
+        return (structure.map { $0 == .longRun ? longKm : round1(iter.next() ?? 0) }, unfit)
+    }
+
+    /// Afinamiento previo a la meta, en dos escalones progresivos: la penúltima semana ya recorta y
+    /// la de la carrera recorta más. `nil` fuera de esa ventana.
+    ///
+    /// El factor se aplica al volumen fácil; la calidad se recorta la mitad (`(1 + taper) / 2`), que
+    /// es lo que la evidencia sostiene: bajar volumen 41–60% durante ~2 semanas **manteniendo**
+    /// intensidad y frecuencia (Bosquet et al., meta-análisis de ~50 estudios). Bajar también el
+    /// ritmo pierde economía de carrera y sensación de ritmo, que es justo lo que vas a necesitar.
+    ///
+    /// ponytail: dos escalones fijos e iguales para toda meta. Un 5K afina distinto que un maratón;
+    /// hazlo por distancia si el atleta reporta llegar pesado o pasado de rosca.
+    private func taperFactor(_ weeksLeft: Int?) -> Double? {
+        switch weeksLeft {
+        case 0:  return 0.50    // semana de la carrera
+        case 1:  return 0.75    // penúltima
+        default: return nil
+        }
+    }
+
     /// Reparte `budget` km entre `kinds` por pesos, respetando el tope de cada tipo (water-filling):
     /// lo que rebasa un tope se re-reparte entre los que aún tienen cupo. Devuelve los km por índice
     /// y el sobrante que no cupo (topes saturados ⇒ faltan días para el volumen).
@@ -440,9 +478,15 @@ struct GeneratePlanUseCase: Sendable {
         return (km, pool)
     }
 
-    /// Aviso del coach, por prioridad: (1) el volumen no cabe → faltan días; (2) demasiados días →
-    /// sesiones muy cortas; (3) sesiones exigentes en días seguidos (por los días elegidos).
-    private func planNote(planned: [PlannedDay], weekKm: Double, days: Int, unfit: Double) -> String? {
+    /// Aviso del coach, por prioridad: (0) estás afinando —una semana corta a propósito no es un
+    /// error del plan y hay que decirlo—; (1) el volumen no cabe → faltan días; (2) demasiados días
+    /// → sesiones muy cortas; (3) sesiones exigentes en días seguidos (por los días elegidos).
+    private func planNote(planned: [PlannedDay], weekKm: Double, days: Int, unfit: Double,
+                          taper: Double?) -> String? {
+        if taper != nil {
+            return "Semana de afinamiento: menos kilómetros, mismo ritmo en series y tempo. Bajas "
+                + "el volumen para llegar descansado, no la intensidad — esa es la que te da la chispa."
+        }
         if unfit > unfitThresholdKm {
             return "Tu volumen (~\(Goal.trim(weekKm)) km) no cabe sano en \(days) días: sube a "
                 + "~\(suggestedDays(weekKm)) días para repartirlo en vez de meter sesiones enormes."
