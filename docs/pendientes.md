@@ -106,7 +106,7 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `GeneratePlanTests` | **el motor del plan**, por invariantes | 20 |
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 | `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
-| `RacesInPlanTests` | carreras inscritas ancladas al plan de la semana | 12 |
+| `RacesInPlanTests` | carreras inscritas + víspera protegida | 18 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
 También se borraron los dos `selfCheck()` de andamio — uno corría en **cada arranque** de la app en
@@ -234,6 +234,35 @@ No se arregló aquí porque el arreglo es **elegir un número nuevo** (¿1 km? �
 eso es calibrar a ojo, justo lo que dice *Umbrales sin calibrar*. Lo defendible sin datos es que
 el aviso dependa de la **fracción** del volumen, no de un absoluto: 3 km sobre 40 es 7.5% y merece
 mención; 3 km sobre 120 no.
+
+### El taper reduce la intensidad, y la evidencia dice mantenerla
+
+Hoy el taper es una línea en `GeneratePlanUseCase`: `if tapering { weekKm *= 0.6 }`. Baja el
+volumen ~40%, que está **dentro del rango correcto**. El problema es *cómo*: el presupuesto
+recortado se reparte entre todas las sesiones vía `allocate`, así que las de calidad encogen
+proporcionalmente — y bajar la intensidad es justo lo que no hay que hacer.
+
+Lo que dice la literatura (meta-análisis de Bosquet et al. 2007, confirmado por revisiones más
+recientes):
+
+| Variable | Qué hacer |
+|---|---|
+| **Volumen** | bajar **41–60%**, de forma exponencial |
+| **Intensidad** | **no tocar** |
+| **Frecuencia** | **no tocar** |
+| **Duración** | ~**2 semanas** (≤ 21 días) |
+
+Arreglarlo es acotar el recorte a las sesiones fáciles y a la tirada larga, dejando series y tempo
+con su distancia. No se hizo junto con la regla de la víspera porque son cosas distintas: la
+víspera es una **regla de colocación** (no requiere calibrar nada), y esto es un cambio en cómo se
+reparte el volumen, que sí conviene revisar con un plan real delante.
+
+> **Contexto de por qué importa:** el efecto de un taper bien hecho es del orden del 2–3% en
+> rendimiento. Sobre un medio maratón de 2 h son 2–4 minutos — más de lo que mueve casi cualquier
+> otra cosa que la app pueda sugerir.
+
+Fuentes: [Bosquet et al., *Effects of tapering on performance: a meta-analysis*](https://www.semanticscholar.org/paper/Effects-of-tapering-on-performance:-a-Bosquet-Montpetit/a41517ab5fa06b92568b861e2b1aa32b3003d214) ·
+[*Effects of tapering on performance in endurance athletes* (PLOS One, 2023)](https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0282838)
 
 ### Periodización lineal
 

@@ -141,6 +141,83 @@ struct RacesInPlanTests {
         #expect(week.first { $0.kind == .race }?.targetKm == 18)
     }
 
+    // MARK: - La víspera
+
+    /// Día de la semana que cae `offset` días después del inicio de la semana del usuario.
+    private func weekday(offset: Int) -> Int {
+        cal.component(.weekday, from: cal.date(byAdding: .day, value: offset, to: weekStart) ?? weekStart)
+    }
+
+    @Test("La víspera de la carrera no lleva una sesión exigente", arguments: [3, 4, 5, 6, 7])
+    func noHardSessionOnRaceEve(days: Int) {
+        // Carrera el último día de la semana: la víspera es el penúltimo. Es el caso del domingo
+        // con el plan llegando hasta el sábado. Se barren todos los días/semana porque con pocos
+        // días la víspera queda en descanso (que también cumple) y con muchos sí se ocupa.
+        let week = plan(days: days, races: [race(.tenK, daysFromWeekStart: 6)]).days
+        let eve = week.first { $0.weekday == weekday(offset: 5) }
+        #expect(eve?.kind.isHard != true, "cayó \(eve?.kind.rawValue ?? "—") en la víspera")
+        #expect(eve?.kind != .longRun, "la tirada larga tampoco va en víspera")
+    }
+
+    @Test("Si la semana no llena la víspera, queda en descanso — que también cumple la regla")
+    func eveMaySimplyBeRest() {
+        let week = plan(days: 5, races: [race(.tenK, daysFromWeekStart: 6)]).days
+        let eve = week.first { $0.weekday == weekday(offset: 5) }
+        // Con 5 días la víspera ni se usa. Lo que importa es que no sea exigente, lo esté o no.
+        #expect(eve == nil || eve?.kind == .easy)
+    }
+
+    @Test("La víspera queda como el día más corto de la semana")
+    func eveIsTheShortestDay() {
+        // 7 días: todos los días no-carrera llevan sesión, así que la víspera seguro está ocupada.
+        let week = plan(days: 7, races: [race(.tenK, daysFromWeekStart: 6)]).days
+        guard let eve = week.first(where: { $0.weekday == weekday(offset: 5) }) else {
+            Issue.record("con 7 días la víspera debería llevar sesión")
+            return
+        }
+        // Relativo, no un número fijo: no cementa el tope de la víspera, solo que es un rodaje corto.
+        let otras = week.filter { $0.kind != .race && $0.weekday != eve.weekday }
+            .compactMap(\.targetKm)
+        for km in otras {
+            #expect((eve.targetKm ?? 0) <= km, "la víspera (\(eve.targetKm ?? 0)) no es la más corta")
+        }
+    }
+
+    @Test("El texto de la víspera ofrece las dos opciones en vez de prescribir una")
+    func eveOffersBothOptions() {
+        // No hay ensayos que comparen descanso contra rodaje corto: la app no debe elegir por ti.
+        let week = plan(days: 7, races: [race(.tenK, daysFromWeekStart: 6)]).days
+        let eve = week.first { $0.weekday == weekday(offset: 5) }
+        #expect(eve?.detail.lowercased().contains("descanso") == true)
+        #expect(eve?.detail.contains("suaves") == true)
+    }
+
+    @Test("Una carrera el primer día de la semana no rompe nada (su víspera es de otra semana)")
+    func raceOnFirstDayHasNoEveToProtect() {
+        let week = plan(days: 4, races: [race(.tenK, daysFromWeekStart: 0)]).days
+        #expect(week.contains { $0.kind == .race })
+        #expect(week.count >= 1)
+    }
+
+    @Test("Si no se puede dejar la víspera suave, el aviso lo dice y no pide mover la carrera")
+    func warnsWhenTheEveCannotBeProtected() {
+        // 3 días = series + tempo + larga: al sustituir una por la carrera no queda ninguna sesión
+        // fácil con la que intercambiar. Se dan exactamente los días que se van a usar, uno de
+        // ellos la víspera, para que la exigente no tenga a dónde moverse.
+        let plan = engine(GeneratePlanUseCase.Input(
+            primary: Goal(type: .raceTime, targetValue: 7200),
+            config: PlanConfig(daysPerWeek: 3,
+                               preferredWeekdays: [weekday(offset: 1), weekday(offset: 5)]),
+            currentWeeklyKm: 40,
+            currentLongRunKm: 12,
+            races: [race(.tenK, daysFromWeekStart: 6)],
+            weekStart: weekStart
+        ))
+        #expect(plan.note?.contains("carrera") == true, "aviso: \(plan.note ?? "nil")")
+        // El aviso no puede pedir mover un día fijo.
+        #expect(plan.note?.contains("mueve la carrera") != true)
+    }
+
     // MARK: - Guía
 
     @Test("La guía de una carrera dice que el día es fijo y no le inventa ritmo")

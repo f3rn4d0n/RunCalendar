@@ -309,9 +309,25 @@ struct GeneratePlanUseCase: Sendable {
         // **sin pisar** los días de carrera.
         let taken = Set(raceDays.map(\.weekday))
         let weekdays = weekdays(for: input.config, count: structure.count, excluding: taken)
-        let generated: [PlannedDay] = zip(weekdays, zip(structure, kmByIndex)).map { weekday, pair in
-            PlannedDay(weekday: weekday, kind: pair.0, targetKm: pair.1,
-                       label: label(pair.0, km: pair.1), detail: detail(pair.0))
+
+        // Víspera de carrera: nunca una sesión exigente. Es lo único que la evidencia soporta sin
+        // inventar nada (la fatiga de una sesión dura tarda 24–72 h en irse y el glucógeno pide
+        // 24–48 h). Si hay una sesión fácil con la que intercambiar, se intercambia.
+        let eves = eveWeekdays(of: raceDays, raceWeekdays: taken)
+        let slots = arrangeAvoidingEves(Array(zip(structure, kmByIndex)).map { ($0, $1) },
+                                        on: weekdays, eves: eves)
+
+        let generated: [PlannedDay] = zip(weekdays, slots).map { weekday, slot in
+            let isEve = eves.contains(weekday)
+            // La víspera se acota a un rodaje corto. Descanso o 20–30 min muy suaves: la evidencia
+            // NO distingue entre ambos (no hay ensayos que los comparen), así que se ofrece la
+            // opción en vez de prescribir una. Los km que se recortan aquí simplemente no se corren.
+            let km = isEve ? min(slot.km, minEasyKm) : slot.km
+            return PlannedDay(
+                weekday: weekday, kind: slot.kind, targetKm: km,
+                label: label(slot.kind, km: km),
+                detail: isEve ? eveDetail : detail(slot.kind)
+            )
         }
         let planned = (generated + raceDays).sorted { $0.weekPosition < $1.weekPosition }
 
@@ -436,8 +452,17 @@ struct GeneratePlanUseCase: Sendable {
             return "Con \(days) días algunas sesiones quedan muy cortas para tu volumen "
                 + "(~\(Goal.trim(weekKm)) km). Da para ~\(suggestedDaysLow(weekKm)) días; súbelo o baja días."
         }
-        let demanding = planned.filter { $0.kind.isHard || $0.kind == .longRun }.map(\.weekday).sorted()
-        if zip(demanding, demanding.dropFirst()).contains(where: { $1 - $0 == 1 }) {
+        // Por **posición en la semana del usuario**, no por número de `Calendar`: si tu semana
+        // empieza en lunes, sábado (7) y domingo (1) son días seguidos y restando sus números da 6.
+        // Con eso, el aviso era ciego justo en el borde — el caso de la carrera del domingo.
+        let demanding = planned.filter { isDemanding($0.kind) }.sorted { $0.weekPosition < $1.weekPosition }
+        if let pair = zip(demanding, demanding.dropFirst())
+            .first(where: { $1.weekPosition - $0.weekPosition == 1 }) {
+            // Si una de las dos es una carrera, no sirve decir "muévela": el día es fijo.
+            if pair.0.kind == .race || pair.1.kind == .race {
+                return "Tu carrera queda pegada a una sesión exigente y no hubo forma de dejarte la "
+                    + "víspera suave. Cambia tus días preferidos o baja un día esa semana."
+            }
             return "Tienes sesiones exigentes en días seguidos. Deja un día fácil o de descanso "
                 + "entre ellas si puedes (ajusta tus días preferidos)."
         }
@@ -494,6 +519,48 @@ struct GeneratePlanUseCase: Sendable {
                     raceId: race.id
                 )
             }
+    }
+
+    /// Los días **víspera** de una carrera de la semana. Si la carrera es el primer día de la
+    /// semana del usuario, su víspera cae en la semana anterior y aquí no hay nada que proteger.
+    private func eveWeekdays(of raceDays: [PlannedDay], raceWeekdays: Set<Int>) -> Set<Int> {
+        let eves = raceDays
+            .filter { $0.weekPosition > 0 }                     // la víspera está en esta semana
+            .map { ($0.weekday + 5) % 7 + 1 }                   // día anterior (1=Dom … 7=Sáb)
+        return Set(eves).subtracting(raceWeekdays)              // dos carreras seguidas: manda la carrera
+    }
+
+    /// Reordena las sesiones para que **ninguna exigente** caiga en víspera de carrera,
+    /// intercambiándola con una fácil de otro día. Si la semana no tiene ninguna sesión fácil con
+    /// la que permutar, se deja como está: el aviso del plan lo reportará.
+    ///
+    /// Intercambia el par completo (tipo **y** km): el reparto de kilómetros se calculó contra el
+    /// orden original, así que mover solo el tipo dejaría un rodaje fácil con los km de un tempo.
+    private func arrangeAvoidingEves(_ slots: [(kind: PlannedWorkoutKind, km: Double)],
+                                     on weekdays: [Int],
+                                     eves: Set<Int>) -> [(kind: PlannedWorkoutKind, km: Double)] {
+        guard !eves.isEmpty else { return slots }
+        var result = slots
+        for i in result.indices where i < weekdays.count {
+            guard eves.contains(weekdays[i]), isDemanding(result[i].kind) else { continue }
+            let swap = result.indices.first { j in
+                j < weekdays.count && !eves.contains(weekdays[j]) && !isDemanding(result[j].kind)
+            }
+            if let swap { result.swapAt(i, swap) }
+        }
+        return result
+    }
+
+    /// Exigente = intensidad o volumen alto. Lo que no debe caer pegado a una carrera.
+    private func isDemanding(_ kind: PlannedWorkoutKind) -> Bool {
+        kind.isHard || kind == .longRun
+    }
+
+    /// El texto de la víspera dice las dos opciones válidas en vez de prescribir una: **no hay
+    /// ensayos controlados** que comparen descanso contra rodaje corto antes de competir.
+    private var eveDetail: String {
+        "Víspera de carrera: descanso o 20–30 min muy suaves, lo que te funcione. "
+            + "Lo importante es que no sea una sesión dura."
     }
 
     /// Qué sesión sustituye la carrera. Una carrera larga ocupa el lugar de la tirada larga; una
