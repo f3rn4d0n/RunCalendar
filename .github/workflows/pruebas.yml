@@ -1,10 +1,22 @@
 name: Pruebas
 
 # El repo es público, así que los runners de macOS no consumen minutos.
+#
+# **Solo en PRs, no en cada push a `main`.** Antes corría en ambos, así que cada cambio se probaba
+# dos veces: una en la rama y otra al mergear. Lo que la corrida de `main` protegía era el caso en
+# que `main` avanzara entre que se probó el PR y se mergeó — lo probado no sería lo mergeado (otro
+# PR renombra una función mientras el tuyo agrega una llamada: cada uno pasa solo, la suma no
+# compila). Eso ahora lo cubre **"Require branches to be up to date before merging"** en la
+# protección de `main`, que impide mergear hasta que la rama contenga la punta de `main`. Con eso
+# lo probado y lo mergeado son idénticos por construcción, y la segunda corrida sobra.
+#
+# Si algún día se quita esa protección, **vuelve a poner `push: branches: [main]`**: sin una cosa
+# ni la otra, nada prueba lo que queda en `main`.
 on:
   pull_request:
-  push:
-    branches: [main]
+  # Escotilla para correrlas a mano sobre `main` (tras un cambio de settings, o si algo llegó por
+  # fuera de un PR). Es la única forma de probar `main` ahora que no hay disparador por push.
+  workflow_dispatch:
 
 concurrency:
   # Un push nuevo al mismo PR cancela la corrida anterior: no sirve esperar a un commit viejo.
