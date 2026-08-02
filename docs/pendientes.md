@@ -144,7 +144,16 @@ Tres detalles que cuestan una tarde si no se saben:
 1. `HealthViewModel` y `TrainingViewModel` siguen sin pruebas propias (los dobles ya están; falta
    escribirlas). El import de Salud —deduplicar contra lo que ya existe— es lo que más lo pide.
 2. ~~**CI en GitHub Actions**~~ ✅ hecho: `.github/workflows/pruebas.yml` corre el target en cada
-   PR y en cada push a `main`. El repo es público, así que los runners de macOS no cuestan minutos.
+   PR — **solo ahí**, no en cada push a `main`. Antes eran las dos cosas y cada cambio se probaba
+   dos veces (una en la rama, otra al mergear). Lo que la corrida de `main` protegía era que `main`
+   avanzara entre que se probó el PR y se mergeó, y eso lo cubre ahora **"Require branches to be up
+   to date before merging"** en la protección de `main`: no deja mergear hasta que la rama contenga
+   la punta de `main`, así que lo probado y lo mergeado son idénticos. **Si algún día se quita esa
+   protección, hay que devolver el disparador `push: branches: [main]`** — sin una ni la otra, nada
+   prueba lo que queda en `main`. Queda un `workflow_dispatch` para correrlas a mano sobre `main`.
+   El repo es público, así que los runners de macOS no cuestan minutos. **No metas `paths-ignore`**
+   para saltarte cambios de solo documentación: con un check requerido, un PR que solo toca `.md`
+   se queda esperando para siempre un check que nunca va a correr.
    Los archivos gitignored (`Secrets.xcconfig`, `GoogleService-Info.plist`) se crean como
    placeholders en el runner; el `API_KEY` falso **debe** tener el formato que Firebase valida
    (39 caracteres, empieza con `A`) o la app anfitriona lanza una excepción al arrancar y el
