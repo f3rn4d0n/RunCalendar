@@ -78,6 +78,7 @@ struct WorkoutDetailView: View {
         VStack(alignment: .leading, spacing: 6) {
             Button {
                 Haptics.light()
+                Usage.workoutSentToWatch(kind: day.kind)
                 showingWatchPreview = true
             } label: {
                 Label("Enviar al Apple Watch", systemImage: "applewatch")

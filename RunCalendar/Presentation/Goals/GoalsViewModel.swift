@@ -187,6 +187,7 @@ final class GoalsViewModel {
             )
             await refreshBody()
             Haptics.success()
+            Usage.weeklyReviewSaved()
             return true
         } catch {
             errorMessage = error.localizedDescription

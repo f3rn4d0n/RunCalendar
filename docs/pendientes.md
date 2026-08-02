@@ -72,15 +72,37 @@ Alcance propuesto, en orden:
    al log del sistema **y** a Crashlytics. Los 10 `catch` que había se convirtieron: autorización y
    escritura de HealthKit, traza GPS, clima (carrera y entrenamiento), check-in de recuperación y
    los cuatro snapshots de Firestore. Cualquier `catch` nuevo lo hereda con solo usar `failure`.
-3. **Cuatro o cinco eventos** — pendiente, y es lo único que queda de este punto. No analítica
-   exhaustiva: importó de Salud (cuántos workouts), generó plan, completó sesión, hizo review
-   dominical. Suficiente para saber si la app se **usa** o solo se abre. Requiere
-   `FirebaseAnalytics`, que sí es un paquete aparte.
+3. ✅ **Cinco eventos de uso.** Hecho, todos en `RunCalendar/Core/Utils/Usage.swift`:
+   `health_imported` (con el conteo), `plan_configured` (días/semana + si vino de la sugerencia),
+   `session_completed`, `weekly_review_saved` y `workout_sent_to_watch`. Responden *¿la app se usa
+   o solo se abre?*, que es la pregunta que solo se puede contestar **antes** de la beta.
+
+   Decisiones que no son obvias al leerlo:
+
+   - **Todo sale de un archivo.** La revisión de privacidad es leer una pantalla, no auditar el
+     proyecto. La regla es que aquí no viaja ningún dato del atleta: solo conteos y `case`s
+     nuestros. Nada de nombres, notas, kilometrajes, pesos, fechas ni ids.
+   - **No se manda el `rawValue` de los enums.** Esos son los textos de la UI ("Tirada larga"), y
+     cambiarlos por redacción rompería la serie histórica del panel sin que nadie lo relacione. Va
+     una clave estable en inglés, de un `switch` exhaustivo — así el compilador obliga a decidir
+     cuando alguien agregue un `case`.
+   - **`health_imported` se manda también con cero.** "El import corre y siempre trae cero" y "el
+     import nunca corre" se ven igual desde fuera y no son el mismo problema.
+   - **`plan_configured` sale al cerrar la hoja, no en el `didSet`.** El stepper dispara en cada
+     toque: subir de 3 a 7 días son cuatro cambios y una sola decisión. Y solo si algo cambió —
+     abrir para mirar el plan y cerrar no es haberlo configurado.
+   - **Importar de Salud no cuenta como sesión completada.** `session_completed` sale del alta a
+     mano y del check; lo importado ya lo cuenta `health_imported`.
 
 **Lo que falta antes de una beta real:** el panel de Crashlytics no muestra nada hasta que haya un
-build de Release en un dispositivo. Y al enviar a App Store hay que declarar la recolección de
-**datos de diagnóstico** en el App Privacy del listing (el SDK ya trae su privacy manifest, pero la
+build de Release en un dispositivo. Y al enviar a App Store hay que declarar en el App Privacy del
+listing la recolección de **datos de diagnóstico** (Crashlytics) y ahora también de **datos de uso**
+más el **identificador de instancia** que Analytics genera (el SDK trae su privacy manifest, pero la
 declaración del listing es responsabilidad de la app).
+
+> **No agregues `FirebaseAnalyticsIdentitySupport`.** Es el producto SPM que trae el IDFA: obliga a
+> pedir permiso de seguimiento y mueve la declaración de privacidad al terreno de la publicidad.
+> Está anotado también en `project.yml`, que es donde alguien lo agregaría sin querer.
 
 Lo que **no** entra: analítica de producto por pantalla, embudos, o cualquier cosa que pida
 consentimiento adicional. Esto es para saber que la app funciona, no para medir gente.

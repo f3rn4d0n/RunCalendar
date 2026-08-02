@@ -437,8 +437,20 @@ Crashlytics. Usa `failure` en todo `catch` nuevo: es el único punto donde se co
 así que basta con eso para que aparezca en el panel.
 
 El `context` es texto nuestro, **nunca datos del usuario**: viaja a un servicio externo. En Debug
-el reporte está apagado (`Log.configureCrashReporting`), y los dSYM se suben en un
+el reporte está apagado (`Log.configureObservability`), y los dSYM se suben en un
 `postBuildScript` solo en Release.
+
+**Eventos de uso** (`Core/Utils/Usage.swift`): cinco, y **todo lo que la app manda fuera sobre lo
+que hace el atleta sale de ese archivo** — así la revisión de privacidad es leer una pantalla.
+`health_imported` (con el conteo, también cuando es cero), `plan_configured`, `session_completed`,
+`weekly_review_saved` y `workout_sent_to_watch`. No es analítica de producto: no hay embudos, ni
+vistas de pantalla, ni ids de usuario. Solo responde *¿la app se usa o solo se abre?*
+
+**Regla dura: ahí no viaja ningún dato del atleta**, solo conteos y `case`s nuestros. Y se manda
+una clave estable en inglés, no el `rawValue` — ese es el texto que ve el usuario y cambiarlo por
+redacción rompería la serie histórica del panel. En Debug la recolección está apagada pero los
+eventos se siguen escribiendo al log del sistema, que es como se comprueba que se disparan sin
+esperar 24 h al panel de Firebase.
 
 ---
 
@@ -675,7 +687,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`); faltan 4–5 eventos de uso · **pruebas**: target ✅ + 129 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 129 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

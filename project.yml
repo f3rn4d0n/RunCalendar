@@ -94,6 +94,11 @@ targets:
         product: FirebaseFirestore
       - package: Firebase
         product: FirebaseCrashlytics
+      # Solo `FirebaseAnalytics`. **No agregues `FirebaseAnalyticsIdentitySupport`**: ese es el
+      # producto que trae el IDFA (publicidad), obliga a pedir permiso de seguimiento y cambia la
+      # declaración de privacidad del listing. Aquí los eventos son de uso, no de anuncios.
+      - package: Firebase
+        product: FirebaseAnalytics
       - package: GoogleSignIn
         product: GoogleSignIn
 
