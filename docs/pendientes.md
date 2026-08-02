@@ -129,7 +129,7 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 | `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
 | `RacesInPlanTests` | carreras inscritas + víspera protegida | 18 |
-| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, pausas, adherencia, guardado | 19 |
+| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, siembra de días, pausas, adherencia, guardado | 24 |
 | `RacesViewModelTests` | gasto del año, motivos de clima ausente, calendario | 12 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
@@ -154,6 +154,11 @@ Tres detalles que cuestan una tarde si no se saben:
   **compartido**. Sin `clearPersistedDefaults()` en el montaje, la lesión que deja una prueba hace
   fallar a la siguiente por un motivo que no tiene que ver con ella. Por eso esas suites van
   `.serialized`.
+- **Cuidado con los `didSet` de propiedades del ViewModel.** En una clase, asignar en el `init` a
+  una propiedad que ya tiene valor por defecto **sí dispara** el observador. Eso persistía la
+  `PlanConfig` antes de que nadie la eligiera, y la siembra desde el historial creía que ya estaba
+  configurada. Se arregla leyéndola en el valor inicial de la propiedad (ahí los observadores no
+  corren) en vez de asignarla en el `init`. Hay una prueba que lo fija.
 - **Nada de aserciones que dependan del día en que corran.** Los ViewModels leen `Date()` directo,
   así que una prueba escrita un sábado puede pasar en local y fallar el domingo en CI (pasó: la
   primera versión de *la semana día por día* daba por hecho que todo día futuro es `.upcoming`,

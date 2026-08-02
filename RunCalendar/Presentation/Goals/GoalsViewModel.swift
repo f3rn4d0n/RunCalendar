@@ -40,8 +40,12 @@ final class GoalsViewModel {
 
     /// Config del plan (días/semana + días preferidos). Persistida en UserDefaults; el plan en sí
     /// es derivado de tus metas y no se persiste (función pura de metas + volumen + config).
+    ///
+    /// Se lee aquí y **no** en el `init`: asignarla ahí dispara el `didSet`, que persistiría la
+    /// config antes de que nadie la eligiera y haría creer a `seedPlanConfigIfNeeded()` que ya
+    /// estaba configurada. Los observadores no corren para el valor inicial de la propiedad.
     // ponytail: config local; muévela a Firestore si importa el sync entre dispositivos.
-    var planConfig = PlanConfig(daysPerWeek: 3) {
+    var planConfig = GoalsViewModel.loadPlanConfig() {
         didSet { Self.savePlanConfig(planConfig) }
     }
 
@@ -89,7 +93,6 @@ final class GoalsViewModel {
         self.suggestPlan = suggestPlan
         self.racesViewModel = racesViewModel
         self.trainingViewModel = trainingViewModel
-        self.planConfig = Self.loadPlanConfig()
     }
 
     func start() async {
@@ -531,6 +534,29 @@ final class GoalsViewModel {
     /// `nil` si aún no hay historial suficiente. Solo calcula; no aplica nada.
     func planSuggestion() -> PlanSuggestion? {
         suggestPlan(runningSessions: runningSessions(withinDays: 42))
+    }
+
+    /// Siembra la config del plan desde tu historial la **primera** vez que hay datos.
+    ///
+    /// Sin esto todo el mundo empieza en 3 días/semana, que es un número inventado — y chirría
+    /// porque el resto del plan **sí** sale de tus datos (volumen, tirada larga, tus carreras). La
+    /// frecuencia era lo único adivinado, y encima es la que decide la estructura de la semana: con
+    /// pocos días y volumen alto las sesiones de calidad topan y el plan **descarta kilómetros en
+    /// silencio** (40 km en 3 días acaban en 37, bajo el umbral que dispara el aviso).
+    ///
+    /// No hace nada si ya hay config guardada —aunque sea porque elegiste 3 a mano— ni si todavía
+    /// no hay historial suficiente, que es el único caso donde el 3 de fábrica sigue siendo lo
+    /// razonable. Se llama al llegar sesiones nuevas y es idempotente.
+    ///
+    /// Siembra **solo la config**, no la meta de volumen que sí crea `applyPlanSuggestion`: ajustar
+    /// tus días es reversible con un stepper, crearte una meta a tus espaldas no.
+    func seedPlanConfigIfNeeded() {
+        guard !Self.hasSavedPlanConfig, let suggestion = planSuggestion() else { return }
+        planConfig = suggestion.config   // el `didSet` lo persiste, y con eso deja de sembrar
+    }
+
+    private static var hasSavedPlanConfig: Bool {
+        UserDefaults.standard.object(forKey: planDaysKey) != nil
     }
 
     /// Aplica una sugerencia: fija la config del plan y crea/actualiza la meta de volumen que lo

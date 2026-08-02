@@ -243,6 +243,82 @@ struct GoalsViewModelTests {
         #expect(app.goals.planConfig.daysPerWeek == suggestion.config.daysPerWeek)
     }
 
+    // MARK: - Los días/semana salen del historial, no de un número inventado
+
+    /// `count` corridas repartidas en `daysPerWeek` días distintos por semana, hacia atrás.
+    private func history(daysPerWeek: Int, weeks: Int) -> [TrainingSession] {
+        (0..<weeks).flatMap { week in
+            (0..<daysPerWeek).map { day in
+                session(.running, km: 8, daysAgo: week * 7 + day)
+            }
+        }
+    }
+
+    @Test("La primera config sale del historial, no del 3 de fábrica")
+    func firstConfigComesFromHistory() async {
+        // El resto del plan ya sale de datos reales (volumen, tirada larga, carreras); la
+        // frecuencia era lo único adivinado, y es la que decide la estructura de la semana.
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 5, weeks: 4))
+        await app.start()
+        #expect(app.goals.planConfig.daysPerWeek == 3, "arranca en el default")
+
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 5, "corre 5 días: el plan debe pedir 5")
+        #expect(app.goals.currentPlan?.days.count == 5)
+    }
+
+    @Test("Sin historial suficiente se queda en el default en vez de inventar")
+    func noHistoryKeepsTheDefault() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: [session(.running, km: 8, daysAgo: 2)])
+        await app.start()
+
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 3, "una sola corrida no da para inferir nada")
+    }
+
+    @Test("No pisa lo que ya elegiste, ni aunque coincida con el default")
+    func doesNotOverwriteAChosenConfig() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 6, weeks: 4))
+        await app.start()
+        // Elegir 3 a mano es una decisión, no la ausencia de una: no se puede distinguir por el
+        // valor, solo por si hay algo guardado.
+        app.goals.planConfig = PlanConfig(daysPerWeek: 3)
+
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 3)
+    }
+
+    @Test("Sembrar es idempotente: no vuelve a tocar la config en arranques siguientes")
+    func seedingIsIdempotent() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
+        await app.start()
+        app.goals.seedPlanConfigIfNeeded()
+        #expect(app.goals.planConfig.daysPerWeek == 4)
+
+        // El atleta baja a 2 días; una siembra posterior no debe deshacerlo.
+        app.goals.planConfig = PlanConfig(daysPerWeek: 2)
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 2)
+    }
+
+    @Test("Sembrar no te crea una meta de volumen a tus espaldas")
+    func seedingDoesNotCreateGoals() async {
+        // `applyPlanSuggestion` sí la crea, pero eso lo pediste tú tocando «Aplicar». Ajustar los
+        // días es reversible con un stepper; que te aparezca una meta que no pusiste, no.
+        let app = TestApp(sessions: history(daysPerWeek: 5, weeks: 4))
+        await app.start()
+
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 5)
+        #expect(app.goalRepo.added.isEmpty)
+        #expect(app.goalRepo.updated.isEmpty)
+    }
+
     // MARK: - Seguimiento corporal
 
     @Test("Sin permiso de escritura en Salud no se pide registrar el peso")
