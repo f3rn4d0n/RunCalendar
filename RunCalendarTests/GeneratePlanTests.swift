@@ -103,14 +103,70 @@ struct GeneratePlanTests {
         #expect(week.allSatisfy { ($0.targetKm ?? 0) > 0 })
     }
 
+    // MARK: - Taper
+
+    /// Meta a `days` días vista, para caer en la ventana de afinamiento que se quiera probar.
+    private func inDays(_ days: Int) -> Date {
+        Date().addingTimeInterval(60 * 60 * 24 * Double(days))
+    }
+
+    private func kmByKind(_ week: TrainingPlan) -> [PlannedWorkoutKind: Double] {
+        Dictionary(week.days.map { ($0.kind, $0.targetKm ?? 0) }, uniquingKeysWith: +)
+    }
+
     @Test("La última semana antes de la meta hace taper")
     func tapersBeforeTheRace() {
-        let normal = plan(days: 4, weeklyKm: 40)
-            .days.compactMap(\.targetKm).reduce(0, +)
-        let taper = plan(days: 4, weeklyKm: 40,
-                         deadline: Date().addingTimeInterval(60 * 60 * 24 * 4))
-            .days.compactMap(\.targetKm).reduce(0, +)
+        let normal = plan(days: 4, weeklyKm: 40).totalKm
+        let taper = plan(days: 4, weeklyKm: 40, deadline: inDays(4)).totalKm
         #expect(taper < normal, "taper \(taper) vs. semana normal \(normal)")
+    }
+
+    @Test("El taper dura ~2 semanas, no una")
+    func taperLastsTwoWeeks() {
+        let normal = plan(days: 4, weeklyKm: 40).totalKm
+        #expect(plan(days: 4, weeklyKm: 40, deadline: inDays(10)).totalKm < normal,
+                "la penúltima semana también afina")
+        #expect(plan(days: 4, weeklyKm: 40, deadline: inDays(21)).totalKm == normal,
+                "a 3 semanas todavía se entrena normal")
+    }
+
+    @Test("El taper es progresivo: la semana de la carrera recorta más que la penúltima")
+    func taperIsProgressive() {
+        let penultima = plan(days: 4, weeklyKm: 40, deadline: inDays(10)).totalKm
+        let carrera = plan(days: 4, weeklyKm: 40, deadline: inDays(3)).totalKm
+        #expect(carrera < penultima, "semana de carrera \(carrera) vs. penúltima \(penultima)")
+    }
+
+    @Test("El taper baja el volumen, NO la intensidad: la calidad se recorta menos que el rodaje")
+    func taperCutsVolumeNotIntensity() {
+        // Es el corazón del asunto (Bosquet et al.): recortar también las series pierde economía de
+        // carrera y sensación de ritmo. El recorte tiene que caer sobre el volumen fácil.
+        let normal = kmByKind(plan(days: 5, weeklyKm: 50, longRunKm: 16))
+        let taper = kmByKind(plan(days: 5, weeklyKm: 50, longRunKm: 16, deadline: inDays(3)))
+
+        func recorte(_ kind: PlannedWorkoutKind) -> Double {
+            1 - (taper[kind] ?? 0) / (normal[kind] ?? 1)
+        }
+        for calidad in [PlannedWorkoutKind.intervals, .tempo] {
+            #expect(recorte(calidad) < recorte(.easy),
+                    "\(calidad.rawValue) se recortó \(recorte(calidad)) y el fácil \(recorte(.easy))")
+            #expect(recorte(calidad) < recorte(.longRun))
+            #expect((taper[calidad] ?? 0) > 0, "la sesión de calidad no desaparece en taper")
+        }
+    }
+
+    @Test("El taper no toca la frecuencia: se entrena los mismos días", arguments: 3...6)
+    func taperKeepsFrequency(days: Int) {
+        let taper = plan(days: days, weeklyKm: 45, deadline: inDays(3))
+        #expect(taper.days.count == days)
+        // Y siguen siendo las mismas sesiones, no un puñado de rodajes.
+        #expect(Set(taper.days.map(\.kind)) == Set(plan(days: days, weeklyKm: 45).days.map(\.kind)))
+    }
+
+    @Test("El aviso explica que la semana es corta a propósito")
+    func taperIsExplained() {
+        let note = plan(days: 4, weeklyKm: 40, deadline: inDays(4)).note
+        #expect(note?.contains("afinamiento") == true, "aviso: \(note ?? "nil")")
     }
 
     @Test("Respeta los días preferidos del atleta")

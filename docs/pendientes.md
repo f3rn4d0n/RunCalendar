@@ -235,15 +235,24 @@ eso es calibrar a ojo, justo lo que dice *Umbrales sin calibrar*. Lo defendible 
 el aviso dependa de la **fracción** del volumen, no de un absoluto: 3 km sobre 40 es 7.5% y merece
 mención; 3 km sobre 120 no.
 
-### El taper reduce la intensidad, y la evidencia dice mantenerla
+### Los dos escalones del taper están sin calibrar
 
-Hoy el taper es una línea en `GeneratePlanUseCase`: `if tapering { weekKm *= 0.6 }`. Baja el
-volumen ~40%, que está **dentro del rango correcto**. El problema es *cómo*: el presupuesto
-recortado se reparte entre todas las sesiones vía `allocate`, así que las de calidad encogen
-proporcionalmente — y bajar la intensidad es justo lo que no hay que hacer.
+*(El defecto de fondo —el taper recortaba también la intensidad— ya está arreglado: `taperFactor`
+en `GeneratePlanUseCase`. Lo que queda es la calibración.)*
 
-Lo que dice la literatura (meta-análisis de Bosquet et al. 2007, confirmado por revisiones más
-recientes):
+El afinamiento aplica dos factores fijos al volumen fácil: `0.75` la penúltima semana y `0.50` la
+de la carrera; la calidad se recorta la mitad de eso (`(1 + taper) / 2`), que es el "menos
+repeticiones, mismo ritmo". El total de la semana de carrera cae ~42%, dentro del rango de la
+literatura.
+
+Lo que no está calibrado es que **son los mismos dos escalones para toda meta**. Un 5K afina
+distinto que un maratón: la literatura describe el recorte como exponencial y proporcional a la
+carga previa, y aquí es una escalera de dos peldaños igual para todos. Del mismo grupo que
+*Umbrales sin calibrar*: se arregla cuando haya atletas reportando llegar pesados o pasados de
+rosca, no antes.
+
+Referencia de lo que se implementó (meta-análisis de Bosquet et al. 2007, confirmado por revisiones
+más recientes):
 
 | Variable | Qué hacer |
 |---|---|
@@ -251,11 +260,6 @@ recientes):
 | **Intensidad** | **no tocar** |
 | **Frecuencia** | **no tocar** |
 | **Duración** | ~**2 semanas** (≤ 21 días) |
-
-Arreglarlo es acotar el recorte a las sesiones fáciles y a la tirada larga, dejando series y tempo
-con su distancia. No se hizo junto con la regla de la víspera porque son cosas distintas: la
-víspera es una **regla de colocación** (no requiere calibrar nada), y esto es un cambio en cómo se
-reparte el volumen, que sí conviene revisar con un plan real delante.
 
 > **Contexto de por qué importa:** el efecto de un taper bien hecho es del orden del 2–3% en
 > rendimiento. Sobre un medio maratón de 2 h son 2–4 minutos — más de lo que mueve casi cualquier
