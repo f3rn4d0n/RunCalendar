@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import FirebaseAnalytics
 import FirebaseCrashlytics
 
 /// Punto único de logging de la app, basado en `os.Logger` (unified logging de Apple).
@@ -20,12 +21,16 @@ enum Log {
     static let profile = Logger(subsystem: subsystem, category: "Profile")
     static let health = Logger(subsystem: subsystem, category: "Health")
 
-    /// Apaga el reporte de fallos en Debug: el panel de Crashlytics es para lo que pasa en
-    /// dispositivos de verdad, no para los crashes del simulador mientras se programa.
-    /// Llamar después de `FirebaseApp.configure()`.
-    static func configureCrashReporting() {
+    /// Apaga en Debug lo que se manda fuera: el panel es para lo que pasa en dispositivos de
+    /// verdad, no para los crashes del simulador ni para los eventos que dispara uno mismo
+    /// probando la pantalla veinte veces seguidas. Llamar después de `FirebaseApp.configure()`.
+    ///
+    /// Los eventos de uso siguen escribiéndose al log del sistema en Debug (ver `Usage`), así que
+    /// se puede comprobar que se disparan sin ensuciar los datos.
+    static func configureObservability() {
         #if DEBUG
         Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(false)
+        Analytics.setAnalyticsCollectionEnabled(false)
         #endif
     }
 }

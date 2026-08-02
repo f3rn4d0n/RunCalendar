@@ -8,6 +8,10 @@ struct PlanConfigSheet: View {
     @State private var detailDay: PlannedDay?
     @State private var suggestion: PlanSuggestion?
     @State private var noHistory = false
+    /// Config al abrir la hoja, para mandar **un** evento al cerrar en vez de uno por toque del
+    /// stepper (subir de 3 a 7 días son cuatro cambios y una sola decisión).
+    @State private var configAtOpen: PlanConfig?
+    @State private var usedSuggestion = false
 
     var body: some View {
         NavigationStack {
@@ -51,9 +55,13 @@ struct PlanConfigSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Listo") { dismiss() }
+                    Button("Listo") {
+                        reportConfigChange()
+                        dismiss()
+                    }
                 }
             }
+            .onAppear { configAtOpen = viewModel.planConfig }
             .sheet(item: $detailDay) { day in
                 WorkoutDetailView(day: day, viewModel: viewModel)
             }
@@ -62,7 +70,10 @@ struct PlanConfigSheet: View {
                 set: { if !$0 { suggestion = nil } }
             )) {
                 Button("Aplicar") {
-                    if let s = suggestion { Task { await viewModel.applyPlanSuggestion(s) } }
+                    if let s = suggestion {
+                        usedSuggestion = true
+                        Task { await viewModel.applyPlanSuggestion(s) }
+                    }
                     suggestion = nil
                 }
                 Button("Cancelar", role: .cancel) { suggestion = nil }
@@ -188,5 +199,13 @@ struct PlanConfigSheet: View {
         } else {
             viewModel.planConfig.preferredWeekdays.append(weekday)
         }
+    }
+
+    /// Un evento por visita a la hoja, y solo si algo cambió: abrir para mirar el plan y cerrar no
+    /// es haberlo configurado.
+    private func reportConfigChange() {
+        guard let configAtOpen, configAtOpen != viewModel.planConfig else { return }
+        Usage.planConfigured(daysPerWeek: viewModel.planConfig.daysPerWeek,
+                             fromSuggestion: usedSuggestion)
     }
 }

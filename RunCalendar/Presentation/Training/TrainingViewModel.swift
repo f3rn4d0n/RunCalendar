@@ -123,10 +123,14 @@ final class TrainingViewModel {
         isSyncing = true
         defer { isSyncing = false }
         recentWorkouts = (try? await fetchRecentWorkouts(days: 0)) ?? []
-        for workout in importableWorkouts {
+        let pending = importableWorkouts
+        for workout in pending {
             importedIDs.insert(workout.id)
             await importWorkout(workout)
         }
+        // También cuando no hubo nada que importar: "el import corre y siempre trae cero" y "el
+        // import nunca corre" se ven igual desde fuera, y no son el mismo problema.
+        Usage.healthImported(count: pending.count)
         await backfillEffort()
         await loadBestSplits()
     }
@@ -231,7 +235,8 @@ final class TrainingViewModel {
     func toggleCompleted(_ session: TrainingSession) async {
         var updated = session
         updated.completed.toggle()
-        _ = await save(updated, isNew: false)
+        guard await save(updated, isNew: false), updated.completed else { return }
+        Usage.sessionCompleted(type: updated.type)
     }
 
     func delete(_ session: TrainingSession) async {

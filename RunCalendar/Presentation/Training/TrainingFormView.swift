@@ -188,6 +188,9 @@ struct TrainingFormView: View {
         }
 
         if await viewModel.save(newSession, isNew: isNew) {
+            // Solo el alta a mano. Lo que llega de Salud ya lo cuenta `Usage.healthImported`, y
+            // dispararlo también aquí contaría dos veces la misma carrera.
+            if isNew, newSession.completed { Usage.sessionCompleted(type: newSession.type) }
             dismiss()
         }
     }
