@@ -245,11 +245,21 @@ struct GoalsViewModelTests {
 
     // MARK: - Los días/semana salen del historial, no de un número inventado
 
-    /// `count` corridas repartidas en `daysPerWeek` días distintos por semana, hacia atrás.
+    /// Corridas en `daysPerWeek` días distintos de cada una de las `weeks` **semanas de calendario**
+    /// anteriores a la actual.
+    ///
+    /// Alineado a semanas y no a bloques de `daysAgo`: `SuggestPlanUseCase` agrupa por
+    /// `weekOfYear`, así que contar días hacia atrás desde hoy parte el bloque en dos semanas
+    /// cuando hoy cae cerca del borde — y el promedio sale más bajo unos días de la semana que
+    /// otros. Semanas completas y pasadas, además, evitan los días futuros (que no cuentan).
     private func history(daysPerWeek: Int, weeks: Int) -> [TrainingSession] {
-        (0..<weeks).flatMap { week in
-            (0..<daysPerWeek).map { day in
-                session(.running, km: 8, daysAgo: week * 7 + day)
+        let thisWeek = cal.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        return (1...weeks).flatMap { weeksBack -> [TrainingSession] in
+            let start = cal.date(byAdding: .day, value: -7 * weeksBack, to: thisWeek) ?? thisWeek
+            return (0..<daysPerWeek).map { day in
+                TrainingSession(date: cal.date(byAdding: .day, value: day, to: start) ?? start,
+                                type: .running, title: "Histórico",
+                                distanceKm: 8, completed: true)
             }
         }
     }
@@ -261,6 +271,9 @@ struct GoalsViewModelTests {
         let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 5, weeks: 4))
         await app.start()
         #expect(app.goals.planConfig.daysPerWeek == 3, "arranca en el default")
+        // Se comprueba primero el dato de entrada: si el historial de la prueba no representa 5
+        // días/semana, el fallo es del montaje y no de la siembra, y conviene que lo diga.
+        #expect(app.goals.planSuggestion()?.config.daysPerWeek == 5, "historial mal construido")
 
         app.goals.seedPlanConfigIfNeeded()
 
