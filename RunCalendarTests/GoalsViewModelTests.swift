@@ -150,19 +150,38 @@ struct GoalsViewModelTests {
         let app = TestApp(goals: [volumeGoal()], sessions: [session(.running, km: 20, daysAgo: 1)])
         await app.start()
 
-        // Las dos direcciones, porque una u otra queda vacía según el día en que corran las
-        // pruebas: el domingo no hay días pasados y el sábado no hay futuros.
         let todayPosition = PlannedDay.position(of: cal.component(.weekday, from: Date()))
         for outcome in app.goals.weekOutcomes {
-            let position = PlannedDay.position(of: outcome.weekday)
-            if position >= todayPosition {
-                // Hoy incluido: el día no ha terminado, todavía puedes salir a correr.
-                #expect(outcome.status == .upcoming, "\(outcome.weekday) ya se está juzgando")
-            } else {
-                #expect(outcome.status != .upcoming, "\(outcome.weekday) ya pasó y sigue pendiente")
+            // Hoy cuenta como "todavía no llega": el día no ha terminado y aún puedes salir.
+            let hasPassed = PlannedDay.position(of: outcome.weekday) < todayPosition
+
+            guard let plannedKm = outcome.plannedKm, plannedKm > 0 else {
+                // Un día que no pedía nada no se juzga en ninguna dirección, pase o no pase.
+                #expect(outcome.status == (outcome.doneKm > 0 ? .extra : .rest))
+                continue
+            }
+            if outcome.doneKm == 0 {
+                #expect(outcome.status == (hasPassed ? .missed : .upcoming),
+                        "día \(outcome.weekday): \(outcome.status)")
             }
         }
         #expect(app.goals.weekOutcomes.count == 7, "la semana completa, con descansos")
+    }
+
+    @Test("La sesión de hoy no se marca como fallada: el día no ha terminado")
+    func todayIsNotJudgedYet() async {
+        // Se fuerza el plan a caer **hoy** con `preferredWeekdays`, en vez de esperar a que el
+        // reparto lo ponga ahí: así la prueba dice lo mismo cualquier día que corra. La anterior
+        // pasaba en local y fallaba en CI justo por depender del día.
+        let today = cal.component(.weekday, from: Date())
+        let app = TestApp(goals: [volumeGoal()])
+        await app.start()
+        app.goals.planConfig = PlanConfig(daysPerWeek: 1, preferredWeekdays: [today])
+
+        let outcome = app.goals.weekOutcomes.first { $0.weekday == today }
+        #expect(outcome?.plannedKm ?? 0 > 0, "el plan debía caer hoy")
+        #expect(outcome?.doneKm == 0)
+        #expect(outcome?.status == .upcoming, "todavía puedes salir a correr")
     }
 
     // MARK: - Guardar

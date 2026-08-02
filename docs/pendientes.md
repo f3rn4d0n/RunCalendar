@@ -107,7 +107,7 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 | `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
 | `RacesInPlanTests` | carreras inscritas + víspera protegida | 18 |
-| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, pausas, adherencia, guardado | 18 |
+| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, pausas, adherencia, guardado | 19 |
 | `RacesViewModelTests` | gasto del año, motivos de clima ausente, calendario | 12 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
@@ -124,7 +124,7 @@ comprobado contra datos reales — la prueba pasaría a defender el número en v
 Domain, más un `TestApp` que arma los tres ViewModels cableados igual que `AppContainer`. No hizo
 falta tocar producción — los ViewModels ya reciben casos de uso y los casos de uso protocolos.
 
-Dos detalles que cuestan una tarde si no se saben:
+Tres detalles que cuestan una tarde si no se saben:
 
 - El stream de un doble tiene que **cerrar** tras emitir. Contra Firestore queda abierto escuchando
   cambios, así que un doble fiel al original colgaría `await viewModel.start()` para siempre.
@@ -132,6 +132,12 @@ Dos detalles que cuestan una tarde si no se saben:
   **compartido**. Sin `clearPersistedDefaults()` en el montaje, la lesión que deja una prueba hace
   fallar a la siguiente por un motivo que no tiene que ver con ella. Por eso esas suites van
   `.serialized`.
+- **Nada de aserciones que dependan del día en que corran.** Los ViewModels leen `Date()` directo,
+  así que una prueba escrita un sábado puede pasar en local y fallar el domingo en CI (pasó: la
+  primera versión de *la semana día por día* daba por hecho que todo día futuro es `.upcoming`,
+  cuando un día futuro **sin sesión planeada** es `.rest`). Dos salidas: derivar lo esperado de los
+  propios datos del resultado, o fijar el día con `preferredWeekdays` en vez de esperar a que el
+  reparto caiga donde conviene.
 
 **Lo que falta:**
 
