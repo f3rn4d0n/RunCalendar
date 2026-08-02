@@ -107,6 +107,8 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 | `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
 | `RacesInPlanTests` | carreras inscritas + víspera protegida | 18 |
+| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, pausas, adherencia, guardado | 18 |
+| `RacesViewModelTests` | gasto del año, motivos de clima ausente, calendario | 12 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
 También se borraron los dos `selfCheck()` de andamio — uno corría en **cada arranque** de la app en
@@ -118,10 +120,23 @@ largo, taper, días duros no encadenados, determinismo), **no números exactos**
 constantes están sin calibrar (ver abajo) y fijarlas en una prueba cementaría valores que nadie ha
 comprobado contra datos reales — la prueba pasaría a defender el número en vez de la regla.
 
+**Dobles de repositorio** (`RunCalendarTests/Doubles.swift`) ✅: uno por protocolo de la capa
+Domain, más un `TestApp` que arma los tres ViewModels cableados igual que `AppContainer`. No hizo
+falta tocar producción — los ViewModels ya reciben casos de uso y los casos de uso protocolos.
+
+Dos detalles que cuestan una tarde si no se saben:
+
+- El stream de un doble tiene que **cerrar** tras emitir. Contra Firestore queda abierto escuchando
+  cambios, así que un doble fiel al original colgaría `await viewModel.start()` para siempre.
+- `planConfig`, `weekStatus` y las claves del calendario viven en `UserDefaults`, que en pruebas es
+  **compartido**. Sin `clearPersistedDefaults()` en el montaje, la lesión que deja una prueba hace
+  fallar a la siguiente por un motivo que no tiene que ver con ella. Por eso esas suites van
+  `.serialized`.
+
 **Lo que falta:**
 
-1. **Dobles de los repositorios** (`HealthRepository` ya es un protocolo con una sola
-   implementación — se le puede hacer un doble sin tocar nada) para llegar a los ViewModels.
+1. `HealthViewModel` y `TrainingViewModel` siguen sin pruebas propias (los dobles ya están; falta
+   escribirlas). El import de Salud —deduplicar contra lo que ya existe— es lo que más lo pide.
 2. ~~**CI en GitHub Actions**~~ ✅ hecho: `.github/workflows/pruebas.yml` corre el target en cada
    PR y en cada push a `main`. El repo es público, así que los runners de macOS no cuestan minutos.
    Los archivos gitignored (`Secrets.xcconfig`, `GoogleService-Info.plist`) se crean como
