@@ -49,6 +49,24 @@ final class GoalsViewModel {
         didSet { Self.savePlanConfig(planConfig) }
     }
 
+    /// Lo que el atleta declaró: qué busca, si tiene cuestas cerca y —solo sin historial— cuántos
+    /// km corre. Mismo tratamiento que `planConfig`: se lee en el valor inicial, no en el `init`,
+    /// para que el `didSet` no lo persista antes de que nadie haya respondido nada.
+    var intake = GoalsViewModel.loadIntake() {
+        didSet { Self.saveIntake(intake) }
+    }
+
+    /// ¿Hace falta preguntar los km semanales? Solo cuando no hay nada que observar: sin historial
+    /// no hay base, ni carga crónica, ni techo — el motor se queda ciego y esa es la única entrada
+    /// que le queda.
+    var needsDeclaredVolume: Bool { runningWeeklyKm <= 0 }
+
+    /// ¿Ya respondió la entrevista? Se usa para ofrecerla, no para bloquear: la app funciona sin
+    /// ella y un muro en el arranque cuesta usuarios.
+    var hasAnsweredIntake: Bool {
+        UserDefaults.standard.object(forKey: Self.intentKey) != nil
+    }
+
     init(
         userID: String,
         observeGoals: ObserveGoalsUseCase,
@@ -407,6 +425,7 @@ final class GoalsViewModel {
             races: racesViewModel.races,
             completed: runningSessions(since: start),
             chronicWeeklyKm: chronicWeeklyKm,
+            intake: intake,
             weekStart: start
         ))
     }
@@ -684,6 +703,27 @@ final class GoalsViewModel {
     private static func savePlanConfig(_ config: PlanConfig) {
         UserDefaults.standard.set(config.daysPerWeek, forKey: planDaysKey)
         UserDefaults.standard.set(config.preferredWeekdays, forKey: planWeekdaysKey)
+    }
+
+    private static let intentKey = "intake.intent"
+    private static let hillsKey = "intake.hasHills"
+    private static let declaredKmKey = "intake.declaredWeeklyKm"
+
+    private static func saveIntake(_ intake: AthleteIntake) {
+        let defaults = UserDefaults.standard
+        defaults.set(intake.intent.rawValue, forKey: intentKey)
+        defaults.set(intake.hasHills, forKey: hillsKey)
+        defaults.set(intake.declaredWeeklyKm, forKey: declaredKmKey)
+    }
+
+    private static func loadIntake() -> AthleteIntake {
+        let defaults = UserDefaults.standard
+        let intent = defaults.string(forKey: intentKey).flatMap(TrainingIntent.init(rawValue:))
+        return AthleteIntake(
+            intent: intent ?? AthleteIntake.default.intent,
+            hasHills: defaults.object(forKey: hillsKey) as? Bool ?? AthleteIntake.default.hasHills,
+            declaredWeeklyKm: defaults.object(forKey: declaredKmKey) as? Double
+        )
     }
 
     private static func loadPlanConfig() -> PlanConfig {

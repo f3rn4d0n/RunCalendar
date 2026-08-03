@@ -318,13 +318,16 @@ struct GeneratePlanUseCase: Sendable {
         /// arriesgada si vienes de dos semanas parado, y un porcentaje fijo no distingue.
         /// `nil` = sin historial suficiente, y entonces no se acota por carga.
         var chronicWeeklyKm: Double?
+        /// Lo que el atleta declaró y ningún dato puede ver: qué busca, si tiene cuestas cerca y
+        /// —solo si no hay historial— cuánto corre a la semana.
+        var intake: AthleteIntake
         var weekStart: Date
         var now: Date
 
         init(primary: Goal, secondaries: [Goal] = [], config: PlanConfig,
              currentWeeklyKm: Double, currentLongRunKm: Double? = nil,
              races: [Race] = [], completed: [TrainingSession] = [],
-             chronicWeeklyKm: Double? = nil,
+             chronicWeeklyKm: Double? = nil, intake: AthleteIntake = .default,
              weekStart: Date = Date(), now: Date = Date()) {
             self.primary = primary
             self.secondaries = secondaries
@@ -334,6 +337,7 @@ struct GeneratePlanUseCase: Sendable {
             self.races = races
             self.completed = completed
             self.chronicWeeklyKm = chronicWeeklyKm
+            self.intake = intake
             self.weekStart = weekStart
             self.now = now
         }
@@ -349,7 +353,9 @@ struct GeneratePlanUseCase: Sendable {
         // el motivo. Ver docs/motor-de-entrenamiento.md.
         //
         // Sin historial (arranque en frío) usa un default por días disponibles.
-        let base = input.currentWeeklyKm > 0 ? input.currentWeeklyKm : Double(days) * 5
+        // Sin historial se usa lo que el atleta declaró; si tampoco hay, un default por días.
+        let coldStart = input.intake.declaredWeeklyKm ?? Double(days) * 5
+        let base = input.currentWeeklyKm > 0 ? input.currentWeeklyKm : coldStart
         var weekKm = base * growthRate(base: base, target: volumeTarget, input: input)
         if let volumeTarget { weekKm = min(weekKm, volumeTarget) }
         weekKm = max(weekKm, base)                       // no se baja por capricho…
@@ -364,7 +370,7 @@ struct GeneratePlanUseCase: Sendable {
 
         // La carrera **sustituye** a la sesión que se le parece: correr un 10K a tope ya es la
         // sesión dura de la semana, y una carrera larga ya es la tirada larga.
-        var structure = structure(for: days)
+        var structure = structure(for: days, intent: input.intake.intent)
         for race in raceDays {
             if let index = replaceableIndex(in: structure, forRaceKm: race.targetKm) {
                 structure.remove(at: index)
@@ -464,15 +470,25 @@ struct GeneratePlanUseCase: Sendable {
 
     /// Estructura de la semana por días disponibles. Días duros (series/tempo) **separados por un
     /// rodaje fácil** cuando hay días para ello, y la tirada larga al final (día más tardío).
-    private func structure(for days: Int) -> [PlannedWorkoutKind] {
+    private func structure(for days: Int, intent: TrainingIntent = .performance) -> [PlannedWorkoutKind] {
+        // Terminar una distancia se construye con **volumen y tirada larga**, no con velocidad: la
+        // sesión de series se cambia por un rodaje y queda un solo bloque de calidad. Meter series a
+        // quien quiere cruzar su primer 21K le añade riesgo de lesión y le quita los km que sí
+        // necesita.
+        //
+        // Mantener la forma usa la **misma estructura** que mejorar la marca, y a propósito: lo que
+        // preserva el rendimiento cuando bajas la carga es la **intensidad**, no el volumen (es la
+        // misma lección del taper). La diferencia está en que el volumen deja de crecer, no en
+        // quitarle la calidad — ver `growthRate`.
+        let quality: PlannedWorkoutKind = intent == .finish ? .easy : .intervals
         switch days {
         case 1:  return [.longRun]                                            // la sesión clave
         case 2:  return [.tempo, .longRun]
-        case 3:  return [.intervals, .tempo, .longRun]
-        case 4:  return [.intervals, .easy, .tempo, .longRun]
-        case 5:  return [.intervals, .easy, .tempo, .easy, .longRun]
-        case 6:  return [.intervals, .easy, .tempo, .easy, .easy, .longRun]
-        default: return [.intervals, .easy, .tempo, .easy, .easy, .easy, .longRun]  // 7
+        case 3:  return [quality, .tempo, .longRun]
+        case 4:  return [quality, .easy, .tempo, .longRun]
+        case 5:  return [quality, .easy, .tempo, .easy, .longRun]
+        case 6:  return [quality, .easy, .tempo, .easy, .easy, .longRun]
+        default: return [quality, .easy, .tempo, .easy, .easy, .easy, .longRun]  // 7
         }
     }
 
@@ -599,7 +615,10 @@ struct GeneratePlanUseCase: Sendable {
     /// que es un principio, no un ensayo. Ver `docs/motor-de-entrenamiento.md`.
     private func qualityEmphasis(_ input: Input) -> QualityEmphasis {
         if let weeks = weeksLeft(input.primary.deadline, input.now), weeks <= 3 { return .racePace }
-        let cycle: [QualityEmphasis] = [.shortReps, .longReps, .fartlek, .hills]
+        // Sin una cuesta cerca, esa sesión sale de la rotación: proponerla es dar una tarea que el
+        // atleta no puede hacer, y eso enseña a ignorar el plan.
+        var cycle: [QualityEmphasis] = [.shortReps, .longReps, .fartlek]
+        if input.intake.hasHills { cycle.append(.hills) }
         return cycle[cycleIndex(input) % cycle.count]
     }
 
@@ -627,6 +646,9 @@ struct GeneratePlanUseCase: Sendable {
     /// docs/motor-de-entrenamiento.md); se mantiene solo como tope superior mientras el techo por
     /// carga —que sí sale de datos— hace el trabajo de verdad.
     private func growthRate(base: Double, target: Double?, input: Input) -> Double {
+        // Mantener la forma es sostener, no progresar: el volumen se queda donde está. La calidad
+        // no se toca (ver `structure`), que es lo que de verdad preserva el rendimiento.
+        if input.intake.intent == .maintain { return 1 }
         guard let target, target > base, base > 0,
               let weeks = weeksLeft(input.primary.deadline, input.now), weeks > 0
         else { return maxWeeklyGrowth }

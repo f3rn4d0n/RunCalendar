@@ -45,7 +45,7 @@ Esta distinción es la que evita que la app dé consejo con más seguridad de la
 | | Hoy | Evidencia | Propuesta |
 |---|---|---|---|
 | **Distribución de intensidad** | Pesos de volumen; la prueba solo fija que la calidad no se lleve más del 50% | El **80/20** está **sólido** (Seiler y otros) — pero se define por *tiempo* o *sesiones*, no por km | Medirlo como toca antes de presumir de 80/20 |
-| **Tipos de sesión** | ✅ El día de series rota entre cortas (VO₂max), largas (umbral), cuestas y fartlek; cerca de la meta pasa a ritmo de carrera | **Sólido**: repeticiones cortas y largas no dan el mismo estímulo. Solo 5×800 deja fuera velocidad y umbral | Variar el tipo de calidad **a lo largo del bloque** |
+| **Tipos de sesión** | ✅ Rota entre cortas (VO₂max), largas (umbral), cuestas y fartlek; cerca de la meta pasa a ritmo de carrera. Las cuestas salen de la rotación si el atleta no tiene dónde hacerlas | **Sólido**: repeticiones cortas y largas no dan el mismo estímulo. Solo 5×800 deja fuera velocidad y umbral | Variar el tipo de calidad **a lo largo del bloque** |
 | **Cuestas, rectas, progresivos, ritmo de carrera** | ✅ Cuestas y ritmo de carrera. Faltan rectas y progresivos | Cuestas y rectas: **principio** (fuerza específica, economía). Ritmo de carrera: **sólido** para especificidad | Al menos ritmo de carrera cerca de la meta |
 | **Fartlek vs. series en pista** | ✅ Entra en la rotación, **etiquetado como lo que es** — la tarjeta dice «el mismo estímulo, en otro envoltorio» | A intensidad y duración iguales el estímulo es **equivalente**. Cambiar el envoltorio no adapta más — eso es el **mito** de la "confusión muscular" | Sí, pero **por adherencia**: el disfrute predice la constancia y la constancia predice el resultado. Y se dice así en la app, sin fingir fisiología |
 
@@ -107,12 +107,39 @@ está en los datos.**
 | "Sugerir" solo sabe escalar tu pasado | a dónde quieres llegar, y desde qué punto |
 | El plan se reescribe solo | qué decidiste tú y qué calculó él |
 
-`WeekStatus` fue el primer parche: un campo donde declaras algo que ningún sensor ve. La salida de
-fondo es una **entrevista de arranque** —días disponibles, carrera objetivo, de dónde vienes— cuyas
-respuestas son, literalmente, la cabecera del bloque persistido. No es que la entrevista dependa del
-bloque: **la entrevista produce el bloque**, y el bloque es lo que le da sentido a guardarla. Con
-eso, ajustar los días de una semana concreta deja de ser un parche y pasa a ser editar una semana
-dentro de tu bloque.
+`WeekStatus` fue el primer parche: un campo donde declaras algo que ningún sensor ve.
+
+La regla que separa lo que se pregunta de lo que no:
+
+| | ¿Observable? | Ejemplos |
+|---|---|---|
+| **Hechos del pasado** | ✅ | cuánto corriste, si hubo un parón, tu tirada más larga |
+| **Intención y capacidad** | ❌ | cuántos días *puedes*, qué *quieres*, si tienes cuestas cerca |
+
+**Preguntar un hecho es hacerle trabajo al atleta que la app ya hizo.** Por eso la entrevista
+(`AthleteIntake`, etapa 1 ✅) son **tres** preguntas y no diez:
+
+1. **¿Qué buscas?** — mejorar marca / terminar la distancia / mantener la forma. Cambia la
+   estructura de la semana, no el tono de los textos.
+2. **¿Cuántos días puedes entrenar?** — los que *puedes*, no los que entrenaste.
+3. **¿Tienes dónde hacer cuestas?** — con su definición pegada, porque "cuesta" significa cosas
+   muy distintas según a quién le preguntes.
+
+Y una cuarta **condicionada**: los km semanales, solo si no hay historial en Salud. Es el único caso
+en que el motor está ciego del todo — sin historial no hay base, ni carga crónica, ni techo.
+
+> **Por qué no se pregunta "de dónde vienes".** Es un hecho del pasado, no una intención: Salud lo
+> tiene. Y sobre todo, **el techo por carga crónica ya lo codifica**, como número continuo en vez
+> de como etiqueta — quien vuelve de un parón tiene el crónico bajo y el techo lo frena solo.
+> Preguntarlo daría dos mecanismos para lo mismo y habría que decidir cuál manda.
+
+> **Por qué no se pregunta el historial de lesiones.** Es la que más obviamente "debería" estar,
+> pero no hay forma calibrada de usar la respuesta. Sería pedir un dato para guardarlo en un cajón,
+> con la falsa sensación de que el plan se individualiza. Entra cuando sepamos qué hacer con ella.
+
+Las respuestas son, literalmente, la cabecera del bloque persistido: **la entrevista produce el
+bloque**. Etapas 2 (congelar la semana en curso) y 3 (el bloque) siguen pendientes; ahí es donde
+ajustar los días de una semana concreta deja de ser un parche y pasa a ser editar una semana.
 
 ## Lo que NO vamos a hacer, y por qué
 

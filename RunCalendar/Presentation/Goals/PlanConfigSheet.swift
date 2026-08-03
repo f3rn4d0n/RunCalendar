@@ -10,6 +10,7 @@ struct PlanConfigSheet: View {
     @State private var noHistory = false
     /// Por qué no se pudo sugerir, cuando el motivo no es la falta de historial.
     @State private var blockedReason: String?
+    @State private var showingIntake = false
     /// Config al abrir la hoja, para mandar **un** evento al cerrar en vez de uno por toque del
     /// stepper (subir de 3 a 7 días son cuatro cambios y una sola decisión).
     @State private var configAtOpen: PlanConfig?
@@ -21,6 +22,20 @@ struct PlanConfigSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Button { showingIntake = true } label: {
+                        Label(viewModel.hasAnsweredIntake
+                              ? "Revisar tus respuestas"
+                              : "Afina tu plan en 3 preguntas",
+                              systemImage: "text.bubble")
+                    }
+                    .buttonStyle(NeonButtonStyle())
+                    .listRowBackground(Color.clear)
+                } footer: {
+                    Text("Qué buscas, cuántos días puedes entrenar y si tienes cuestas cerca. Son "
+                        + "las que ningún dato responde — el resto ya sale de tu historial.")
+                }
+
                 Section {
                     Button {
                         // El motivo importa: "no puedo sugerir porque estás lesionado" y "no hay
@@ -86,6 +101,7 @@ struct PlanConfigSheet: View {
             .sheet(item: $detailDay) { day in
                 WorkoutDetailView(day: day, viewModel: viewModel)
             }
+            .sheet(isPresented: $showingIntake) { IntakeSheet(viewModel: viewModel) }
             .alert("Plan sugerido", isPresented: Binding(
                 get: { suggestion != nil },
                 set: { if !$0 { suggestion = nil } }

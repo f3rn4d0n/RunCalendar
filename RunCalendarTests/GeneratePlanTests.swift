@@ -103,6 +103,90 @@ struct GeneratePlanTests {
         #expect(week.allSatisfy { ($0.targetKm ?? 0) > 0 })
     }
 
+    // MARK: - Lo que el atleta declara
+
+    private func plan(days: Int, weeklyKm: Double, intake: AthleteIntake,
+                      deadline: Date? = nil) -> TrainingPlan {
+        engine(GeneratePlanUseCase.Input(
+            primary: goal(.raceTime, 7200, deadline: deadline),
+            secondaries: [goal(.weeklyVolume, 80)],
+            config: PlanConfig(daysPerWeek: days),
+            currentWeeklyKm: weeklyKm,
+            intake: intake
+        ))
+    }
+
+    @Test("Terminar la distancia cambia las series por volumen")
+    func finishingSwapsSpeedForVolume() {
+        // Meter series a quien quiere cruzar su primer 21K le añade riesgo y le quita los km que
+        // sí necesita. Queda un solo bloque de calidad, el tempo.
+        let marca = plan(days: 5, weeklyKm: 40,
+                         intake: AthleteIntake(intent: .performance, hasHills: true,
+                                               declaredWeeklyKm: nil))
+        let terminar = plan(days: 5, weeklyKm: 40,
+                            intake: AthleteIntake(intent: .finish, hasHills: true,
+                                                  declaredWeeklyKm: nil))
+        #expect(marca.days.contains { $0.kind == .intervals })
+        #expect(!terminar.days.contains { $0.kind == .intervals })
+        #expect(terminar.days.contains { $0.kind == .tempo }, "queda una sesión de calidad")
+        #expect(terminar.days.contains { $0.kind == .longRun })
+    }
+
+    @Test("Mantener la forma congela el volumen pero **no** la intensidad")
+    func maintainingFreezesVolumeNotIntensity() {
+        // Es al revés de lo que parece: lo que preserva el rendimiento cuando bajas la carga es la
+        // intensidad, no los kilómetros. Misma lección que el taper.
+        let marca = plan(days: 5, weeklyKm: 40,
+                         intake: AthleteIntake(intent: .performance, hasHills: true,
+                                               declaredWeeklyKm: nil))
+        let mantener = plan(days: 5, weeklyKm: 40,
+                            intake: AthleteIntake(intent: .maintain, hasHills: true,
+                                                  declaredWeeklyKm: nil))
+        #expect(mantener.totalKm < marca.totalKm, "no progresa")
+        #expect(mantener.totalKm >= 39, "pero tampoco baja: sostener no es recortar")
+        #expect(mantener.days.contains { $0.kind == .intervals }, "la calidad se queda")
+    }
+
+    @Test("Sin cuestas cerca, esa sesión sale de la rotación")
+    func noHillsNoHillSessions() {
+        // Proponer una tarea que el atleta no puede hacer enseña a ignorar el plan.
+        let sinCuestas = AthleteIntake(intent: .performance, hasHills: false, declaredWeeklyKm: nil)
+        let conCuestas = AthleteIntake(intent: .performance, hasHills: true, declaredWeeklyKm: nil)
+
+        func emphases(_ intake: AthleteIntake) -> Set<QualityEmphasis> {
+            Set((4...12).compactMap { weeks in
+                plan(days: 4, weeklyKm: 40, intake: intake,
+                     deadline: inDays(7 * weeks + 3)).days.first { $0.kind == .intervals }?.emphasis
+            })
+        }
+        #expect(!emphases(sinCuestas).contains(.hills))
+        #expect(emphases(conCuestas).contains(.hills))
+        #expect(emphases(sinCuestas).count >= 2, "las otras siguen rotando")
+    }
+
+    @Test("Sin historial, el plan parte de los km que declaraste")
+    func declaredVolumeSeedsTheColdStart() {
+        // El motor no puede observar nada de quien no tiene registros: la declaración es su única
+        // entrada, y es mejor que un default por días que no sabe nada del atleta.
+        let declarado = plan(days: 3, weeklyKm: 0,
+                             intake: AthleteIntake(intent: .performance, hasHills: true,
+                                                   declaredWeeklyKm: 30))
+        let sinDeclarar = plan(days: 3, weeklyKm: 0,
+                               intake: AthleteIntake(intent: .performance, hasHills: true,
+                                                     declaredWeeklyKm: nil))
+        #expect(declarado.totalKm > sinDeclarar.totalKm)
+        #expect(declarado.totalKm >= 28, "parte de los 30 declarados, no de 15")
+    }
+
+    @Test("Con historial, lo declarado no pisa lo observado")
+    func historyWinsOverDeclaration() {
+        // Un número viejo que alguien tecleó una vez no puede mandar sobre lo que de verdad corre.
+        let conHistorial = plan(days: 4, weeklyKm: 50,
+                                intake: AthleteIntake(intent: .performance, hasHills: true,
+                                                      declaredWeeklyKm: 10))
+        #expect(conHistorial.totalKm >= 50)
+    }
+
     // MARK: - Descargas y techo de carga
 
     @Test("Cada 4ª semana antes de la meta es descarga")
