@@ -16,7 +16,9 @@ Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Au
 > (qué existe hoy) y el [Mapa del código](#mapa-del-código-para-retomar-rápido) (dónde vive qué +
 > cableado de ViewModels), luego [Notas para desarrolladores](#notas-para-desarrolladores--ia)
 > (convenciones y trampas) y [Troubleshooting](#troubleshooting). El [Roadmap](#roadmap-y-backlog)
-> tiene la visión; [Pendientes](docs/pendientes.md) tiene el backlog priorizado.
+> tiene la visión; [Pendientes](docs/pendientes.md) tiene el backlog priorizado, y
+> [El motor de entrenamiento](docs/motor-de-entrenamiento.md) compara lo que hay con lo que
+> sostiene la evidencia (progresión, descargas, tipos de sesión, periodización).
 
 ---
 

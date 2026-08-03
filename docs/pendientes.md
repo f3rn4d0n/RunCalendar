@@ -7,6 +7,10 @@
 >
 > Los atajos deliberados del código están marcados con `// ponytail:` y se listan con
 > `/ponytail-debt`; aquí solo aparecen los que bloquean algo.
+>
+> Para la parte de **entrenamiento** —progresión, descargas, tipos de sesión, periodización—
+> el *porqué* está en [motor-de-entrenamiento.md](motor-de-entrenamiento.md), con lo que hay
+> hoy frente a lo que sostiene la evidencia.
 
 ## Prioridades
 
