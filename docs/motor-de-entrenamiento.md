@@ -137,6 +137,13 @@ en que el motor está ciego del todo — sin historial no hay base, ni carga cr�
 > pero no hay forma calibrada de usar la respuesta. Sería pedir un dato para guardarlo en un cajón,
 > con la falsa sensación de que el plan se individualiza. Entra cuando sepamos qué hacer con ella.
 
+Va en **un solo flujo** con lo observado, no en un botón aparte. Tenerlos separados no era solo
+confuso de nombre: la entrevista y el viejo "Sugerir plan" **escribían los dos `daysPerWeek`**, y
+ganaba el último que corriera. Es exactamente el fallo que este documento advierte de "dos
+mecanismos para lo mismo obligan a decidir cuál manda" — cometido al aplicarlo. El historial ahora
+solo propone lo que sabe mejor que tú (cuánto volumen has sostenido); los días los declaras en un
+único sitio.
+
 Las respuestas son, literalmente, la cabecera del bloque persistido: **la entrevista produce el
 bloque**. Etapas 2 (congelar la semana en curso) y 3 (el bloque) siguen pendientes; ahí es donde
 ajustar los días de una semana concreta deja de ser un parche y pasa a ser editar una semana.
