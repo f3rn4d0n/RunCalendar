@@ -414,6 +414,45 @@ final class GoalsViewModel {
     /// la semana que viene. Con `0` el plan solo propone los días que quedan de hoy en adelante y
     /// descuenta lo que ya corriste; con `1` la semana está entera por delante.
     func plan(weekOffset: Int) -> TrainingPlan? {
+        // La semana en curso se sirve **congelada** si ya se decidió: es lo que hace que el plan
+        // que ves el jueves sea el que aceptaste el lunes. La próxima nunca se congela — es una
+        // vista previa y tiene que reflejar al instante cualquier cambio que hagas.
+        if weekOffset == 0, let frozen = Self.loadFrozenWeek(),
+           frozen.isValid(for: Self.weekStart(offset: 0), fingerprint: currentFingerprint) {
+            return frozen.plan
+        }
+        return generatedPlan(weekOffset: weekOffset)
+    }
+
+    /// Congela la semana en curso si aún no lo está, o si cambiaste algo que la rehace.
+    ///
+    /// Va aparte y no dentro de `plan(weekOffset:)` a propósito: ese se lee mientras SwiftUI dibuja,
+    /// y guardar desde ahí sería un efecto secundario en pleno render. Se llama desde un `.task`,
+    /// igual que la siembra de días.
+    func freezeCurrentWeekIfNeeded() {
+        let start = Self.weekStart(offset: 0)
+        let fingerprint = currentFingerprint
+        if let frozen = Self.loadFrozenWeek(), frozen.isValid(for: start, fingerprint: fingerprint) {
+            return
+        }
+        guard let plan = generatedPlan(weekOffset: 0) else { return }
+        Self.saveFrozenWeek(FrozenWeek(weekStart: start, fingerprint: fingerprint, plan: plan))
+    }
+
+    /// Las decisiones con las que se generó la semana. Cambiarlas la rehace; entrenar, no.
+    private var currentFingerprint: String {
+        let start = Self.weekStart(offset: 0)
+        let end = Calendar.app.date(byAdding: .day, value: 7, to: start) ?? start
+        let raceIds = racesViewModel.races
+            .filter { $0.isRegistered && $0.status == .upcoming && $0.date >= start && $0.date < end }
+            .map(\.id)
+        // El valor de la meta entra: editarla es una decisión, y las decisiones rehacen la semana.
+        return FrozenWeek.fingerprint(config: planConfig, intake: intake, raceIds: raceIds,
+                                      goalId: planAnchorGoal?.id,
+                                      goalTarget: planAnchorGoal?.targetValue)
+    }
+
+    private func generatedPlan(weekOffset: Int) -> TrainingPlan? {
         guard let anchor = planAnchorGoal else { return nil }
         let start = Self.weekStart(offset: weekOffset)
         return generatePlan(.init(
@@ -742,6 +781,18 @@ final class GoalsViewModel {
     private static func savePlanConfig(_ config: PlanConfig) {
         UserDefaults.standard.set(config.daysPerWeek, forKey: planDaysKey)
         UserDefaults.standard.set(config.preferredWeekdays, forKey: planWeekdaysKey)
+    }
+
+    private static let frozenWeekKey = "plan.frozenWeek"
+
+    private static func saveFrozenWeek(_ week: FrozenWeek) {
+        guard let data = try? JSONEncoder().encode(week) else { return }
+        UserDefaults.standard.set(data, forKey: frozenWeekKey)
+    }
+
+    private static func loadFrozenWeek() -> FrozenWeek? {
+        guard let data = UserDefaults.standard.data(forKey: frozenWeekKey) else { return nil }
+        return try? JSONDecoder().decode(FrozenWeek.self, from: data)
     }
 
     private static let intentKey = "intake.intent"

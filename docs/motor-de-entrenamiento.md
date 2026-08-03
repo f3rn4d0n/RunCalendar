@@ -55,7 +55,7 @@ Esta distinción es la que evita que la app dé consejo con más seguridad de la
 |---|---|---|---|
 | **Mesociclos / bloques** | No existen. Cada semana se genera desde cero | **Principio** para la alternancia carga/descarga | Bloque persistido: inicio, carrera objetivo, volúmenes por semana |
 | **Fases base → build → pico** | No existen | **Tradición.** La superioridad de la periodización por fases en corredores recreativos está peor sostenida de lo que su popularidad sugiere | **Última de la lista.** Mete varias constantes sin calibrar |
-| **El plan persiste** | No. Es función pura de tu volumen de hoy | — | Sale gratis con el bloque |
+| **El plan persiste** | ✅ La semana en curso se congela (`FrozenWeek`); solo la rehacen tus decisiones, no tus datos | — | Semanas pasadas, con el bloque |
 
 ### Individualización
 
@@ -83,6 +83,7 @@ Esta distinción es la que evita que la app dé consejo con más seguridad de la
 5. ~~**Variar el tipo de calidad**~~ ✅
 6. ~~**Fartlek y cuestas**~~ ✅
 7. **Bloque persistido** — periodización de verdad e historia. ← siguiente
+   (la semana en curso ya se congela; falta guardar las pasadas)
 8. **Fases** — solo si aparecen datos que las justifiquen.
 
 Lo que queda del motor de calidad: **rectas** (unos 6×20 s al final de un rodaje fácil) y
@@ -145,7 +146,7 @@ solo propone lo que sabe mejor que tú (cuánto volumen has sostenido); los día
 único sitio.
 
 Las respuestas son, literalmente, la cabecera del bloque persistido: **la entrevista produce el
-bloque**. Etapas 2 (congelar la semana en curso) y 3 (el bloque) siguen pendientes; ahí es donde
+bloque**. La etapa 2 (congelar la semana en curso) ya está; queda la 3, el bloque — y ahí es donde
 ajustar los días de una semana concreta deja de ser un parche y pasa a ser editar una semana.
 
 ## Lo que NO vamos a hacer, y por qué

@@ -283,7 +283,8 @@ struct TestApp {
 @MainActor
 func clearPersistedDefaults() {
     for key in ["plan.daysPerWeek", "plan.weekdays", "week.status", "week.status.weekStart",
-                "calendarAddedKeys"] {
+                "calendarAddedKeys", "plan.frozenWeek",
+                "intake.intent", "intake.hasHills", "intake.declaredWeeklyKm"] {
         UserDefaults.standard.removeObject(forKey: key)
     }
 }

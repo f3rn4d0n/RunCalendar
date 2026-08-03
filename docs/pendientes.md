@@ -348,8 +348,20 @@ imposible por construcción.
 Es la misma raíz que ya bloquea la adherencia histórica: el plan **no se persiste**, es una función
 pura de tu volumen de hoy. Regenerarlo para una semana pasada da un plan distinto al que viste.
 
-El arreglo es **congelar la semana**: al generarla por primera vez, guardar una foto (días, km,
-`plansFrom`) y usar esa hasta que empiece la siguiente.
+✅ **Resuelto** (`FrozenWeek`): la semana en curso se genera una vez y se sirve desde una foto.
+
+La parte con criterio no es congelar, es **qué la invalida**: se rehace cuando cambia lo que
+**declaraste** —días, días preferidos, qué buscas, tu meta, tus carreras de la semana— y **no**
+cuando cambian tus **datos** de entrenamiento. Sin esa regla congelar no serviría de nada: cualquier
+carrera registrada rompería la foto y volveríamos al punto de partida. La semana siguiente nunca se
+congela; es una vista previa.
+
+> **Lo que sigue pendiente es la adherencia histórica.** La foto vive en `UserDefaults`, así que
+> cubre la semana en curso y nada más. Guardar semanas pasadas pide almacenamiento durable y
+> multi-semana, y eso llega con el bloque — hacerlo antes sería escribir dos veces la misma
+> serialización.
+
+El planteamiento original era:
 
 > Mientras tanto, la vista previa presenta los días pasados con **lo que de verdad corriste** en vez
 > de con el plan que había. Cubre el 80% de la necesidad (revisar la semana un domingo) sin

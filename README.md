@@ -39,9 +39,17 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
 
 ### 🗓️ Plan (Fase 3)
 - **Generación automática de entrenamientos** desde tus objetivos, **determinista** (sin IA, como
-  "Sugerir meta"). El plan **no se persiste**: es una función pura de metas + volumen de carrera +
-  config, se recalcula reactivo. Solo la **config** (días/semana + días preferidos) se guarda
-  (UserDefaults). Vive en `GoalsViewModel`; motor en `GeneratePlanUseCase`.
+  "Sugerir meta"). Vive en `GoalsViewModel`; motor en `GeneratePlanUseCase`.
+- **La semana en curso se congela** (`FrozenWeek`): se genera una vez y esa es la que sigues.
+  Antes el plan era una función pura de tu volumen *de hoy* — y tu volumen de hoy incluye lo que
+  corriste ayer, así que cada carrera registrada subía la base y el motor recalculaba objetivos más
+  altos. **El plan del lunes no era el del jueves**, y la adherencia te medía contra el del jueves:
+  "seguir el plan" era imposible por construcción.
+  La regla que lo hace funcionar es **qué lo invalida**: se rehace cuando cambia lo que
+  **declaraste** (días, días preferidos, qué buscas, tu meta, tus carreras de la semana) y **no**
+  cuando cambian tus **datos**. Sin eso, cualquier carrera rompería la foto y no habríamos arreglado
+  nada. La semana **siguiente nunca se congela**: es una vista previa y refleja los cambios al
+  instante.
 - **Estructura por días/semana** (1–7): 3 días → series + tempo + tirada larga; más días meten
   rodajes fáciles **alternados** (duro/fácil) para no encadenar calidad. **80/20**, tirada larga
   como día más largo.
@@ -655,7 +663,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 177 pruebas en 16 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 183 pruebas en 16 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -774,7 +782,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 177 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 183 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

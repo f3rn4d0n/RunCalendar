@@ -25,7 +25,7 @@ extension GoalType {
 }
 
 /// Clase de sesión de carrera dentro de una semana. El "qué" de cada día.
-enum PlannedWorkoutKind: String, Sendable, Equatable, CaseIterable {
+enum PlannedWorkoutKind: String, Codable, Sendable, Equatable, CaseIterable {
     case longRun   = "Tirada larga"
     case tempo     = "Tempo"       // ritmo umbral, la "fase 2"
     case intervals = "Series"
@@ -51,7 +51,7 @@ enum PlannedWorkoutKind: String, Sendable, Equatable, CaseIterable {
 
 /// Un día planificado de la semana. Su `id` es el día de la semana (1=domingo … 7=sábado,
 /// convención de `Calendar`), consistente con el doc de Firestore `plans/{id}/days/{weekday}`.
-struct PlannedDay: Identifiable, Equatable, Sendable {
+struct PlannedDay: Identifiable, Codable, Equatable, Sendable {
     var weekday: Int
     var kind: PlannedWorkoutKind
     var targetKm: Double?
@@ -363,7 +363,7 @@ struct IntervalSpec: Equatable, Sendable {
 /// - `fartlek` es el **mismo estímulo** que `shortReps` con otro envoltorio. Se incluye por
 ///   **adherencia**, que es un motivo legítimo y distinto — y la app lo dice con esas palabras en
 ///   vez de fingir que es fisiología.
-enum QualityEmphasis: String, Sendable, Equatable, CaseIterable {
+enum QualityEmphasis: String, Codable, Sendable, Equatable, CaseIterable {
     /// Repeticiones cortas a ritmo ~5K. VO₂max y velocidad.
     case shortReps
     /// Repeticiones largas a ritmo umbral. Tolerancia al lactato.
@@ -390,7 +390,7 @@ enum QualityEmphasis: String, Sendable, Equatable, CaseIterable {
 }
 
 /// Configuración del plan que da el usuario: cuántos días puede entrenar y cuáles.
-struct PlanConfig: Equatable, Sendable {
+struct PlanConfig: Codable, Equatable, Sendable {
     var daysPerWeek: Int
     /// Días preferidos (1=domingo … 7=sábado). Vacío → el generador reparte solo.
     var preferredWeekdays: [Int]
@@ -404,7 +404,7 @@ struct PlanConfig: Equatable, Sendable {
 /// Plan de entrenamiento de una semana, generado desde las metas del atleta (Fase 3).
 /// Referencia **una** meta principal (driver) + las secundarias (parámetros/resultados),
 /// no un plan por meta.
-struct TrainingPlan: Identifiable, Equatable, Sendable {
+struct TrainingPlan: Identifiable, Codable, Equatable, Sendable {
     let id: String
     var primaryGoalId: String
     var secondaryGoalIds: [String]
