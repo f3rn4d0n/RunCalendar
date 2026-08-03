@@ -6,14 +6,13 @@ struct PlanConfigSheet: View {
     @Bindable var viewModel: GoalsViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var detailDay: PlannedDay?
-    @State private var suggestion: PlanSuggestion?
-    @State private var noHistory = false
-    /// Por qué no se pudo sugerir, cuando el motivo no es la falta de historial.
-    @State private var blockedReason: String?
+    @State private var showingIntake = false
+    /// Si el atleta pasó por la entrevista en esta visita. Es lo que hoy significa "vino de una
+    /// sugerencia": que la config no la tecleó a ciegas.
+    @State private var openedIntake = false
     /// Config al abrir la hoja, para mandar **un** evento al cerrar en vez de uno por toque del
     /// stepper (subir de 3 a 7 días son cuatro cambios y una sola decisión).
     @State private var configAtOpen: PlanConfig?
-    @State private var usedSuggestion = false
     /// Qué semana se está mirando: 0 la actual, 1 la próxima. Planificar un sábado no es planificar
     /// el sábado — es planificar la semana que viene, y hasta ahora no había forma de verla.
     @State private var weekOffset = 0
@@ -22,35 +21,18 @@ struct PlanConfigSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Button {
-                        // El motivo importa: "no puedo sugerir porque estás lesionado" y "no hay
-                        // historial" piden cosas distintas del atleta.
-                        if let blocker = viewModel.suggestionBlocker {
-                            blockedReason = blocker
-                        } else if let s = viewModel.planSuggestion() {
-                            suggestion = s
-                        } else {
-                            noHistory = true
-                        }
-                    } label: {
-                        Label("Sugerir plan desde mi historial", systemImage: "wand.and.stars")
+                    Button { showingIntake = true; openedIntake = true } label: {
+                        Label(viewModel.hasAnsweredIntake
+                              ? "Revisar tus respuestas"
+                              : "Afina tu plan en 3 preguntas",
+                              systemImage: "text.bubble")
                     }
                     .buttonStyle(NeonButtonStyle())
                     .listRowBackground(Color.clear)
                 } footer: {
-                    Text("Analiza tus corridas recientes para proponerte días/semana, tus días y una "
-                        + "meta de volumen. Todo queda editable.")
+                    Text("Qué buscas, cuántos días puedes entrenar y si tienes cuestas cerca. Son "
+                        + "las que ningún dato responde — el resto ya sale de tu historial.")
                 }
-
-                Section {
-                    Stepper("Días por semana: \(viewModel.planConfig.daysPerWeek)",
-                            value: $viewModel.planConfig.daysPerWeek, in: 1...7)
-                } footer: {
-                    Text("Cuántas veces puedes correr en la semana. El plan reparte tirada larga, "
-                        + "tempo y series según esto.")
-                }
-
-                weekStatusSection
 
                 Section {
                     weekdayPicker
@@ -86,37 +68,7 @@ struct PlanConfigSheet: View {
             .sheet(item: $detailDay) { day in
                 WorkoutDetailView(day: day, viewModel: viewModel)
             }
-            .alert("Plan sugerido", isPresented: Binding(
-                get: { suggestion != nil },
-                set: { if !$0 { suggestion = nil } }
-            )) {
-                Button("Aplicar") {
-                    if let s = suggestion {
-                        usedSuggestion = true
-                        Task { await viewModel.applyPlanSuggestion(s) }
-                    }
-                    suggestion = nil
-                }
-                Button("Cancelar", role: .cancel) { suggestion = nil }
-            } message: {
-                // El impacto va **antes** que el razonamiento: es lo que puede hacerte cancelar.
-                Text([suggestion.flatMap(viewModel.suggestionImpact), suggestion?.rationale]
-                    .compactMap { $0 }.joined(separator: "\n\n"))
-            }
-            .alert("No es buen momento", isPresented: Binding(
-                get: { blockedReason != nil },
-                set: { if !$0 { blockedReason = nil } }
-            )) {
-                Button("Entendido", role: .cancel) { blockedReason = nil }
-            } message: {
-                Text(blockedReason ?? "")
-            }
-            .alert("Sin historial suficiente", isPresented: $noHistory) {
-                Button("Entendido", role: .cancel) {}
-            } message: {
-                Text("Corre unas cuantas veces (y deja que Salud las importe) para poder sugerirte "
-                    + "un plan desde tu historial.")
-            }
+            .sheet(isPresented: $showingIntake) { IntakeSheet(viewModel: viewModel) }
         }
     }
 
@@ -282,6 +234,6 @@ struct PlanConfigSheet: View {
     private func reportConfigChange() {
         guard let configAtOpen, configAtOpen != viewModel.planConfig else { return }
         Usage.planConfigured(daysPerWeek: viewModel.planConfig.daysPerWeek,
-                             fromSuggestion: usedSuggestion)
+                             fromSuggestion: openedIntake)
     }
 }

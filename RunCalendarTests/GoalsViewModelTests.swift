@@ -230,7 +230,7 @@ struct GoalsViewModelTests {
         #expect(app.goals.errorMessage != nil)
     }
 
-    @Test("Aplicar una sugerencia actualiza la meta de volumen en vez de duplicarla")
+    @Test("Aplicar la meta sugerida actualiza la que hay en vez de duplicarla")
     func applySuggestionUpdatesInsteadOfDuplicating() async {
         let app = TestApp(goals: [volumeGoal(30)], sessions: (1...9).map {
             session(.running, km: 8, daysAgo: $0 * 3)
@@ -241,11 +241,13 @@ struct GoalsViewModelTests {
             return
         }
 
-        await app.goals.applyPlanSuggestion(suggestion)
+        await app.goals.applyVolumeGoal(from: suggestion)
 
         #expect(app.goalRepo.added.isEmpty, "ya había meta de volumen: se edita, no se crea otra")
         #expect(app.goalRepo.updated.count == 1)
-        #expect(app.goals.planConfig.daysPerWeek == suggestion.config.daysPerWeek)
+        // Y **no** toca los días: eso se declara en un solo sitio, la entrevista. Cuando esto
+        // también los escribía, responder y luego sugerir borraba tu respuesta sin avisar.
+        #expect(app.goals.planConfig.daysPerWeek == 3, "sigue en el default, no en el sugerido")
     }
 
     // MARK: - Los días/semana salen del historial, no de un número inventado
@@ -597,6 +599,45 @@ struct GoalsViewModelTests {
         await app.start()
         guard let s = app.goals.planSuggestion() else { return }
         #expect(app.goals.suggestionImpact(s) == nil)
+    }
+
+    // MARK: - Lo que la app observa de ti
+
+    @Test("Lo observado sale del historial, sin preguntar nada")
+    func observedComesFromHistory() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
+        await app.start()
+
+        #expect(app.goals.observed.hasHistory)
+        #expect(app.goals.observed.daysPerWeek == 4)
+        #expect(app.goals.observed.weeklyKm == 32, "4 días × 8 km")
+        #expect(app.goals.observed.longestRunKm == 8)
+    }
+
+    @Test("Sin carreras registradas no se inventa nada observado")
+    func nothingObservedWithoutHistory() async {
+        let app = TestApp(goals: [volumeGoal()])
+        await app.start()
+        #expect(!app.goals.observed.hasHistory)
+        #expect(app.goals.observed.daysPerWeek == nil, "mejor «—» que un número inventado")
+        #expect(app.goals.needsDeclaredVolume, "aquí sí se pregunta: es la única entrada que queda")
+    }
+
+    @Test("Aplicar la meta sugerida ya no pisa los días que declaraste")
+    func volumeGoalDoesNotOverwriteDeclaredDays() async {
+        // Era la colisión: la siembra automática, el botón de sugerir y la entrevista escribían los
+        // tres el mismo campo, y ganaba el último. Responder y luego sugerir borraba tu respuesta.
+        let app = TestApp(goals: [volumeGoal(30)], sessions: history(daysPerWeek: 6, weeks: 4))
+        await app.start()
+        app.goals.planConfig = PlanConfig(daysPerWeek: 2)   // "solo puedo dos días"
+
+        guard let s = app.goals.planSuggestion() else {
+            Issue.record("con 4 semanas debería haber sugerencia")
+            return
+        }
+        #expect(s.config.daysPerWeek == 6, "el historial dice 6…")
+        await app.goals.applyVolumeGoal(from: s)
+        #expect(app.goals.planConfig.daysPerWeek == 2, "…pero mandas tú")
     }
 
     // MARK: - Seguimiento corporal

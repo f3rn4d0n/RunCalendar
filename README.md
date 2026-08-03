@@ -96,15 +96,33 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   **Sin target de watchOS**: el motor ya vive en el reloj. La estructura en números es
   `WorkoutStructure`/`IntervalSpec`, y los textos de la guía se **derivan** de ella, así que la
   tarjeta y el reloj no pueden decir cosas distintas.
-- **"Sugerir plan"** (como "Sugerir meta"): infiere de tu historial de carreras los días/semana, tus
-  días y una meta de volumen (+20% en 8 sem); todo editable. `SuggestPlanUseCase`. Mira **solo
-  semanas completas** y deja fuera la actual: la ventana de "últimos 42 días" cortaba por las dos
-  puntas —un martes con una carrera contaba como una semana entera de 8 km— y te proponía menos
-  cuanto más temprano la pidieras. **Avisa si la sugerencia baja tu meta** en vez de sobreescribirla
-  en silencio: pulsarla para ver qué propone no puede rebajarte el objetivo a tus espaldas. Y en
-  semana de **lesión o enfermedad no sugiere**, porque calcularía sobre datos que leen tu
-  recuperación como una bajada de forma; una descarga sí deja (se entrena menos, no se deja de
-  entrenar).
+- **"Afina tu plan"** (`IntakeSheet`): **un solo flujo** que te enseña lo que ya sabemos, te
+  pregunta lo que no se ve y propone la meta de volumen. Antes eran dos botones —"Sugerir plan" y la
+  entrevista— que sonaban a lo mismo y, peor, **escribían el mismo campo**: los dos fijaban
+  `daysPerWeek` (uno desde el historial, otro desde tus respuestas) y ganaba el último que
+  corrieras, así que responder y luego sugerir borraba tu respuesta sin avisar.
+  1. **Lo que vemos de ti** — días/semana, volumen y tirada más larga, de tus carreras en Salud. Se
+     enseña primero y sin pedirlo: el orden es el mensaje, *esto es lo que veo; corrígeme*.
+  2. **Lo que no se ve** — qué buscas, cuántos días *puedes* entrenar (arranca en lo observado) y si
+     tienes dónde hacer cuestas, con su definición pegada porque "cuesta" no significa lo mismo para
+     todos.
+  3. **La meta de volumen** — `SuggestPlanUseCase`, con aviso si te la baja.
+
+  La regla que decide qué se pregunta: los **hechos del pasado** se observan; la **intención y la
+  capacidad** no están en ningún sensor. Por eso no pregunta "de dónde vienes" (el techo por carga
+  crónica ya lo codifica, y mejor: como número, no como etiqueta) ni el historial de lesiones (no
+  hay forma calibrada de usar la respuesta). **No bloquea nada**: la app funciona sin abrirla.
+
+  Cada respuesta mueve el plan: *terminar la distancia* cambia las series por volumen y deja un solo
+  bloque de calidad; *mantener la forma* congela el volumen pero **no** la intensidad (es al revés
+  de lo que parece — la intensidad es lo que preserva el rendimiento, misma lección del taper); sin
+  cuestas, esa sesión sale de la rotación.
+
+  La sugerencia mira **solo semanas completas** y deja fuera la actual: la ventana de "últimos 42
+  días" cortaba por las dos puntas —un martes con una carrera contaba como una semana entera de
+  8 km— y proponía menos cuanto más temprano la pidieras. En semana de **lesión o enfermedad no
+  sugiere**, porque calcularía sobre datos que leen tu recuperación como una bajada de forma; una
+  descarga sí deja (se entrena menos, no se deja de entrenar).
 - **Tus días salen de tu historial desde el primer plan** (`seedPlanConfigIfNeeded`). Antes todo el
   mundo empezaba en 3 días/semana, un número inventado — y chirriaba porque el resto del plan **sí**
   sale de tus datos (volumen, tirada larga, tus carreras). La frecuencia era lo único adivinado, y
@@ -637,7 +655,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 169 pruebas en 16 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 177 pruebas en 16 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -756,7 +774,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 169 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 177 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

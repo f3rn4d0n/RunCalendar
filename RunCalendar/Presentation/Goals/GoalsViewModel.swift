@@ -49,6 +49,24 @@ final class GoalsViewModel {
         didSet { Self.savePlanConfig(planConfig) }
     }
 
+    /// Lo que el atleta declaró: qué busca, si tiene cuestas cerca y —solo sin historial— cuántos
+    /// km corre. Mismo tratamiento que `planConfig`: se lee en el valor inicial, no en el `init`,
+    /// para que el `didSet` no lo persista antes de que nadie haya respondido nada.
+    var intake = GoalsViewModel.loadIntake() {
+        didSet { Self.saveIntake(intake) }
+    }
+
+    /// ¿Hace falta preguntar los km semanales? Solo cuando no hay nada que observar: sin historial
+    /// no hay base, ni carga crónica, ni techo — el motor se queda ciego y esa es la única entrada
+    /// que le queda.
+    var needsDeclaredVolume: Bool { runningWeeklyKm <= 0 }
+
+    /// ¿Ya respondió la entrevista? Se usa para ofrecerla, no para bloquear: la app funciona sin
+    /// ella y un muro en el arranque cuesta usuarios.
+    var hasAnsweredIntake: Bool {
+        UserDefaults.standard.object(forKey: Self.intentKey) != nil
+    }
+
     init(
         userID: String,
         observeGoals: ObserveGoalsUseCase,
@@ -407,6 +425,7 @@ final class GoalsViewModel {
             races: racesViewModel.races,
             completed: runningSessions(since: start),
             chronicWeeklyKm: chronicWeeklyKm,
+            intake: intake,
             weekStart: start
         ))
     }
@@ -592,6 +611,41 @@ final class GoalsViewModel {
         return upcoming.first { $0.isRegistered || $0.isPriority } ?? upcoming.first
     }
 
+    /// Lo que la app **ya sabe** de ti sin preguntar nada.
+    ///
+    /// Se enseña **antes** de preguntar, para que quede claro qué parte del plan sale de tus datos
+    /// y qué parte de tus respuestas — y para que puedas corregirlo si Salud miente (alguien que
+    /// corrió diez años y compró el reloj el mes pasado parece un principiante).
+    struct ObservedTraining: Equatable, Sendable {
+        let daysPerWeek: Int?
+        let weeklyKm: Double
+        let longestRunKm: Double?
+
+        var hasHistory: Bool { weeklyKm > 0 }
+    }
+
+    var observed: ObservedTraining {
+        ObservedTraining(daysPerWeek: observedDaysPerWeek,
+                         weeklyKm: runningWeeklyKm,
+                         longestRunKm: runningLongestKm)
+    }
+
+    /// Días distintos por semana en las últimas 4 **completas**. `nil` sin semanas con carreras.
+    private var observedDaysPerWeek: Int? {
+        let cal = Calendar.app
+        let thisWeek = Self.currentWeekStart()
+        let counts: [Int] = (1...4).compactMap { back in
+            let start = cal.date(byAdding: .day, value: -7 * back, to: thisWeek) ?? thisWeek
+            let end = cal.date(byAdding: .day, value: 7, to: start) ?? start
+            let days = Set(trainingViewModel.sessions
+                .filter { $0.completed && $0.type == .running && $0.date >= start && $0.date < end }
+                .map { cal.component(.weekday, from: $0.date) })
+            return days.isEmpty ? nil : days.count
+        }
+        guard !counts.isEmpty else { return nil }
+        return min(7, max(1, Int((Double(counts.reduce(0, +)) / Double(counts.count)).rounded())))
+    }
+
     /// Sugerencia de plan desde tu historial de carreras (días/semana, días y meta de volumen).
     /// `nil` si aún no hay historial suficiente. Solo calcula; no aplica nada.
     func planSuggestion() -> PlanSuggestion? {
@@ -651,10 +705,14 @@ final class GoalsViewModel {
         UserDefaults.standard.object(forKey: planDaysKey) != nil
     }
 
-    /// Aplica una sugerencia: fija la config del plan y crea/actualiza la meta de volumen que lo
-    /// ancla. El usuario puede editar ambos después.
-    func applyPlanSuggestion(_ suggestion: PlanSuggestion) async {
-        planConfig = suggestion.config
+    /// Aplica **solo la meta de volumen** de una sugerencia.
+    ///
+    /// Ya no toca `planConfig`. Antes lo hacía, y con la entrevista eso dejaba **tres** sitios
+    /// escribiendo `daysPerWeek` —la siembra automática, esto y las respuestas del atleta— ganando
+    /// el último que corriera: responder la entrevista y luego pulsar sugerir borraba tu respuesta
+    /// sin avisar. Los días se declaran en un solo sitio; aquí solo va lo que el historial sí sabe
+    /// mejor que tú, que es cuánto volumen has estado sosteniendo.
+    func applyVolumeGoal(from suggestion: PlanSuggestion) async {
         if var goal = goals.first(where: { $0.type == .weeklyVolume }) {
             goal.targetValue = suggestion.weeklyVolumeTarget
             if goal.deadline == nil { goal.deadline = suggestion.deadline }
@@ -684,6 +742,27 @@ final class GoalsViewModel {
     private static func savePlanConfig(_ config: PlanConfig) {
         UserDefaults.standard.set(config.daysPerWeek, forKey: planDaysKey)
         UserDefaults.standard.set(config.preferredWeekdays, forKey: planWeekdaysKey)
+    }
+
+    private static let intentKey = "intake.intent"
+    private static let hillsKey = "intake.hasHills"
+    private static let declaredKmKey = "intake.declaredWeeklyKm"
+
+    private static func saveIntake(_ intake: AthleteIntake) {
+        let defaults = UserDefaults.standard
+        defaults.set(intake.intent.rawValue, forKey: intentKey)
+        defaults.set(intake.hasHills, forKey: hillsKey)
+        defaults.set(intake.declaredWeeklyKm, forKey: declaredKmKey)
+    }
+
+    private static func loadIntake() -> AthleteIntake {
+        let defaults = UserDefaults.standard
+        let intent = defaults.string(forKey: intentKey).flatMap(TrainingIntent.init(rawValue:))
+        return AthleteIntake(
+            intent: intent ?? AthleteIntake.default.intent,
+            hasHills: defaults.object(forKey: hillsKey) as? Bool ?? AthleteIntake.default.hasHills,
+            declaredWeeklyKm: defaults.object(forKey: declaredKmKey) as? Double
+        )
     }
 
     private static func loadPlanConfig() -> PlanConfig {
