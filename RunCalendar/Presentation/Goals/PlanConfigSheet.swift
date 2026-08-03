@@ -186,8 +186,11 @@ struct PlanConfigSheet: View {
 
     private var weekdayPicker: some View {
         let symbols = Calendar.current.shortWeekdaySymbols   // 1=Dom … 7=Sáb
+        // Recorrido por **posición** para que las fichas salgan L M M J V S D, en el mismo orden
+        // que la vista previa de abajo y que el resto de la app.
+        let week = (0...6).map { PlannedDay.weekday(atPosition: $0) }
         return HStack(spacing: 6) {
-            ForEach(1...7, id: \.self) { weekday in
+            ForEach(week, id: \.self) { weekday in
                 let on = viewModel.planConfig.preferredWeekdays.contains(weekday)
                 Button(symbols[weekday - 1]) { toggle(weekday) }
                     .buttonStyle(.plain)

@@ -191,6 +191,17 @@ struct GeneratePlanTests {
         #expect(few > 0)
     }
 
+    @Test("La semana se presenta de lunes a domingo, no en el orden de Calendar")
+    func fullWeekStartsOnMonday() {
+        // `1...7` de `Calendar` empieza en domingo, así que recorrerlo en crudo abría la vista
+        // previa en domingo mientras el motor cerraba la semana ahí.
+        let week = plan(days: 3, weeklyKm: 30).fullWeek()
+        #expect(week.map(\.weekday) == (0...6).map { PlannedDay.weekday(atPosition: $0) })
+        #expect(week.first?.weekday == 2, "abre en lunes")
+        #expect(week.last?.weekday == 1, "cierra en domingo")
+        #expect(week.count == 7)
+    }
+
     @Test("Mismo input, mismo plan: el motor es determinista")
     func isDeterministic() {
         let a = plan(days: 5, weeklyKm: 45, longRunKm: 14)

@@ -400,6 +400,12 @@ struct TrainingPlan: Identifiable, Equatable, Sendable {
     /// La semana completa (7 días) con la sesión de cada día o `nil` si es descanso. Para mostrar
     /// el ritmo real: sesiones y descansos intercalados, no solo los días que entrenas.
     func fullWeek() -> [(weekday: Int, session: PlannedDay?)] {
-        (1...7).map { wd in (weekday: wd, session: days.first { $0.weekday == wd }) }
+        // En orden de la semana (lunes → domingo), no `1...7`, que es el orden de `Calendar` y
+        // empieza en domingo. Si no, la vista previa de *Tu plan* abría la semana en domingo
+        // mientras el motor la cerraba ahí.
+        (0...6).map { position in
+            let weekday = PlannedDay.weekday(atPosition: position)
+            return (weekday: weekday, session: days.first { $0.weekday == weekday })
+        }
     }
 }

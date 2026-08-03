@@ -169,6 +169,8 @@ struct GoalsViewModelTests {
             }
         }
         #expect(app.goals.weekOutcomes.count == 7, "la semana completa, con descansos")
+        #expect(app.goals.weekOutcomes.map(\.weekday) == (0...6).map { PlannedDay.weekday(atPosition: $0) },
+                "la semana día por día también va de lunes a domingo")
     }
 
     @Test("La sesión de hoy no se marca como fallada: el día no ha terminado")
