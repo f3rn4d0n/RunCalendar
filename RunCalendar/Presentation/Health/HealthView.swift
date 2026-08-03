@@ -97,20 +97,52 @@ struct HealthView: View {
         .padding()
     }
 
+    /// Orden de la pantalla. El **porqué** está en `docs/ux-jerarquia.md`; en corto:
+    ///
+    /// - *Hoy* ya responde "¿cómo estoy hoy?" con el anillo de recuperación, así que aquí se
+    ///   responde "¿dónde estoy y hacia dónde voy?" — y la recuperación baja de puesto sin perder
+    ///   nada, porque su titular vive en otra pantalla.
+    /// - Lo **accionable pendiente** manda: un check-in sin hacer va arriba; hecho, se va al final.
+    ///   Una tarea cumplida es ruido en un informe.
+    /// - Un tema, un bloque. La recuperación estaba en cuatro pedazos separados por otras
+    ///   secciones, y el readiness partido en dos con nueve secciones en medio.
+    /// - Lo avanzado no se esconde, **deja de competir**: baja en la página o se pliega. Quien
+    ///   busca su VO₂max lo encuentra; a quien solo quiere sus kilómetros no le estorba.
     private func loaded(_ data: HealthLoaded) -> some View {
         List {
-            raceReadinessSection(data: data)
+            // 1. Lo único que la pantalla te pide hacer, y solo si está pendiente.
+            if viewModel.todayCheckIn == nil { checkInSection }
 
+            // 2. Dónde estás.
+            summarySection(data.summary)
+
+            // 3. Para qué te está sirviendo: tus carreras y las distancias, juntas.
+            raceReadinessSection(data: data)
+            distanceReadinessSection(data: data)
+
+            // 4. Si puedes apretar. Un solo bloque, no cuatro pedazos.
             if let recovery = data.recovery {
                 recoverySection(recovery)
             }
-
-            checkInSection
-            bodyReviewSection
-
+            if let trend = data.recoveryTrend {
+                RecoveryTrendSection(trend: trend)
+            }
             if viewModel.recentCheckIns.count >= 3 {
                 RecoveryAccuracyChart(checkIns: viewModel.recentCheckIns)
             }
+            if let workload = data.workload {
+                workloadSection(workload)
+            }
+
+            // 5. Cómo evolucionas. Al final: estar abajo ya es jerarquía suficiente — quien no las
+            // busca no llega, y a quien sí, un plegado solo le costaría un toque de más.
+            if let fitnessTrend = data.fitnessTrend {
+                FitnessTrendSection(trend: fitnessTrend)
+            }
+
+            // 6. Registrar. Las entradas estaban en medio del informe e interrumpían la lectura.
+            if viewModel.todayCheckIn != nil { checkInSection }
+            bodyReviewSection
 
 #if DEBUG
             Section {
@@ -121,41 +153,6 @@ struct HealthView: View {
                 Text("Solo desarrollo: simula 2+ semanas de registros para ver la calibración. Se borra al reiniciar.")
             }
 #endif
-
-            if let trend = data.recoveryTrend {
-                RecoveryTrendSection(trend: trend)
-            }
-            if let workload = data.workload {
-                workloadSection(workload)
-            }
-
-            summarySection(data.summary)
-
-            if let fitnessTrend = data.fitnessTrend {
-                FitnessTrendSection(trend: fitnessTrend)
-            }
-
-            Section {
-                ForEach(data.readiness) { item in
-                    NavigationLink {
-                        ReadinessDetailView(readiness: item)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: item.level.systemImage)
-                                .foregroundStyle(color(for: item.level))
-                                .frame(width: 28)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(item.distance.displayName) · \(item.level.rawValue)")
-                                Text(item.note).font(.mCaption).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            } header: {
-                Text("¿Listo para…?")
-            } footer: {
-                Text("Toca una distancia para ver qué mejorar. Estimado orientativo, no es consejo médico.")
-            }
         }
         .scrollContentBackground(.hidden)
         .listRowBackground(Neon.surface)
@@ -192,6 +189,35 @@ struct HealthView: View {
             } footer: {
                 Text("Toca una carrera para ver qué mejorar antes del evento.")
             }
+        }
+    }
+
+    /// Readiness **por distancia**: ¿podría con un 21K?
+    ///
+    /// Va pegada a la de tus carreras porque responden la misma pregunta con distinto alcance —
+    /// una mira tu calendario y la otra es exploratoria. Antes estaban en extremos opuestos de la
+    /// pantalla, con nueve secciones en medio, y eso era buena parte de la sensación de desorden.
+    private func distanceReadinessSection(data: HealthLoaded) -> some View {
+        Section {
+            ForEach(data.readiness) { item in
+                NavigationLink {
+                    ReadinessDetailView(readiness: item)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: item.level.systemImage)
+                            .foregroundStyle(color(for: item.level))
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(item.distance.displayName) · \(item.level.rawValue)")
+                            Text(item.note).font(.mCaption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text("¿Listo para…?")
+        } footer: {
+            Text("Toca una distancia para ver qué mejorar. Estimado orientativo, no es consejo médico.")
         }
     }
 
@@ -399,8 +425,16 @@ struct HealthView: View {
     }
 
     @ViewBuilder
+    /// Dónde estás, en dos niveles.
+    ///
+    /// Eran seis filas con el mismo peso: el VO₂max pesaba igual que los kilómetros de la semana.
+    /// Pero no todos los atletas están buscando mejorar su VO₂max, y a quien solo quiere ver cuánto
+    /// lleva corrido esa fila le estorba. Arriba lo que cualquiera entiende y sobre lo que puede
+    /// actuar; plegado lo que hay que ir a buscar.
+    ///
+    /// No se esconde nada — se quita de la competencia por la primera mirada.
     private func summarySection(_ summary: FitnessSummary) -> some View {
-        Section("Resumen (\(summary.weeks) semanas)") {
+        Section {
             MetricRow(label: "Esta semana (7 días)", value: km(summary.last7DaysKm), icon: "calendar",
                       info: HealthMetricInfo.thisWeek())
             MetricRow(label: "Promedio semanal (\(summary.weeks) sem)",
@@ -408,17 +442,30 @@ struct HealthView: View {
                       info: HealthMetricInfo.weeklyAverage(weeks: summary.weeks))
             MetricRow(label: "Carrera más larga", value: km(summary.longestRunKm), icon: "figure.run",
                       info: HealthMetricInfo.longestRun())
-            MetricRow(label: "Entrenamientos", value: "\(summary.runCount)", icon: "number",
-                      info: HealthMetricInfo.runCount())
-            if let vo2 = summary.vo2Max {
-                MetricRow(label: "VO₂max", value: vo2.formatted(.number.precision(.fractionLength(1))),
-                          icon: "lungs.fill",
-                          info: HealthMetricInfo.vo2Max(vo2, age: summary.age))
+
+            if summary.vo2Max != nil || summary.restingHeartRate != nil {
+                DisclosureGroup("Más detalle") {
+                    MetricRow(label: "Entrenamientos", value: "\(summary.runCount)", icon: "number",
+                              info: HealthMetricInfo.runCount())
+                    if let vo2 = summary.vo2Max {
+                        MetricRow(label: "VO₂max",
+                                  value: vo2.formatted(.number.precision(.fractionLength(1))),
+                                  icon: "lungs.fill",
+                                  info: HealthMetricInfo.vo2Max(vo2, age: summary.age))
+                    }
+                    if let resting = summary.restingHeartRate {
+                        MetricRow(label: "FC en reposo", value: "\(Int(resting)) lpm",
+                                  icon: "heart.fill",
+                                  info: HealthMetricInfo.restingHeartRate(resting))
+                    }
+                }
+                .font(.mSubheadline)
+            } else {
+                MetricRow(label: "Entrenamientos", value: "\(summary.runCount)", icon: "number",
+                          info: HealthMetricInfo.runCount())
             }
-            if let resting = summary.restingHeartRate {
-                MetricRow(label: "FC en reposo", value: "\(Int(resting)) lpm", icon: "heart.fill",
-                          info: HealthMetricInfo.restingHeartRate(resting))
-            }
+        } header: {
+            Text("Resumen (\(summary.weeks) semanas)")
         }
     }
 

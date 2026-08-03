@@ -19,6 +19,8 @@ Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Au
 > tiene la visión; [Pendientes](docs/pendientes.md) tiene el backlog priorizado, y
 > [El motor de entrenamiento](docs/motor-de-entrenamiento.md) compara lo que hay con lo que
 > sostiene la evidencia (progresión, descargas, tipos de sesión, periodización).
+> Si vas a tocar una pantalla, lee antes
+> [Jerarquía de pantallas](docs/ux-jerarquia.md): qué va arriba y con qué criterio.
 
 ---
 
@@ -262,7 +264,20 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
 - Detalle de **solo lectura** (editar es explícito).
 
 ### 📈 Progreso · Condición (Apple Salud / HealthKit)
-- **Resumen de forma**: VO₂max, FC en reposo, tendencia de fitness (Swift Charts interactivas).
+
+> **Orden de la pantalla** (el porqué, en **[docs/ux-jerarquia.md](docs/ux-jerarquia.md)**):
+> check-in *si está pendiente* → resumen → ¿listo para…? → recuperación y carga → gráficas →
+> registrar. *Hoy* ya responde "¿cómo estoy hoy?" con el anillo, así que aquí se responde **"¿dónde
+> estoy y hacia dónde voy?"** — y la recuperación baja de puesto sin perder nada. Antes la
+> recuperación estaba en **cuatro** pedazos separados, el readiness partido en dos con nueve
+> secciones en medio, y las entradas (check-in, review) cortaban el informe por la mitad.
+
+- **Resumen de forma**, en dos niveles: volumen de la semana, promedio y carrera más larga a la
+  vista; **VO₂max, FC en reposo y nº de entrenamientos plegados**. No todos los atletas están
+  buscando mejorar su VO₂max, y a quien solo quiere ver sus kilómetros esa fila le estorba. No se
+  esconde nada — deja de competir por la primera mirada.
+- **Tendencia de fitness** (Swift Charts interactivas), al final: estar abajo ya es jerarquía
+  suficiente, y a quien las busca un plegado solo le costaría un toque de más.
 - **Recuperación estimada** (orientativa, no médica): horas hasta estar recuperado a partir de
   **HRV (SDNN)**, **FC en reposo**, **carga reciente** (ponderada por RPE) y **sueño**.
 - **Check-in diario** "¿cómo te sientes?" (1–5) + gráfica **"¿acierta el modelo?"**
