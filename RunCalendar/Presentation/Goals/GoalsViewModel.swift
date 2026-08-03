@@ -595,7 +595,37 @@ final class GoalsViewModel {
     /// Sugerencia de plan desde tu historial de carreras (días/semana, días y meta de volumen).
     /// `nil` si aún no hay historial suficiente. Solo calcula; no aplica nada.
     func planSuggestion() -> PlanSuggestion? {
-        suggestPlan(runningSessions: runningSessions(withinDays: 42))
+        // Holgado a propósito: el caso de uso recorta a semanas **completas** por su cuenta, y su
+        // ventana puede llegar hasta 6 días más atrás que la de 42 según el día que sea hoy.
+        guard suggestionBlocker == nil else { return nil }
+        return suggestPlan(runningSessions: runningSessions(withinDays: 56))
+    }
+
+    /// Por qué ahora mismo no tiene sentido sugerir un plan. `nil` = se puede.
+    ///
+    /// Una sugerencia se calcula sobre lo que has entrenado. En una semana marcada como lesión o
+    /// enfermedad eso diría que bajaste de forma, cuando lo que pasa es que te estás recuperando —
+    /// y te propondría una rampa justo cuando no debes. Una descarga sí deja sugerir: se entrena
+    /// menos, no se deja de entrenar.
+    var suggestionBlocker: String? {
+        guard let status = weekStatus, status.pausesTraining else { return nil }
+        return "Marcaste esta semana como \(status.displayName.lowercased()). Una sugerencia se "
+            + "calcula sobre lo que vienes entrenando, y ahora eso leería tu recuperación como "
+            + "una bajada de forma. Vuelve a pedirla cuando retomes."
+    }
+
+    /// Qué cambiaría al aplicar la sugerencia y conviene ver **antes** de aceptar. `nil` si no hay
+    /// nada que avisar.
+    ///
+    /// Existe porque aplicar sobreescribe la meta de volumen, también hacia abajo: con una meta de
+    /// 60 y entrenando 45, la sugerencia calcula 54 y **te machacaba los 60 sin decir nada**.
+    /// Pulsar "Sugerir" para ver qué propone no puede rebajarte el objetivo a tus espaldas.
+    func suggestionImpact(_ suggestion: PlanSuggestion) -> String? {
+        guard let goal = goals.first(where: { $0.type == .weeklyVolume }),
+              suggestion.weeklyVolumeTarget < goal.targetValue else { return nil }
+        return "Ojo: esto **baja** tu meta de volumen de \(Goal.trim(goal.targetValue)) a "
+            + "\(Goal.trim(suggestion.weeklyVolumeTarget)) km/sem, porque es lo que dice tu "
+            + "historial reciente. Si la meta sigue siendo la de antes, cancela y deja la tuya."
     }
 
     /// Siembra la config del plan desde tu historial la **primera** vez que hay datos.

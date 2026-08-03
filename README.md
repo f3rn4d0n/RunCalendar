@@ -97,7 +97,14 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   `WorkoutStructure`/`IntervalSpec`, y los textos de la guía se **derivan** de ella, así que la
   tarjeta y el reloj no pueden decir cosas distintas.
 - **"Sugerir plan"** (como "Sugerir meta"): infiere de tu historial de carreras los días/semana, tus
-  días y una meta de volumen (+20% en 8 sem); todo editable. `SuggestPlanUseCase`.
+  días y una meta de volumen (+20% en 8 sem); todo editable. `SuggestPlanUseCase`. Mira **solo
+  semanas completas** y deja fuera la actual: la ventana de "últimos 42 días" cortaba por las dos
+  puntas —un martes con una carrera contaba como una semana entera de 8 km— y te proponía menos
+  cuanto más temprano la pidieras. **Avisa si la sugerencia baja tu meta** en vez de sobreescribirla
+  en silencio: pulsarla para ver qué propone no puede rebajarte el objetivo a tus espaldas. Y en
+  semana de **lesión o enfermedad no sugiere**, porque calcularía sobre datos que leen tu
+  recuperación como una bajada de forma; una descarga sí deja (se entrena menos, no se deja de
+  entrenar).
 - **Tus días salen de tu historial desde el primer plan** (`seedPlanConfigIfNeeded`). Antes todo el
   mundo empezaba en 3 días/semana, un número inventado — y chirriaba porque el resto del plan **sí**
   sale de tus datos (volumen, tirada larga, tus carreras). La frecuencia era lo único adivinado, y
@@ -630,7 +637,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 164 pruebas en 16 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 169 pruebas en 16 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -749,7 +756,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 164 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 169 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |
