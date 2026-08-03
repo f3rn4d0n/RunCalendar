@@ -534,6 +534,71 @@ struct GoalsViewModelTests {
         #expect(cal.component(.weekday, from: nextOne.weekStart) == 2, "lunes")
     }
 
+    // MARK: - Sugerir plan
+
+    @Test("La semana en curso no deflacta la sugerencia")
+    func partialWeekDoesNotDragTheSuggestion() async {
+        // Antes la ventana eran "los últimos 42 días", así que un martes con una sola carrera
+        // entraba al promedio como una semana entera de 8 km. Cuanto más temprano pedías la
+        // sugerencia, menos te proponía.
+        let historial = history(daysPerWeek: 4, weeks: 4)          // 4 semanas completas de 32 km
+        let conHoy = historial + [
+            TrainingSession(date: Date(), type: .running, title: "Hoy", distanceKm: 8, completed: true)
+        ]
+
+        let a = TestApp(goals: [volumeGoal()], sessions: historial)
+        let b = TestApp(goals: [volumeGoal()], sessions: conHoy)
+        await a.start(); await b.start()
+
+        #expect(a.goals.planSuggestion()?.weeklyVolumeTarget
+                    == b.goals.planSuggestion()?.weeklyVolumeTarget,
+                "lo que lleves de esta semana no debe cambiar la sugerencia")
+        #expect(a.goals.planSuggestion()?.config.daysPerWeek == 4)
+    }
+
+    @Test("En semana de lesión o enfermedad no se sugiere, y se dice por qué",
+          arguments: [WeekStatus.injured, .sick])
+    func noSuggestionWhileRecovering(status: WeekStatus) async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
+        await app.start()
+        #expect(app.goals.suggestionBlocker == nil, "sin marcar nada sí se sugiere")
+
+        app.goals.weekStatus = status
+        #expect(app.goals.suggestionBlocker != nil)
+        #expect(app.goals.planSuggestion() == nil, "no se propone una rampa a quien se recupera")
+    }
+
+    @Test("Una descarga sí deja sugerir: se entrena menos, no se deja de entrenar")
+    func deloadStillAllowsSuggesting() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
+        await app.start()
+        app.goals.weekStatus = .deload
+        #expect(app.goals.suggestionBlocker == nil)
+        #expect(app.goals.planSuggestion() != nil)
+    }
+
+    @Test("Si la sugerencia baja tu meta, se avisa antes de aplicar")
+    func loweringTheGoalIsFlagged() async {
+        // Pulsar "Sugerir" para ver qué propone no puede rebajarte el objetivo a tus espaldas.
+        let app = TestApp(goals: [volumeGoal(200)], sessions: history(daysPerWeek: 4, weeks: 4))
+        await app.start()
+        guard let s = app.goals.planSuggestion() else {
+            Issue.record("con 4 semanas debería haber sugerencia")
+            return
+        }
+        #expect(s.weeklyVolumeTarget < 200)
+        #expect(app.goals.suggestionImpact(s)?.contains("baja") == true,
+                "impacto: \(app.goals.suggestionImpact(s) ?? "nil")")
+    }
+
+    @Test("Si la sugerencia sube tu meta, no hay nada que avisar")
+    func raisingTheGoalNeedsNoWarning() async {
+        let app = TestApp(goals: [volumeGoal(10)], sessions: history(daysPerWeek: 4, weeks: 4))
+        await app.start()
+        guard let s = app.goals.planSuggestion() else { return }
+        #expect(app.goals.suggestionImpact(s) == nil)
+    }
+
     // MARK: - Seguimiento corporal
 
     @Test("Sin permiso de escritura en Salud no se pide registrar el peso")

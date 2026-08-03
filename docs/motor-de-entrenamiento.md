@@ -95,6 +95,25 @@ Una consecuencia de modelar el fartlek y las cuestas: `IntervalSpec.Rep` disting
 modelarlo en metros obligaba a inventar una distancia que el atleta no va a medir. El reloj traduce
 cada caso a su meta de WorkoutKit.
 
+## Lo que el motor no puede saber
+
+Un patrón que se repite: **la app deduce la intención del atleta de sus datos, y la intención no
+está en los datos.**
+
+| Síntoma | Lo que no se puede deducir |
+|---|---|
+| `WeekStatus` tuvo que existir | "descansé a propósito" vs. "no pude" |
+| "esta semana quiero más/menos días" | tu disponibilidad de la semana que viene |
+| "Sugerir" solo sabe escalar tu pasado | a dónde quieres llegar, y desde qué punto |
+| El plan se reescribe solo | qué decidiste tú y qué calculó él |
+
+`WeekStatus` fue el primer parche: un campo donde declaras algo que ningún sensor ve. La salida de
+fondo es una **entrevista de arranque** —días disponibles, carrera objetivo, de dónde vienes— cuyas
+respuestas son, literalmente, la cabecera del bloque persistido. No es que la entrevista dependa del
+bloque: **la entrevista produce el bloque**, y el bloque es lo que le da sentido a guardarla. Con
+eso, ajustar los días de una semana concreta deja de ser un parche y pasa a ser editar una semana
+dentro de tu bloque.
+
 ## Lo que NO vamos a hacer, y por qué
 
 - **Cambiar el 8% por otro número inventado.** Sustituir una constante sin calibrar por otra no es progreso. El ACWR al menos sale de tus datos.

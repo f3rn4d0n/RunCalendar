@@ -23,10 +23,19 @@ struct InferPrimaryGoalUseCase: Sendable {
 /// cuántos días/semana corres, en qué días, y un volumen objetivo (+20% en 8 semanas). Todo editable.
 /// Usa solo carreras (no camina/senderismo). `nil` si no hay historial suficiente.
 struct SuggestPlanUseCase: Sendable {
+    /// Cuántas semanas **completas** se miran hacia atrás.
+    static let weeksOfHistory = 6
+
     func callAsFunction(runningSessions: [TrainingSession], now: Date = Date()) -> PlanSuggestion? {
         let cal = Calendar.current
-        let cutoff = cal.date(byAdding: .day, value: -42, to: now) ?? now   // ~6 semanas
-        let recent = runningSessions.filter { $0.completed && $0.date >= cutoff && $0.date <= now }
+        // **Solo semanas completas**, y la actual queda fuera. Antes la ventana eran "los últimos
+        // 42 días", que corta por las dos puntas: la semana en curso entraba al promedio como si
+        // hubiera terminado (un martes con una carrera contaba como una semana de 8 km) y la más
+        // vieja entraba partida. Las dos deflactaban la media, así que la sugerencia proponía menos
+        // de lo que el atleta entrena de verdad — y tanto menos cuanto más temprano la pidiera.
+        let thisWeek = Calendar.app.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        let start = Calendar.app.date(byAdding: .day, value: -7 * Self.weeksOfHistory, to: thisWeek) ?? thisWeek
+        let recent = runningSessions.filter { $0.completed && $0.date >= start && $0.date < thisWeek }
         guard recent.count >= 3 else { return nil }                          // mínimo para inferir
 
         // Agrupa por semana para promediar frecuencia y volumen sobre semanas activas.

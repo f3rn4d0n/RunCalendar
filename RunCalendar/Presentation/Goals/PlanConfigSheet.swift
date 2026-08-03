@@ -8,6 +8,8 @@ struct PlanConfigSheet: View {
     @State private var detailDay: PlannedDay?
     @State private var suggestion: PlanSuggestion?
     @State private var noHistory = false
+    /// Por qué no se pudo sugerir, cuando el motivo no es la falta de historial.
+    @State private var blockedReason: String?
     /// Config al abrir la hoja, para mandar **un** evento al cerrar en vez de uno por toque del
     /// stepper (subir de 3 a 7 días son cuatro cambios y una sola decisión).
     @State private var configAtOpen: PlanConfig?
@@ -21,7 +23,15 @@ struct PlanConfigSheet: View {
             Form {
                 Section {
                     Button {
-                        if let s = viewModel.planSuggestion() { suggestion = s } else { noHistory = true }
+                        // El motivo importa: "no puedo sugerir porque estás lesionado" y "no hay
+                        // historial" piden cosas distintas del atleta.
+                        if let blocker = viewModel.suggestionBlocker {
+                            blockedReason = blocker
+                        } else if let s = viewModel.planSuggestion() {
+                            suggestion = s
+                        } else {
+                            noHistory = true
+                        }
                     } label: {
                         Label("Sugerir plan desde mi historial", systemImage: "wand.and.stars")
                     }
@@ -89,7 +99,17 @@ struct PlanConfigSheet: View {
                 }
                 Button("Cancelar", role: .cancel) { suggestion = nil }
             } message: {
-                Text(suggestion?.rationale ?? "")
+                // El impacto va **antes** que el razonamiento: es lo que puede hacerte cancelar.
+                Text([suggestion.flatMap(viewModel.suggestionImpact), suggestion?.rationale]
+                    .compactMap { $0 }.joined(separator: "\n\n"))
+            }
+            .alert("No es buen momento", isPresented: Binding(
+                get: { blockedReason != nil },
+                set: { if !$0 { blockedReason = nil } }
+            )) {
+                Button("Entendido", role: .cancel) { blockedReason = nil }
+            } message: {
+                Text(blockedReason ?? "")
             }
             .alert("Sin historial suficiente", isPresented: $noHistory) {
                 Button("Entendido", role: .cancel) {}
