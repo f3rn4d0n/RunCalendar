@@ -26,6 +26,9 @@ struct MetricRow: View {
             Spacer()
             Text(value)
         }
+        // Fija aquí y no en cada llamador: antes la fila heredaba la fuente del contenedor, así que
+        // la misma métrica se veía distinta según en qué sección cayera.
+        .font(.mSubheadline)
     }
 }
 

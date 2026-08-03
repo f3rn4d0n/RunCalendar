@@ -32,9 +32,8 @@ struct FitnessTrendSection: View {
             }
         } header: {
             Text("Tu evolución")
-        } footer: {
-            Text("Toca cualquier punto para ver su valor. El VO₂max se mueve en meses: es la mejor "
-                + "señal de que tu base aeróbica mejora.")
+            SectionNote("Toca cualquier punto para ver su valor. El VO₂max se mueve en meses: "
+                        + "es la mejor señal de que tu base aeróbica mejora.")
         }
     }
 

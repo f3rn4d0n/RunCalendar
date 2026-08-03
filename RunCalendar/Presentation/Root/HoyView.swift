@@ -304,12 +304,33 @@ struct HoyView: View {
                     }
                     Spacer()
                 }
+                if healthViewModel.todayCheckIn == nil { checkInPrompt }
             } else if healthViewModel.isLoading {
                 recoverySkeleton
             } else {
                 Text("Conecta Apple Salud en Progreso para ver tu recuperación.")
                     .font(.mSubheadline).foregroundStyle(.secondary)
             }
+        }
+    }
+
+    /// El check-in del día, **pegado al anillo** en vez de como tarjeta propia.
+    ///
+    /// Es lo que alimenta ese número: registrar cómo te sientes es lo que va calibrando el estimado
+    /// a tu cuerpo. Estando aquí, se pide justo cuando estás mirando el dato que mejora — en vez de
+    /// ser un tercer aviso que compita con los del review y el peso, que convertiría *Hoy* en una
+    /// lista de reproches.
+    ///
+    /// Y vive aquí y no al fondo de *Progreso* porque ahí no lo veía nadie: la pantalla que se abre
+    /// todos los días es esta.
+    @ViewBuilder private var checkInPrompt: some View {
+        Divider().padding(.vertical, 6)
+        Text("¿Cómo te sientes hoy?").font(.mCaption).foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        // En línea y no como enlace: navegar a otra pantalla para pulsar uno de cinco botones es
+        // más fricción que el registro en sí.
+        FeelingPicker(selected: nil) { value in
+            await healthViewModel.submitCheckIn(feeling: value)
         }
     }
 

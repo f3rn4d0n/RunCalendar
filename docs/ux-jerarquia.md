@@ -74,20 +74,48 @@ Es el criterio 1 haciendo el trabajo: la pregunta no se decidió mirando esta pa
 ### El orden resultante
 
 ```
-1. Check-in de hoy      ← solo si está pendiente
-2. Resumen              ← esencial visible, avanzado plegado
+1. Check-in de hoy      ← solo si está pendiente (y el aviso real vive en *Hoy*)
+2. Resumen              ← de lo accionable a lo avanzado, sin plegar
 3. ¿Listo para…?        ← tus carreras + por distancia, juntas
-4. Recuperación y carga ← estimado + tendencia + precisión + ACWR
+4. Recuperación y carga ← estimado + precisión + tendencia + ACWR
 5. Gráficas             ← volumen y ritmo
 6. Registrar            ← check-in ya hecho + review dominical
 ```
 
+### Lo que la primera versión hizo mal
+
+Se probó en el teléfono y salieron cuatro cosas. Las apunto porque son errores **de criterio**, no
+descuidos, y se pueden repetir:
+
+**Plegué tres filas.** El resumen ya estaba arriba y ordenado de lo esencial a lo avanzado; meterle
+un "Más detalle" encima cobró un toque por tres filas. Es el criterio 5 incumplido por su autor:
+*baja **o** pliega*, no las dos. Si son pocas filas, el orden basta.
+
+**Una fuente distinta por accidente.** `MetricRow` no fijaba tipografía y heredaba, así que dentro
+del `DisclosureGroup` se veía distinta. Un componente reutilizable que hereda estilo se ve diferente
+según dónde caiga: **fija el estilo en el componente**, no en el contenedor.
+
+**El `footer` de una sección se lee como el encabezado de la siguiente.** En una pantalla de muchas
+secciones seguidas, la nota al pie no deja claro de quién habla. Van dentro (`SectionNote`).
+
+**"¿Acierta el modelo?" estaba detrás de la tendencia.** Mide el **estimado**, no la tendencia. Un
+bloque agrupado no basta: dentro también hay orden, y cada cosa va pegada a lo que juzga.
+
 ### Dos decisiones que conviene no deshacer sin pensarlo
 
-**El resumen se parte por dentro, no por fuera.** Volumen de la semana, promedio y carrera más larga
-quedan visibles; VO₂max, FC en reposo y número de entrenamientos van en un `DisclosureGroup`. La
-jerarquía se aplica **por fila**, porque el problema no era la sección: era que dentro de ella todo
-pesaba igual.
+**El resumen se ordena, no se pliega.** Volumen de la semana, promedio y carrera más larga primero;
+VO₂max y FC en reposo al final de la sección. La jerarquía se aplica **por fila** —el problema nunca
+fue la sección, era que dentro de ella todo pesaba igual— pero con seis filas el orden ya basta.
+Plegarlas fue el error de la primera versión.
+
+**Los avisos viven donde se abre la app.** El check-in estaba al fondo de *Progreso*, donde no lo ve
+nadie. Ahora está **pegado al anillo de recuperación en Hoy**, que es la pantalla diaria — y pegado
+al anillo y no como tarjeta propia, porque es lo que alimenta ese número y porque *Hoy* ya tiene dos
+avisos: un tercero la convertiría en una lista de reproches. En línea, además: navegar a otra
+pantalla para pulsar uno de cinco botones es más fricción que el propio registro.
+
+Lo que queda al fondo de *Progreso* deja de ser un CTA y pasa a ser un **acceso permanente**, que
+ahí está bien.
 
 **Las gráficas no se pliegan.** Estar al final ya es jerarquía suficiente: quien no las busca no
 llega, y a quien sí las busca un plegado solo le cuesta un toque de más. Plegar todo lo avanzado

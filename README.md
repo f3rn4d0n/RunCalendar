@@ -272,10 +272,14 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
 > recuperación estaba en **cuatro** pedazos separados, el readiness partido en dos con nueve
 > secciones en medio, y las entradas (check-in, review) cortaban el informe por la mitad.
 
-- **Resumen de forma**, en dos niveles: volumen de la semana, promedio y carrera más larga a la
-  vista; **VO₂max, FC en reposo y nº de entrenamientos plegados**. No todos los atletas están
-  buscando mejorar su VO₂max, y a quien solo quiere ver sus kilómetros esa fila le estorba. No se
-  esconde nada — deja de competir por la primera mirada.
+- **Resumen de forma**, ordenado de lo accionable a lo avanzado: volumen de la semana, promedio y
+  carrera más larga primero; VO₂max y FC en reposo al final. No todos los atletas están buscando
+  mejorar su VO₂max, y a quien solo quiere ver sus kilómetros esa fila no debe competirle la primera
+  mirada. **Con seis filas el orden basta**: se probó plegando las tres últimas y cobrar un toque
+  por tres filas es fricción, no jerarquía.
+- **Las notas explicativas van dentro de su sección** (`SectionNote`), no en el `footer`: el pie de
+  una sección y el encabezado de la siguiente se leen con el mismo peso y no se distingue de quién
+  habla el texto.
 - **Tendencia de fitness** (Swift Charts interactivas), al final: estar abajo ya es jerarquía
   suficiente, y a quien las busca un plegado solo le costaría un toque de más.
 - **Recuperación estimada** (orientativa, no médica): horas hasta estar recuperado a partir de

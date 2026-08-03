@@ -31,9 +31,9 @@ struct RecoveryTrendSection: View {
             }
         } header: {
             Text("Tu tendencia (últimos 30 días)")
-        } footer: {
-            Text("Lo que importa es tu tendencia comparada con tu propia base, no el valor de un solo día. "
-                + "Un dato aislado varía por estrés, alcohol o una mala noche.")
+            SectionNote("Lo que importa es tu tendencia comparada con tu propia base, no el "
+                        + "valor de un solo día. Un dato aislado varía por estrés, alcohol o una "
+                        + "mala noche.")
         }
     }
 
