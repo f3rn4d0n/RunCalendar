@@ -151,7 +151,7 @@ final class GoalsViewModel {
     /// ¿Ya hay un review en la semana en curso?
     var hasReviewThisWeek: Bool {
         guard let last = bodyLogs.first?.date else { return false }
-        return Calendar.current.isDate(last, equalTo: Date(), toGranularity: .weekOfYear)
+        return Calendar.app.isDate(last, equalTo: Date(), toGranularity: .weekOfYear)
     }
 
     /// Aviso de recomposición: peso estancado pero cintura bajando. `nil` si no aplica
@@ -356,8 +356,16 @@ final class GoalsViewModel {
 
     /// Plan de la semana, derivado de tus metas + volumen actual + config. `nil` si no hay meta
     /// que lo ancle. Reactivo: se recalcula al cambiar metas, sesiones o config.
-    var currentPlan: TrainingPlan? {
+    var currentPlan: TrainingPlan? { plan(weekOffset: 0) }
+
+    /// El plan de una semana concreta: `0` la actual, `1` la próxima. `nil` si no hay meta ancla.
+    ///
+    /// El desfase existe porque planificar un sábado **no** es planificar el sábado: es planificar
+    /// la semana que viene. Con `0` el plan solo propone los días que quedan de hoy en adelante y
+    /// descuenta lo que ya corriste; con `1` la semana está entera por delante.
+    func plan(weekOffset: Int) -> TrainingPlan? {
         guard let anchor = planAnchorGoal else { return nil }
+        let start = Self.weekStart(offset: weekOffset)
         return generatePlan(.init(
             primary: anchor,
             secondaries: goals.filter { $0.id != anchor.id },
@@ -365,7 +373,8 @@ final class GoalsViewModel {
             currentWeeklyKm: runningWeeklyKm,
             currentLongRunKm: runningLongestKm,
             races: racesViewModel.races,
-            weekStart: Self.currentWeekStart()
+            completed: runningSessions(since: start),
+            weekStart: start
         ))
     }
 
@@ -455,7 +464,11 @@ final class GoalsViewModel {
                     doneMinutes: sessions.compactMap(\.durationMin).reduce(0, +),
                     status: PlanDayOutcome.status(
                         plannedKm: planned?.targetKm, doneKm: km,
-                        hasPassed: PlannedDay.position(of: weekday) < todayPosition
+                        hasPassed: PlannedDay.position(of: weekday) < todayPosition,
+                        // Los días anteriores a que el plan existiera no se juzgan: lo que
+                        // corriste ahí cuenta como hecho, y lo que no, como descanso. Marcarlos
+                        // "fallado" o "extra" era pedir cuentas de un plan que no existía.
+                        beforePlan: PlannedDay.position(of: weekday) < plan.plansFrom
                     )
                 )
             }
@@ -575,7 +588,13 @@ final class GoalsViewModel {
     }
 
     private static func currentWeekStart(_ now: Date = Date()) -> Date {
-        Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        Calendar.app.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+    }
+
+    /// Inicio de la semana `offset` semanas adelante (0 = la actual).
+    private static func weekStart(offset: Int, now: Date = Date()) -> Date {
+        let start = currentWeekStart(now)
+        return Calendar.app.date(byAdding: .day, value: 7 * offset, to: start) ?? start
     }
 
     private static let weekStatusKey = "week.status"

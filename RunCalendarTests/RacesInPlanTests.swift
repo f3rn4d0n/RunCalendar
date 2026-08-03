@@ -12,7 +12,7 @@ struct RacesInPlanTests {
 
     /// Lunes de la semana en curso, para colocar carreras en días concretos.
     private var weekStart: Date {
-        cal.date(from: cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())) ?? Date()
+        Calendar.app.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
     }
 
     private func race(_ discipline: RaceDiscipline, daysFromWeekStart: Int,
@@ -33,7 +33,11 @@ struct RacesInPlanTests {
             currentWeeklyKm: weeklyKm,
             currentLongRunKm: 12,
             races: races,
-            weekStart: weekStart
+            weekStart: weekStart,
+            // `now` en el inicio de la semana: estas pruebas son sobre **anclar carreras**, no
+            // sobre planificar a media semana. Sin fijarlo, el plan solo propondría los días que
+            // quedan de hoy en adelante y el resultado dependería del día en que corran.
+            now: weekStart
         ))
     }
 
@@ -211,7 +215,8 @@ struct RacesInPlanTests {
             currentWeeklyKm: 40,
             currentLongRunKm: 12,
             races: [race(.tenK, daysFromWeekStart: 6)],
-            weekStart: weekStart
+            weekStart: weekStart,
+            now: weekStart
         ))
         #expect(plan.note?.contains("carrera") == true, "aviso: \(plan.note ?? "nil")")
         // El aviso no puede pedir mover un día fijo.

@@ -151,13 +151,16 @@ struct GoalsViewModelTests {
         await app.start()
 
         let todayPosition = PlannedDay.position(of: cal.component(.weekday, from: Date()))
+        let plansFrom = app.goals.currentPlan?.plansFrom ?? 0
         for outcome in app.goals.weekOutcomes {
             // Hoy cuenta como "todavía no llega": el día no ha terminado y aún puedes salir.
             let hasPassed = PlannedDay.position(of: outcome.weekday) < todayPosition
 
+            let beforePlan = PlannedDay.position(of: outcome.weekday) < plansFrom
             guard let plannedKm = outcome.plannedKm, plannedKm > 0 else {
-                // Un día que no pedía nada no se juzga en ninguna dirección, pase o no pase.
-                #expect(outcome.status == (outcome.doneKm > 0 ? .extra : .rest))
+                // Un día que no pedía nada no se juzga en ninguna dirección, pase o no pase. Si
+                // además es anterior al plan, lo que corriste cuenta como hecho y no como "extra".
+                #expect(outcome.status == (outcome.doneKm > 0 ? (beforePlan ? .done : .extra) : .rest))
                 continue
             }
             if outcome.doneKm == 0 {
@@ -253,7 +256,7 @@ struct GoalsViewModelTests {
     /// cuando hoy cae cerca del borde — y el promedio sale más bajo unos días de la semana que
     /// otros. Semanas completas y pasadas, además, evitan los días futuros (que no cuentan).
     private func history(daysPerWeek: Int, weeks: Int) -> [TrainingSession] {
-        let thisWeek = cal.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        let thisWeek = Calendar.app.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
         return (1...weeks).flatMap { weeksBack -> [TrainingSession] in
             let start = cal.date(byAdding: .day, value: -7 * weeksBack, to: thisWeek) ?? thisWeek
             return (0..<daysPerWeek).map { day in
@@ -278,7 +281,8 @@ struct GoalsViewModelTests {
         app.goals.seedPlanConfigIfNeeded()
 
         #expect(app.goals.planConfig.daysPerWeek == 5, "corre 5 días: el plan debe pedir 5")
-        #expect(app.goals.currentPlan?.days.count == 5)
+        // No se comprueba `days.count == 5`: si la semana ya empezó, el plan solo propone los días
+        // que quedan. Eso es materia de otra prueba.
     }
 
     @Test("Sin historial suficiente se queda en el default en vez de inventar")
@@ -330,6 +334,114 @@ struct GoalsViewModelTests {
         #expect(app.goals.planConfig.daysPerWeek == 5)
         #expect(app.goalRepo.added.isEmpty)
         #expect(app.goalRepo.updated.isEmpty)
+    }
+
+    // MARK: - La semana ya empezada
+
+    /// Fecha de esta semana en la posición dada (0 = lunes … 6 = domingo).
+    private func thisWeek(position: Int) -> Date {
+        let start = Calendar.app.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        return Calendar.app.date(byAdding: .day, value: position, to: start) ?? start
+    }
+
+    private var todayPosition: Int {
+        PlannedDay.position(of: cal.component(.weekday, from: Date()))
+    }
+
+    @Test("El plan no propone días que ya pasaron")
+    func doesNotPlanThePast() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 3, weeks: 3))
+        await app.start()
+        guard let plan = app.goals.currentPlan else {
+            Issue.record("hace falta un plan")
+            return
+        }
+        // Es el caso que motivó todo: planificar un sábado y que el plan te pida el martes — y
+        // luego te lo marque fallado. Un día que ya pasó no es una sugerencia, es un reproche.
+        for day in plan.days {
+            #expect(day.weekPosition >= todayPosition,
+                    "propone \(day.label) en una posición ya pasada (\(day.weekPosition))")
+        }
+        #expect(plan.plansFrom == todayPosition)
+    }
+
+    @Test("Los días previos al plan no salen como fallados ni como extra")
+    func daysBeforeThePlanAreNotJudged() async {
+        // Se corre en el primer día de la semana, que siempre ha pasado o es hoy.
+        let app = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: thisWeek(position: 0), type: .running,
+                            title: "Lunes", distanceKm: 8, completed: true)
+        ])
+        await app.start()
+        guard let outcome = app.goals.weekOutcomes.first(where: {
+            PlannedDay.position(of: $0.weekday) == 0
+        }) else {
+            Issue.record("la semana día por día debe cubrir los 7 días")
+            return
+        }
+        if todayPosition > 0 {
+            #expect(outcome.status == .done, "corriste ese día: cuenta como hecho, no como extra")
+        }
+    }
+
+    @Test("Si ya corriste hoy, el plan no te pide otra sesión hoy")
+    func todaysRunIsNotAskedAgain() async {
+        // **Hoy** y no un día pasado: los pasados ya los descarta la regla de "no planificar el
+        // pasado", así que una prueba sobre ellos no distingue las dos reglas — comprobado por
+        // mutación, quitar el descarte por día entrenado no la hacía fallar.
+        let today = cal.component(.weekday, from: Date())
+        let app = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: Date(), type: .running,
+                            title: "Ya corrí hoy", distanceKm: 8, completed: true)
+        ])
+        await app.start()
+        guard let plan = app.goals.currentPlan else { return }
+
+        #expect(!plan.days.contains { $0.weekday == today },
+                "pide otra sesión un día en el que ya corriste")
+    }
+
+    @Test("Los km ya corridos salen del presupuesto de la semana, no se suman encima")
+    func alreadyRunKmComeOutOfTheBudget() async {
+        let sinNada = TestApp(goals: [volumeGoal()], sessions: [])
+        await sinNada.start()
+        let base = sinNada.goals.currentPlan?.totalKm ?? 0
+
+        let conCorridas = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: thisWeek(position: 0), type: .running,
+                            title: "Lunes", distanceKm: 10, completed: true)
+        ])
+        await conCorridas.start()
+        let pedido = conCorridas.goals.currentPlan?.totalKm ?? 0
+
+        // Con 10 km ya hechos, la semana pide **menos** de lo que pediría sin ellos.
+        if todayPosition > 0 { #expect(pedido <= base) }
+    }
+
+    // MARK: - Planificar la semana que viene
+
+    @Test("La semana que viene se planifica entera, no solo los días que quedan de esta")
+    func nextWeekIsPlannedInFull() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 3))
+        await app.start()
+        app.goals.planConfig = PlanConfig(daysPerWeek: 4)
+
+        let next = app.goals.plan(weekOffset: 1)
+        #expect(next?.plansFrom == 0, "la semana que viene no ha empezado")
+        #expect(next?.days.count == 4, "caben los 4 días pedidos")
+    }
+
+    @Test("El plan de la semana que viene arranca el lunes siguiente")
+    func nextWeekStartsNextMonday() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: [])
+        await app.start()
+        guard let thisOne = app.goals.plan(weekOffset: 0),
+              let nextOne = app.goals.plan(weekOffset: 1) else { return }
+
+        let days = Calendar.app.dateComponents([.day], from: thisOne.weekStart,
+                                               to: nextOne.weekStart).day
+        #expect(days == 7)
+        #expect(cal.component(.weekday, from: nextOne.weekStart) == 2, "lunes")
     }
 
     // MARK: - Seguimiento corporal

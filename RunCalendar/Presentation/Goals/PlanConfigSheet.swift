@@ -12,6 +12,9 @@ struct PlanConfigSheet: View {
     /// stepper (subir de 3 a 7 días son cuatro cambios y una sola decisión).
     @State private var configAtOpen: PlanConfig?
     @State private var usedSuggestion = false
+    /// Qué semana se está mirando: 0 la actual, 1 la próxima. Planificar un sábado no es planificar
+    /// el sábado — es planificar la semana que viene, y hasta ahora no había forma de verla.
+    @State private var weekOffset = 0
 
     var body: some View {
         NavigationStack {
@@ -117,8 +120,15 @@ struct PlanConfigSheet: View {
     /// Vista previa en vivo de la semana con la config actual. Como el plan es derivado, cambia
     /// al instante al mover los días o los días preferidos — sin esperar a que llegue la fecha.
     @ViewBuilder private var weekPreview: some View {
-        if let plan = viewModel.currentPlan {
+        if let plan = viewModel.plan(weekOffset: weekOffset) {
             Section {
+                Picker("Semana", selection: $weekOffset) {
+                    Text("Esta semana").tag(0)
+                    Text("La próxima").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+
                 ForEach(plan.fullWeek(), id: \.weekday) { entry in
                     if let day = entry.session {
                         Button { detailDay = day } label: { sessionRow(day) }
@@ -134,9 +144,7 @@ struct PlanConfigSheet: View {
                     Label(note, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(Neon.orange)
                 } else {
-                    Text("Así queda tu semana con \(plan.days.count) "
-                        + "\(plan.days.count == 1 ? "día" : "días") · "
-                        + "\(Goal.trim(plan.totalKm)) km. Ajusta arriba y mira cómo cambia.")
+                    Text(previewFooter(plan))
                 }
             }
         }
@@ -199,6 +207,19 @@ struct PlanConfigSheet: View {
         } else {
             viewModel.planConfig.preferredWeekdays.append(weekday)
         }
+    }
+
+    /// Resumen de la semana previsualizada. Extraído a función porque interpolado en la vista el
+    /// compilador de SwiftUI no lo resuelve en tiempo razonable.
+    private func previewFooter(_ plan: TrainingPlan) -> String {
+        let unit = plan.days.count == 1 ? "día" : "días"
+        var text = "Así queda tu semana con \(plan.days.count) \(unit) · "
+        text += "\(Goal.trim(plan.totalKm)) km. Ajusta arriba y mira cómo cambia."
+        if plan.plansFrom > 0 {
+            text += " Esta semana ya empezó: solo se proponen los días que quedan. "
+            text += "Mira «La próxima» para ver la semana completa."
+        }
+        return text
     }
 
     /// Un evento por visita a la hoja, y solo si algo cambió: abrir para mirar el plan y cerrar no

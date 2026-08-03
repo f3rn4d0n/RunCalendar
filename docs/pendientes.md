@@ -129,7 +129,7 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 | `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
 | `RacesInPlanTests` | carreras inscritas + víspera protegida | 18 |
-| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, siembra de días, pausas, adherencia, guardado | 24 |
+| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, siembra de días, semana empezada, pausas, adherencia | 30 |
 | `RacesViewModelTests` | gasto del año, motivos de clima ausente, calendario | 12 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
@@ -333,6 +333,26 @@ más recientes):
 
 Fuentes: [Bosquet et al., *Effects of tapering on performance: a meta-analysis*](https://www.semanticscholar.org/paper/Effects-of-tapering-on-performance:-a-Bosquet-Montpetit/a41517ab5fa06b92568b861e2b1aa32b3003d214) ·
 [*Effects of tapering on performance in endurance athletes* (PLOS One, 2023)](https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0282838)
+
+### El plan se reescribe solo mientras lo sigues
+
+`currentWeeklyKm` es una suma **móvil de 7 días**, así que cada carrera que registras sube la base
+y el plan recalcula objetivos más altos. **El plan que viste el lunes no es el que ves el jueves**,
+y la adherencia te mide contra el del jueves, no contra el que aceptaste. "Seguir el plan" es
+imposible por construcción.
+
+Es la misma raíz que ya bloquea la adherencia histórica: el plan **no se persiste**, es una función
+pura de tu volumen de hoy. Regenerarlo para una semana pasada da un plan distinto al que viste.
+
+El arreglo es **congelar la semana**: al generarla por primera vez, guardar una foto (días, km,
+`plansFrom`) y usar esa hasta que empiece la siguiente. Con eso caen tres cosas de golpe —
+adherencia histórica, un plan estable que seguir, y poder comparar lo planeado con lo hecho semanas
+después.
+
+No se hizo junto con lo de la semana ya empezada porque es de otra naturaleza: aquello son reglas
+de colocación dentro de un plan derivado, y esto cambia el plan de derivado a **persistido**, con
+su documento en Firestore, su migración y su decisión de cuándo invalidarlo (¿cambiar los días
+regenera la semana en curso, o solo la siguiente?).
 
 ### Periodización lineal
 

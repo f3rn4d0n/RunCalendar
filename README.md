@@ -76,6 +76,20 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   días es reversible con un stepper y que te aparezca una meta que no pusiste, no. Si no hay
   historial suficiente se queda en 3, que ahí sí es lo razonable.
 - **Solo carrera**: el volumen del plan usa sesiones de tipo carrera (no camina/senderismo).
+- **La semana empieza el lunes** (`Calendar.app`), no lo que diga la región. `Calendar.current` en
+  `en_MX` la abre el **domingo**, así que la app y el atleta llevaban calendarios distintos: la
+  tirada larga —que va en la última posición— caía en sábado, y "el domingo ya acabó la semana" era
+  falso para el plan. Úsalo en todo lo que hable de semanas (límites, agrupaciones, posiciones).
+- **Planificar a media semana no propone el pasado** (`TrainingPlan.plansFrom`). Si entras un
+  sábado, el plan cubre **de hoy en adelante**: no te pide el martes ni te lo marca fallado —antes
+  la vista día por día pintaba en rojo días en los que nunca tuviste plan que seguir— y lo que ya
+  corriste **no** sale como "extra", sino como hecho. Los días en que ya entrenaste no se reutilizan
+  y sus km **salen del presupuesto**, igual que los de una carrera. Lo ya corrido además ocupa el
+  lugar de una sesión emparejando por intensidad: un día duro (RPE ≥ 7) sustituye a una de calidad
+  y uno suave a un rodaje.
+- **Selector de semana en *Ajustar*** (*Esta semana / La próxima*): planificar un sábado casi nunca
+  es planificar el sábado, es planificar la semana que viene — y hasta ahora no había forma de
+  verla. La próxima sale entera porque no ha empezado.
 - **Carreras inscritas dentro del plan**: si tienes una carrera **inscrita** (`isRegistered`) esta
   semana, el plan la ancla como **día fijo** (`PlannedDay.raceId`, `PlannedWorkoutKind.race`) en vez
   de ignorarla. Tres consecuencias: (1) no te pide otra sesión ese día — antes te ponía "Tirada
@@ -576,7 +590,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 134 pruebas en 15 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 140 pruebas en 15 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -695,7 +709,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 134 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 140 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |
