@@ -31,7 +31,7 @@ struct SuggestPlanUseCase: Sendable {
 
         // Agrupa por semana para promediar frecuencia y volumen sobre semanas activas.
         let byWeek = Dictionary(grouping: recent) {
-            cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: $0.date)
+            Calendar.app.dateComponents([.yearForWeekOfYear, .weekOfYear], from: $0.date)
         }
         let activeWeeks = max(1, byWeek.count)
 
@@ -240,12 +240,15 @@ struct GeneratePlanUseCase: Sendable {
         /// Carreras del atleta. Las **inscritas** que caen en esta semana se anclan al plan: no son
         /// una sugerencia del motor, son un hecho de su calendario.
         var races: [Race]
+        /// Lo que el atleta **ya corrió** dentro de la semana de este plan. Planificar a media
+        /// semana sin esto proponía días que ya pasaron y los daba por fallados.
+        var completed: [TrainingSession]
         var weekStart: Date
         var now: Date
 
         init(primary: Goal, secondaries: [Goal] = [], config: PlanConfig,
              currentWeeklyKm: Double, currentLongRunKm: Double? = nil,
-             races: [Race] = [],
+             races: [Race] = [], completed: [TrainingSession] = [],
              weekStart: Date = Date(), now: Date = Date()) {
             self.primary = primary
             self.secondaries = secondaries
@@ -253,6 +256,7 @@ struct GeneratePlanUseCase: Sendable {
             self.currentWeeklyKm = currentWeeklyKm
             self.currentLongRunKm = currentLongRunKm
             self.races = races
+            self.completed = completed
             self.weekStart = weekStart
             self.now = now
         }
@@ -281,6 +285,11 @@ struct GeneratePlanUseCase: Sendable {
                 structure.remove(at: index)
             }
         }
+        // Lo que ya corriste esta semana también ocupa el lugar de una sesión: si el martes hiciste
+        // 10 km, la semana no vuelve a pedirla. Se emparejan por intensidad — ver `removeCovered`.
+        let doneByDay = completedByWeekday(input)
+        removeCovered(&structure, byDaysCount: doneByDay)
+        let doneKm = doneByDay.values.flatMap { $0 }.compactMap(\.distanceKm).reduce(0, +)
 
         // Taper. Dos repartos: el volumen fácil (rodajes y tirada larga) sale del recorte completo,
         // y las sesiones de calidad de un recorte a la mitad — menos repeticiones, mismo ritmo.
@@ -290,13 +299,13 @@ struct GeneratePlanUseCase: Sendable {
         // Afinando, la tirada larga deja de progresar: sigue al volumen recortado y no al historial.
         // Si no, se queda pegada a los km de la semana pasada y acapara media semana de taper.
         let longHistory = taper == nil ? input.currentLongRunKm : nil
-        let (volumeKm, unfit) = distribute(structure, weekKm: taperedKm, raceKm: raceKm, days: days,
-                                           currentLongRunKm: longHistory,
+        let (volumeKm, unfit) = distribute(structure, weekKm: taperedKm, raceKm: raceKm + doneKm,
+                                           days: days, currentLongRunKm: longHistory,
                                            longRunTarget: longRunTarget)
         var kmByIndex = volumeKm
         if let taper {
             let (qualityKm, _) = distribute(structure, weekKm: weekKm * (1 + taper) / 2,
-                                            raceKm: raceKm, days: days,
+                                            raceKm: raceKm + doneKm, days: days,
                                             currentLongRunKm: longHistory,
                                             longRunTarget: longRunTarget)
             kmByIndex = zip(structure, zip(volumeKm, qualityKm)).map { $0.0.isHard ? $0.1.1 : $0.1.0 }
@@ -304,31 +313,52 @@ struct GeneratePlanUseCase: Sendable {
 
         // Asigna días de la semana: preferidos (ordenados) o un reparto por defecto espaciado,
         // **sin pisar** los días de carrera.
-        let taken = Set(raceDays.map(\.weekday))
-        let weekdays = weekdays(for: input.config, count: structure.count, excluding: taken)
-
         // Víspera de carrera: nunca una sesión exigente. Es lo único que la evidencia soporta sin
         // inventar nada (la fatiga de una sesión dura tarda 24–72 h en irse y el glucógeno pide
-        // 24–48 h). Si hay una sesión fácil con la que intercambiar, se intercambia.
+        // 24–48 h). Se esquiva en dos pasos: al **elegir** los días (si sobran) y, si aun así cae
+        // ahí, intercambiando con una sesión fácil.
+        //
+        // Se descartan además los días que **ya no se pueden entrenar**: los que pasaron y aquellos
+        // en los que ya corriste. Un plan hecho el sábado no puede pedirte nada del martes.
+        let plansFrom = firstPlannablePosition(input)
+        let gone = Set((0..<plansFrom).map { PlannedDay.weekday(atPosition: $0) })
+        let taken = Set(raceDays.map(\.weekday)).union(gone).union(doneByDay.keys)
         let eves = eveWeekdays(of: raceDays, raceWeekdays: taken)
+        let weekdays = weekdays(for: input.config, count: structure.count,
+                                excluding: taken, avoiding: eves)
+        // Si no hay días para todas las sesiones, `zip` de más abajo las descarta. Antes eso pasaba
+        // **en silencio**: planificar un domingo mostraba "1 día · 6 km" de una semana de 45 km, sin
+        // decir por qué. El `unfit` de `allocate` no lo ve — ese mira los topes de sesión, no
+        // cuántos días quedan.
+        let dropped = max(0, structure.count - weekdays.count)
         let slots = arrangeAvoidingEves(Array(zip(structure, kmByIndex)).map { ($0, $1) },
                                         on: weekdays, eves: eves)
 
+        var demotedEve = false
         let generated: [PlannedDay] = zip(weekdays, slots).map { weekday, slot in
             let isEve = eves.contains(weekday)
+            // Si una sesión exigente acaba en la víspera y no hubo con cuál intercambiarla, se
+            // **degrada a fácil**. Antes se quedaba con su tipo y encima el texto de víspera: una
+            // tarjeta que decía "Tempo 4 km" y debajo "descanso o 20–30 min muy suaves". Se pierde
+            // una sesión de calidad esa semana, y por eso el aviso lo menciona.
+            let demote = isEve && isDemanding(slot.kind)
+            if demote { demotedEve = true }
+            let kind = demote ? .easy : slot.kind
             // La víspera se acota a un rodaje corto. Descanso o 20–30 min muy suaves: la evidencia
             // NO distingue entre ambos (no hay ensayos que los comparen), así que se ofrece la
             // opción en vez de prescribir una. Los km que se recortan aquí simplemente no se corren.
             let km = isEve ? min(slot.km, minEasyKm) : slot.km
             return PlannedDay(
-                weekday: weekday, kind: slot.kind, targetKm: km,
-                label: label(slot.kind, km: km),
-                detail: isEve ? eveDetail : detail(slot.kind)
+                weekday: weekday, kind: kind, targetKm: km,
+                label: label(kind, km: km),
+                detail: isEve ? eveDetail : detail(kind)
             )
         }
         let planned = (generated + raceDays).sorted { $0.weekPosition < $1.weekPosition }
 
-        let note = planNote(planned: planned, weekKm: taperedKm, days: days, unfit: unfit, taper: taper)
+        let note = planNote(planned: planned, weekKm: taperedKm, days: days, unfit: unfit,
+                            taper: taper, demotedEve: demotedEve, dropped: dropped,
+                            weekStarted: plansFrom > 0)
 
         return TrainingPlan(
             primaryGoalId: input.primary.id,
@@ -336,7 +366,8 @@ struct GeneratePlanUseCase: Sendable {
             config: PlanConfig(daysPerWeek: days, preferredWeekdays: input.config.preferredWeekdays),
             days: planned,
             note: note,
-            weekStart: input.weekStart
+            weekStart: input.weekStart,
+            plansFrom: plansFrom
         )
     }
 
@@ -482,7 +513,22 @@ struct GeneratePlanUseCase: Sendable {
     /// error del plan y hay que decirlo—; (1) el volumen no cabe → faltan días; (2) demasiados días
     /// → sesiones muy cortas; (3) sesiones exigentes en días seguidos (por los días elegidos).
     private func planNote(planned: [PlannedDay], weekKm: Double, days: Int, unfit: Double,
-                          taper: Double?) -> String? {
+                          taper: Double?, demotedEve: Bool = false,
+                          dropped: Int = 0, weekStarted: Bool = false) -> String? {
+        if dropped > 0 {
+            let sesiones = dropped == 1 ? "una sesión" : "\(dropped) sesiones"
+            return weekStarted
+                ? "De esta semana quedan pocos días, así que \(sesiones) del plan no caben. "
+                    + "Planifica «La próxima» para ver la semana completa."
+                : "\(sesiones.prefix(1).uppercased() + sesiones.dropFirst()) no cabe\(dropped == 1 ? "" : "n") "
+                    + "en los días disponibles: tus carreras y días preferidos no dejan hueco. "
+                    + "Libera un día o baja las sesiones de la semana."
+        }
+        if demotedEve {
+            return "La única sesión que cabía te quedaba en la víspera de tu carrera, así que se "
+                + "cambió por un rodaje suave. Esta semana te quedas sin sesión de calidad: llegar "
+                + "descansado a la carrera vale más."
+        }
         if taper != nil {
             return "Semana de afinamiento: menos kilómetros, mismo ritmo en series y tempo. Bajas "
                 + "el volumen para llegar descansado, no la intensidad — esa es la que te da la chispa."
@@ -529,14 +575,85 @@ struct GeneratePlanUseCase: Sendable {
 
     /// Días de la semana a usar. Si los preferidos alcanzan, se toman ordenados; si no, un reparto
     /// por defecto espaciado (Mar/Jue/Sáb/Lun/Mié/Dom).
-    private func weekdays(for config: PlanConfig, count: Int, excluding taken: Set<Int> = []) -> [Int] {
+    private func weekdays(for config: PlanConfig, count: Int, excluding taken: Set<Int> = [],
+                          avoiding avoid: Set<Int> = []) -> [Int] {
         guard count > 0 else { return [] }
-        let prefs = Array(Set(config.preferredWeekdays)).filter { (1...7).contains($0) }
-            .filter { !taken.contains($0) }.sorted()
+        // Ordenados por **posición** en la semana y no por número de `Calendar`: el domingo es el 1
+        // y cierra la semana, así que ordenar por número lo pondría primero — y la tirada larga,
+        // que va al final de la estructura, acabaría a media semana.
+        let byPosition: ([Int]) -> [Int] = { $0.sorted { PlannedDay.position(of: $0) < PlannedDay.position(of: $1) } }
+
+        let prefs = byPosition(Array(Set(config.preferredWeekdays)).filter { (1...7).contains($0) }
+            .filter { !taken.contains($0) })
+        // Los días que el atleta eligió mandan: si pidió entrenar en la víspera de una carrera, se
+        // respeta y se avisa (`planNote`), en vez de moverle el día a sus espaldas.
         if prefs.count >= count { return Array(prefs.prefix(count)) }
-        let spread = [3, 5, 7, 2, 4, 1, 6].filter { !taken.contains($0) }  // Calendar: 1=Dom … 7=Sáb
-        return Array(spread.prefix(count)).sorted()
+
+        let spread = Self.defaultSpread.map { PlannedDay.weekday(atPosition: $0) }
+            .filter { !taken.contains($0) }
+        // Con el reparto por defecto sí se esquiva la víspera desde el principio: es más robusto
+        // que colocar y luego intercambiar. Solo si sobran días — con pocos, entrenar en la víspera
+        // y avisarlo es mejor que perder la sesión.
+        let roomy = spread.filter { !avoid.contains($0) }
+        return byPosition(Array((roomy.count >= count ? roomy : spread).prefix(count)))
     }
+
+    /// Reparto por defecto, en **posiciones** de la semana (0 = lunes … 6 = domingo). El orden es de
+    /// preferencia, no cronológico: los primeros elementos son los que se usan cuando hay pocos
+    /// días, elegidos para dejar hueco entre sesiones duras.
+    ///
+    /// En posiciones y no en números de `Calendar` para que no dependa de en qué día empiece la
+    /// semana. Con 3 días da miércoles, viernes y domingo; con 4 añade el martes.
+    private static let defaultSpread = [2, 4, 6, 1, 3, 0, 5]
+
+    // MARK: - La semana ya empezada
+
+    /// Primera posición de la semana que todavía se puede planificar. `0` si la semana no ha
+    /// empezado (planificar por adelantado) y la posición de hoy si ya está en curso.
+    ///
+    /// Es lo que hace que un plan hecho el sábado no te pida nada del martes — ni te lo dé por
+    /// fallado, que era el efecto real: la vista día por día marcaba en rojo días en los que nunca
+    /// tuviste un plan que seguir.
+    private func firstPlannablePosition(_ input: Input) -> Int {
+        guard input.now >= input.weekStart else { return 0 }   // se planifica por adelantado
+        let cal = Calendar.app
+        let days = cal.dateComponents([.day], from: cal.startOfDay(for: input.weekStart),
+                                      to: cal.startOfDay(for: input.now)).day ?? 0
+        return clamp(days, 0, 6)
+    }
+
+    /// Las sesiones ya corridas de la semana del plan, por día. Varias el mismo día cuentan como
+    /// un día ocupado, no como dos sesiones.
+    private func completedByWeekday(_ input: Input) -> [Int: [TrainingSession]] {
+        let cal = Calendar.app
+        let weekEnd = cal.date(byAdding: .day, value: 7, to: input.weekStart) ?? input.weekStart
+        let inWeek = input.completed.filter {
+            $0.completed && $0.date >= input.weekStart && $0.date < weekEnd
+        }
+        return Dictionary(grouping: inWeek) { cal.component(.weekday, from: $0.date) }
+    }
+
+    /// Quita de la estructura una sesión por cada día ya entrenado, **emparejando por intensidad**:
+    /// un día duro (RPE ≥ 7) ocupa el lugar de una sesión de calidad y uno suave el de un rodaje.
+    ///
+    /// Sin el emparejamiento, quitar siempre las fáciles dejaría a alguien que ya hizo dos sesiones
+    /// duras con una semana de puro tempo y series; y quitar siempre las duras le quitaría la
+    /// calidad a quien solo ha trotado. Sin RPE se asume suave: es lo que no infla la intensidad.
+    private func removeCovered(_ structure: inout [PlannedWorkoutKind],
+                               byDaysCount done: [Int: [TrainingSession]]) {
+        for sessions in done.values {
+            let wasHard = sessions.contains { ($0.rpe ?? 0) >= Self.hardRPE }
+            let order: [PlannedWorkoutKind] = wasHard
+                ? [.intervals, .tempo, .longRun, .easy]
+                : [.easy, .longRun, .tempo, .intervals]
+            guard let kind = order.first(where: { structure.contains($0) }),
+                  let index = structure.firstIndex(of: kind) else { break }
+            structure.remove(at: index)
+        }
+    }
+
+    /// RPE desde el que una sesión ya hecha cuenta como de calidad. Mismo umbral que la adherencia.
+    private static let hardRPE = 7
 
     // MARK: - Carreras inscritas (días fijos)
 

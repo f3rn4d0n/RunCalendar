@@ -147,7 +147,7 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         // Volumen: km por semana (semana que empieza el lunes), cronológico.
         var kmByWeek: [Date: Double] = [:]
         for run in runs {
-            let weekStart = calendar.dateInterval(of: .weekOfYear, for: run.startDate)?.start
+            let weekStart = Calendar.app.dateInterval(of: .weekOfYear, for: run.startDate)?.start
                 ?? calendar.startOfDay(for: run.startDate)
             kmByWeek[weekStart, default: 0] += workoutDistanceKm(run)
         }

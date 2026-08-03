@@ -12,6 +12,9 @@ struct PlanConfigSheet: View {
     /// stepper (subir de 3 a 7 días son cuatro cambios y una sola decisión).
     @State private var configAtOpen: PlanConfig?
     @State private var usedSuggestion = false
+    /// Qué semana se está mirando: 0 la actual, 1 la próxima. Planificar un sábado no es planificar
+    /// el sábado — es planificar la semana que viene, y hasta ahora no había forma de verla.
+    @State private var weekOffset = 0
 
     var body: some View {
         NavigationStack {
@@ -61,7 +64,15 @@ struct PlanConfigSheet: View {
                     }
                 }
             }
-            .onAppear { configAtOpen = viewModel.planConfig }
+            .onAppear {
+                configAtOpen = viewModel.planConfig
+                // Si de esta semana quedan menos días de los que entrenas, lo que estás
+                // planificando es la siguiente — se abre ahí en vez de en un muñón de un día.
+                if let plan = viewModel.plan(weekOffset: 0),
+                   7 - plan.plansFrom < viewModel.planConfig.daysPerWeek {
+                    weekOffset = 1
+                }
+            }
             .sheet(item: $detailDay) { day in
                 WorkoutDetailView(day: day, viewModel: viewModel)
             }
@@ -117,10 +128,23 @@ struct PlanConfigSheet: View {
     /// Vista previa en vivo de la semana con la config actual. Como el plan es derivado, cambia
     /// al instante al mover los días o los días preferidos — sin esperar a que llegue la fecha.
     @ViewBuilder private var weekPreview: some View {
-        if let plan = viewModel.currentPlan {
+        if let plan = viewModel.plan(weekOffset: weekOffset) {
             Section {
+                Picker("Semana", selection: $weekOffset) {
+                    Text("Esta semana").tag(0)
+                    Text("La próxima").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+
+                let doneKm = viewModel.doneKmByWeekday(for: plan)
                 ForEach(plan.fullWeek(), id: \.weekday) { entry in
-                    if let day = entry.session {
+                    // Los días que ya pasaron se pintan con lo que **de verdad corriste**, no con
+                    // lo que se hubiera planeado: el plan no se guarda, así que "el plan que tenías"
+                    // no existe — pero lo que hiciste sí, y para revisar la semana sirve más.
+                    if PlannedDay.position(of: entry.weekday) < plan.plansFrom {
+                        pastRow(weekday: entry.weekday, km: doneKm[entry.weekday] ?? 0)
+                    } else if let day = entry.session {
                         Button { detailDay = day } label: { sessionRow(day) }
                             .buttonStyle(.plain)
                     } else {
@@ -134,9 +158,7 @@ struct PlanConfigSheet: View {
                     Label(note, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(Neon.orange)
                 } else {
-                    Text("Así queda tu semana con \(plan.days.count) "
-                        + "\(plan.days.count == 1 ? "día" : "días") · "
-                        + "\(Goal.trim(plan.totalKm)) km. Ajusta arriba y mira cómo cambia.")
+                    Text(previewFooter(plan))
                 }
             }
         }
@@ -164,6 +186,24 @@ struct PlanConfigSheet: View {
         }
     }
 
+    /// Un día que ya pasó: hecho consumado, no una sugerencia. Sin chevron ni acción — no hay nada
+    /// que abrir ni que editar de un día que ya viviste.
+    private func pastRow(weekday: Int, km: Double) -> some View {
+        let name = (1...7).contains(weekday) ? Calendar.current.weekdaySymbols[weekday - 1] : "—"
+        let ran = km > 0
+        return HStack(spacing: 12) {
+            Image(systemName: ran ? "checkmark.circle.fill" : "circle.dashed")
+                .foregroundStyle(ran ? AnyShapeStyle(Neon.green) : AnyShapeStyle(.tertiary))
+                .frame(width: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name.capitalized).font(.mCaption2).foregroundStyle(.tertiary)
+                Text(ran ? "\(Goal.trim(km)) km corridos" : "Sin correr")
+                    .font(.mSubheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
     private func restRow(weekday: Int) -> some View {
         let name = (1...7).contains(weekday) ? Calendar.current.weekdaySymbols[weekday - 1] : "—"
         return HStack(spacing: 12) {
@@ -178,8 +218,11 @@ struct PlanConfigSheet: View {
 
     private var weekdayPicker: some View {
         let symbols = Calendar.current.shortWeekdaySymbols   // 1=Dom … 7=Sáb
+        // Recorrido por **posición** para que las fichas salgan L M M J V S D, en el mismo orden
+        // que la vista previa de abajo y que el resto de la app.
+        let week = (0...6).map { PlannedDay.weekday(atPosition: $0) }
         return HStack(spacing: 6) {
-            ForEach(1...7, id: \.self) { weekday in
+            ForEach(week, id: \.self) { weekday in
                 let on = viewModel.planConfig.preferredWeekdays.contains(weekday)
                 Button(symbols[weekday - 1]) { toggle(weekday) }
                     .buttonStyle(.plain)
@@ -199,6 +242,19 @@ struct PlanConfigSheet: View {
         } else {
             viewModel.planConfig.preferredWeekdays.append(weekday)
         }
+    }
+
+    /// Resumen de la semana previsualizada. Extraído a función porque interpolado en la vista el
+    /// compilador de SwiftUI no lo resuelve en tiempo razonable.
+    private func previewFooter(_ plan: TrainingPlan) -> String {
+        let unit = plan.days.count == 1 ? "día" : "días"
+        var text = "Así queda tu semana con \(plan.days.count) \(unit) · "
+        text += "\(Goal.trim(plan.totalKm)) km. Ajusta arriba y mira cómo cambia."
+        if plan.plansFrom > 0 {
+            text += " Esta semana ya empezó: solo se proponen los días que quedan. "
+            text += "Mira «La próxima» para ver la semana completa."
+        }
+        return text
     }
 
     /// Un evento por visita a la hoja, y solo si algo cambió: abrir para mirar el plan y cerrar no

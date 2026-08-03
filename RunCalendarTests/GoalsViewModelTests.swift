@@ -151,13 +151,16 @@ struct GoalsViewModelTests {
         await app.start()
 
         let todayPosition = PlannedDay.position(of: cal.component(.weekday, from: Date()))
+        let plansFrom = app.goals.currentPlan?.plansFrom ?? 0
         for outcome in app.goals.weekOutcomes {
             // Hoy cuenta como "todavía no llega": el día no ha terminado y aún puedes salir.
             let hasPassed = PlannedDay.position(of: outcome.weekday) < todayPosition
 
+            let beforePlan = PlannedDay.position(of: outcome.weekday) < plansFrom
             guard let plannedKm = outcome.plannedKm, plannedKm > 0 else {
-                // Un día que no pedía nada no se juzga en ninguna dirección, pase o no pase.
-                #expect(outcome.status == (outcome.doneKm > 0 ? .extra : .rest))
+                // Un día que no pedía nada no se juzga en ninguna dirección, pase o no pase. Si
+                // además es anterior al plan, lo que corriste cuenta como hecho y no como "extra".
+                #expect(outcome.status == (outcome.doneKm > 0 ? (beforePlan ? .done : .extra) : .rest))
                 continue
             }
             if outcome.doneKm == 0 {
@@ -166,6 +169,8 @@ struct GoalsViewModelTests {
             }
         }
         #expect(app.goals.weekOutcomes.count == 7, "la semana completa, con descansos")
+        #expect(app.goals.weekOutcomes.map(\.weekday) == (0...6).map { PlannedDay.weekday(atPosition: $0) },
+                "la semana día por día también va de lunes a domingo")
     }
 
     @Test("La sesión de hoy no se marca como fallada: el día no ha terminado")
@@ -241,6 +246,242 @@ struct GoalsViewModelTests {
         #expect(app.goalRepo.added.isEmpty, "ya había meta de volumen: se edita, no se crea otra")
         #expect(app.goalRepo.updated.count == 1)
         #expect(app.goals.planConfig.daysPerWeek == suggestion.config.daysPerWeek)
+    }
+
+    // MARK: - Los días/semana salen del historial, no de un número inventado
+
+    /// Corridas en `daysPerWeek` días distintos de cada una de las `weeks` **semanas de calendario**
+    /// anteriores a la actual.
+    ///
+    /// Alineado a semanas y no a bloques de `daysAgo`: `SuggestPlanUseCase` agrupa por
+    /// `weekOfYear`, así que contar días hacia atrás desde hoy parte el bloque en dos semanas
+    /// cuando hoy cae cerca del borde — y el promedio sale más bajo unos días de la semana que
+    /// otros. Semanas completas y pasadas, además, evitan los días futuros (que no cuentan).
+    private func history(daysPerWeek: Int, weeks: Int) -> [TrainingSession] {
+        let thisWeek = Calendar.app.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        return (1...weeks).flatMap { weeksBack -> [TrainingSession] in
+            let start = cal.date(byAdding: .day, value: -7 * weeksBack, to: thisWeek) ?? thisWeek
+            return (0..<daysPerWeek).map { day in
+                TrainingSession(date: cal.date(byAdding: .day, value: day, to: start) ?? start,
+                                type: .running, title: "Histórico",
+                                distanceKm: 8, completed: true)
+            }
+        }
+    }
+
+    @Test("La primera config sale del historial, no del 3 de fábrica")
+    func firstConfigComesFromHistory() async {
+        // El resto del plan ya sale de datos reales (volumen, tirada larga, carreras); la
+        // frecuencia era lo único adivinado, y es la que decide la estructura de la semana.
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 5, weeks: 4))
+        await app.start()
+        #expect(app.goals.planConfig.daysPerWeek == 3, "arranca en el default")
+        // Se comprueba primero el dato de entrada: si el historial de la prueba no representa 5
+        // días/semana, el fallo es del montaje y no de la siembra, y conviene que lo diga.
+        #expect(app.goals.planSuggestion()?.config.daysPerWeek == 5, "historial mal construido")
+
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 5, "corre 5 días: el plan debe pedir 5")
+        // No se comprueba `days.count == 5`: si la semana ya empezó, el plan solo propone los días
+        // que quedan. Eso es materia de otra prueba.
+    }
+
+    @Test("Sin historial suficiente se queda en el default en vez de inventar")
+    func noHistoryKeepsTheDefault() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: [session(.running, km: 8, daysAgo: 2)])
+        await app.start()
+
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 3, "una sola corrida no da para inferir nada")
+    }
+
+    @Test("No pisa lo que ya elegiste, ni aunque coincida con el default")
+    func doesNotOverwriteAChosenConfig() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 6, weeks: 4))
+        await app.start()
+        // Elegir 3 a mano es una decisión, no la ausencia de una: no se puede distinguir por el
+        // valor, solo por si hay algo guardado.
+        app.goals.planConfig = PlanConfig(daysPerWeek: 3)
+
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 3)
+    }
+
+    @Test("Sembrar es idempotente: no vuelve a tocar la config en arranques siguientes")
+    func seedingIsIdempotent() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
+        await app.start()
+        app.goals.seedPlanConfigIfNeeded()
+        #expect(app.goals.planConfig.daysPerWeek == 4)
+
+        // El atleta baja a 2 días; una siembra posterior no debe deshacerlo.
+        app.goals.planConfig = PlanConfig(daysPerWeek: 2)
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 2)
+    }
+
+    @Test("Sembrar no te crea una meta de volumen a tus espaldas")
+    func seedingDoesNotCreateGoals() async {
+        // `applyPlanSuggestion` sí la crea, pero eso lo pediste tú tocando «Aplicar». Ajustar los
+        // días es reversible con un stepper; que te aparezca una meta que no pusiste, no.
+        let app = TestApp(sessions: history(daysPerWeek: 5, weeks: 4))
+        await app.start()
+
+        app.goals.seedPlanConfigIfNeeded()
+
+        #expect(app.goals.planConfig.daysPerWeek == 5)
+        #expect(app.goalRepo.added.isEmpty)
+        #expect(app.goalRepo.updated.isEmpty)
+    }
+
+    // MARK: - La semana ya empezada
+
+    /// Fecha de esta semana en la posición dada (0 = lunes … 6 = domingo).
+    private func thisWeek(position: Int) -> Date {
+        let start = Calendar.app.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        return Calendar.app.date(byAdding: .day, value: position, to: start) ?? start
+    }
+
+    private var todayPosition: Int {
+        PlannedDay.position(of: cal.component(.weekday, from: Date()))
+    }
+
+    @Test("El plan no propone días que ya pasaron")
+    func doesNotPlanThePast() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 3, weeks: 3))
+        await app.start()
+        guard let plan = app.goals.currentPlan else {
+            Issue.record("hace falta un plan")
+            return
+        }
+        // Es el caso que motivó todo: planificar un sábado y que el plan te pida el martes — y
+        // luego te lo marque fallado. Un día que ya pasó no es una sugerencia, es un reproche.
+        for day in plan.days {
+            #expect(day.weekPosition >= todayPosition,
+                    "propone \(day.label) en una posición ya pasada (\(day.weekPosition))")
+        }
+        #expect(plan.plansFrom == todayPosition)
+    }
+
+    @Test("Los días previos al plan no salen como fallados ni como extra")
+    func daysBeforeThePlanAreNotJudged() async {
+        // Se corre en el primer día de la semana, que siempre ha pasado o es hoy.
+        let app = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: thisWeek(position: 0), type: .running,
+                            title: "Lunes", distanceKm: 8, completed: true)
+        ])
+        await app.start()
+        guard let outcome = app.goals.weekOutcomes.first(where: {
+            PlannedDay.position(of: $0.weekday) == 0
+        }) else {
+            Issue.record("la semana día por día debe cubrir los 7 días")
+            return
+        }
+        if todayPosition > 0 {
+            #expect(outcome.status == .done, "corriste ese día: cuenta como hecho, no como extra")
+        }
+    }
+
+    @Test("Si ya corriste hoy, el plan no te pide otra sesión hoy")
+    func todaysRunIsNotAskedAgain() async {
+        // **Hoy** y no un día pasado: los pasados ya los descarta la regla de "no planificar el
+        // pasado", así que una prueba sobre ellos no distingue las dos reglas — comprobado por
+        // mutación, quitar el descarte por día entrenado no la hacía fallar.
+        let today = cal.component(.weekday, from: Date())
+        let app = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: Date(), type: .running,
+                            title: "Ya corrí hoy", distanceKm: 8, completed: true)
+        ])
+        await app.start()
+        guard let plan = app.goals.currentPlan else { return }
+
+        #expect(!plan.days.contains { $0.weekday == today },
+                "pide otra sesión un día en el que ya corriste")
+    }
+
+    @Test("Los km ya corridos salen del presupuesto de la semana, no se suman encima")
+    func alreadyRunKmComeOutOfTheBudget() async {
+        let sinNada = TestApp(goals: [volumeGoal()], sessions: [])
+        await sinNada.start()
+        let base = sinNada.goals.currentPlan?.totalKm ?? 0
+
+        let conCorridas = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: thisWeek(position: 0), type: .running,
+                            title: "Lunes", distanceKm: 10, completed: true)
+        ])
+        await conCorridas.start()
+        let pedido = conCorridas.goals.currentPlan?.totalKm ?? 0
+
+        // Con 10 km ya hechos, la semana pide **menos** de lo que pediría sin ellos.
+        if todayPosition > 0 { #expect(pedido <= base) }
+    }
+
+    @Test("Cuando no caben las sesiones en los días que quedan, se dice")
+    func warnsWhenSessionsDoNotFitInTheRemainingDays() async {
+        // El caso del domingo: la semana pide 4 sesiones y solo queda un día. Antes se mostraba
+        // "1 día · 6 km" de una semana de 45 km, sin decir por qué — el `unfit` de `allocate` no lo
+        // ve, porque ese mira los topes de sesión y no cuántos días quedan.
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 3))
+        await app.start()
+        app.goals.planConfig = PlanConfig(daysPerWeek: 4)
+
+        guard let plan = app.goals.currentPlan else { return }
+        let quedan = 7 - plan.plansFrom
+        if quedan < 4 {
+            #expect(plan.note != nil, "se pierden sesiones y no se avisa")
+            #expect(plan.note?.contains("próxima") == true, "y se dice a dónde ir: \(plan.note ?? "")")
+        }
+        // La semana que viene está entera, así que ahí no debe avisar de esto.
+        #expect(app.goals.plan(weekOffset: 1)?.note?.contains("quedan pocos días") != true)
+    }
+
+    @Test("Los km del pasado salen de lo que corriste, no de lo que se había planeado")
+    func pastDaysReportWhatYouActuallyRan() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: thisWeek(position: 0), type: .running,
+                            title: "Lunes", distanceKm: 7.5, completed: true),
+            TrainingSession(date: thisWeek(position: 0), type: .running,
+                            title: "Lunes doble", distanceKm: 2.5, completed: true),
+            TrainingSession(date: thisWeek(position: 0), type: .walking,
+                            title: "Caminata", distanceKm: 30, completed: true)
+        ])
+        await app.start()
+        guard let plan = app.goals.currentPlan else { return }
+
+        let done = app.goals.doneKmByWeekday(for: plan)
+        let lunes = PlannedDay.weekday(atPosition: 0)
+        // Dos carreras el mismo día suman; la caminata no cuenta, igual que en el volumen del plan.
+        #expect(done[lunes] == 10)
+    }
+
+    // MARK: - Planificar la semana que viene
+
+    @Test("La semana que viene se planifica entera, no solo los días que quedan de esta")
+    func nextWeekIsPlannedInFull() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 3))
+        await app.start()
+        app.goals.planConfig = PlanConfig(daysPerWeek: 4)
+
+        let next = app.goals.plan(weekOffset: 1)
+        #expect(next?.plansFrom == 0, "la semana que viene no ha empezado")
+        #expect(next?.days.count == 4, "caben los 4 días pedidos")
+    }
+
+    @Test("El plan de la semana que viene arranca el lunes siguiente")
+    func nextWeekStartsNextMonday() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: [])
+        await app.start()
+        guard let thisOne = app.goals.plan(weekOffset: 0),
+              let nextOne = app.goals.plan(weekOffset: 1) else { return }
+
+        let days = Calendar.app.dateComponents([.day], from: thisOne.weekStart,
+                                               to: nextOne.weekStart).day
+        #expect(days == 7)
+        #expect(cal.component(.weekday, from: nextOne.weekStart) == 2, "lunes")
     }
 
     // MARK: - Seguimiento corporal

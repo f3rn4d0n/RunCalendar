@@ -83,5 +83,9 @@ struct MainTabView: View {
         // HealthKit reporta datos nuevos, sin recargar en cada aparición.
         .task { await trainingViewModel.observeHealthUpdates() }
         .task { await healthViewModel.observeUpdates() }
+        // Al llegar sesiones, siembra los días/semana del plan desde el historial. Va con `id`
+        // porque en el arranque las sesiones todavía no están (los streams corren en paralelo) y
+        // un `.task` suelto lo haría demasiado pronto. Idempotente: solo actúa la primera vez.
+        .task(id: trainingViewModel.sessions.count) { goalsViewModel.seedPlanConfigIfNeeded() }
     }
 }

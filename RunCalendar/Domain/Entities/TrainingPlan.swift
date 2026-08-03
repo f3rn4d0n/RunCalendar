@@ -72,11 +72,16 @@ struct PlannedDay: Identifiable, Equatable, Sendable {
         return (1...7).contains(weekday) ? symbols[weekday - 1] : "—"
     }
 
-    /// Posición del día dentro de la semana **del usuario** (0 = su primer día). Necesaria para
-    /// decir "ese día ya pasó": el número de `weekday` es 1=domingo, pero si la semana empieza en
-    /// lunes, el domingo es el último día y aun así tiene el número más bajo.
-    static func position(of weekday: Int, calendar: Calendar = .current) -> Int {
+    /// Posición del día dentro de la semana (0 = lunes … 6 = domingo). Necesaria para decir "ese
+    /// día ya pasó": el número de `weekday` es 1=domingo, así que el domingo cierra la semana y aun
+    /// así tiene el número más bajo. **Ordena siempre por posición, nunca por `weekday`.**
+    static func position(of weekday: Int, calendar: Calendar = .app) -> Int {
         (weekday - calendar.firstWeekday + 7) % 7
+    }
+
+    /// El inverso: qué `weekday` de `Calendar` ocupa esa posición de la semana.
+    static func weekday(atPosition position: Int, calendar: Calendar = .app) -> Int {
+        (position + calendar.firstWeekday - 1) % 7 + 1
     }
 
     var weekPosition: Int { Self.position(of: weekday) }
@@ -239,7 +244,11 @@ struct PlanDayOutcome: Identifiable, Equatable, Sendable {
         plannedKm - max(toleranceFloorKm, plannedKm * toleranceFraction)
     }
 
-    static func status(plannedKm: Double?, doneKm: Double, hasPassed: Bool) -> Status {
+    static func status(plannedKm: Double?, doneKm: Double, hasPassed: Bool,
+                       beforePlan: Bool = false) -> Status {
+        // Un día anterior al plan no se juzga en ninguna dirección: ni "fallado" (no había nada
+        // que fallar) ni "extra" (correr no fue salirse de nada).
+        if beforePlan { return doneKm > 0 ? .done : .rest }
         guard let plannedKm, plannedKm > 0 else { return doneKm > 0 ? .extra : .rest }
         if doneKm <= 0 { return hasPassed ? .missed : .upcoming }
         return doneKm >= minimumKm(for: plannedKm) ? .done : .partial
@@ -349,6 +358,12 @@ struct TrainingPlan: Identifiable, Equatable, Sendable {
     /// Aviso del coach cuando el volumen no cabe sano en los días disponibles (nil si todo cuadra).
     var note: String?
     var weekStart: Date
+    /// Posición de la semana desde la que este plan propone sesiones (0 = la semana entera).
+    ///
+    /// Mayor que 0 cuando se generó **a media semana**: los días anteriores ya pasaron, así que el
+    /// plan ni los ocupa ni los juzga. Sin esto, planificar un sábado te decía que habías fallado
+    /// el viernes — un día en el que nunca tuviste plan que seguir.
+    var plansFrom: Int
     var createdAt: Date
 
     init(
@@ -359,6 +374,7 @@ struct TrainingPlan: Identifiable, Equatable, Sendable {
         days: [PlannedDay],
         note: String? = nil,
         weekStart: Date,
+        plansFrom: Int = 0,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -368,6 +384,7 @@ struct TrainingPlan: Identifiable, Equatable, Sendable {
         self.days = days
         self.note = note
         self.weekStart = weekStart
+        self.plansFrom = plansFrom
         self.createdAt = createdAt
     }
 
@@ -383,6 +400,12 @@ struct TrainingPlan: Identifiable, Equatable, Sendable {
     /// La semana completa (7 días) con la sesión de cada día o `nil` si es descanso. Para mostrar
     /// el ritmo real: sesiones y descansos intercalados, no solo los días que entrenas.
     func fullWeek() -> [(weekday: Int, session: PlannedDay?)] {
-        (1...7).map { wd in (weekday: wd, session: days.first { $0.weekday == wd }) }
+        // En orden de la semana (lunes → domingo), no `1...7`, que es el orden de `Calendar` y
+        // empieza en domingo. Si no, la vista previa de *Tu plan* abría la semana en domingo
+        // mientras el motor la cerraba ahí.
+        (0...6).map { position in
+            let weekday = PlannedDay.weekday(atPosition: position)
+            return (weekday: weekday, session: days.first { $0.weekday == weekday })
+        }
     }
 }

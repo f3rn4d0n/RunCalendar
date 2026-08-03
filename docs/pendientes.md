@@ -129,7 +129,7 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 | `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
 | `RacesInPlanTests` | carreras inscritas + víspera protegida | 18 |
-| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, pausas, adherencia, guardado | 19 |
+| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, siembra de días, semana empezada, pausas, adherencia | 33 |
 | `RacesViewModelTests` | gasto del año, motivos de clima ausente, calendario | 12 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
@@ -154,12 +154,26 @@ Tres detalles que cuestan una tarde si no se saben:
   **compartido**. Sin `clearPersistedDefaults()` en el montaje, la lesión que deja una prueba hace
   fallar a la siguiente por un motivo que no tiene que ver con ella. Por eso esas suites van
   `.serialized`.
-- **Nada de aserciones que dependan del día en que corran.** Los ViewModels leen `Date()` directo,
-  así que una prueba escrita un sábado puede pasar en local y fallar el domingo en CI (pasó: la
-  primera versión de *la semana día por día* daba por hecho que todo día futuro es `.upcoming`,
-  cuando un día futuro **sin sesión planeada** es `.rest`). Dos salidas: derivar lo esperado de los
-  propios datos del resultado, o fijar el día con `preferredWeekdays` en vez de esperar a que el
-  reparto caiga donde conviene.
+- **Cuidado con los `didSet` de propiedades del ViewModel.** En una clase, asignar en el `init` a
+  una propiedad que ya tiene valor por defecto **sí dispara** el observador. Eso persistía la
+  `PlanConfig` antes de que nadie la eligiera, y la siembra desde el historial creía que ya estaba
+  configurada. Se arregla leyéndola en el valor inicial de la propiedad (ahí los observadores no
+  corren) en vez de asignarla en el `init`. Hay una prueba que lo fija.
+- **Nada que dependa del día en que corran las pruebas** — ni las aserciones **ni los datos de
+  entrada**. Los ViewModels leen `Date()` directo, así que una prueba escrita un sábado puede pasar
+  en local y fallar el domingo en CI. Ha pasado dos veces:
+
+  1. *La semana día por día* daba por hecho que todo día futuro es `.upcoming`, cuando un día
+     futuro **sin sesión planeada** es `.rest`.
+  2. Un historial de prueba se construía contando `daysAgo` hacia atrás, pero `SuggestPlanUseCase`
+     agrupa por `weekOfYear`: cerca del borde de la semana el bloque se parte en dos y el promedio
+     de días/semana sale más bajo.
+
+  Salidas: derivar lo esperado de los propios datos del resultado, fijar el día con
+  `preferredWeekdays`, y construir los históricos **alineados a semanas de calendario** (desde
+  `dateInterval(of: .weekOfYear)`) en vez de a bloques de días. Y cuando el montaje sea el que
+  puede fallar, comprobarlo aparte: una aserción sobre el dato de entrada distingue "el fixture
+  está mal" de "el código está mal".
 
 **Lo que falta:**
 
@@ -319,6 +333,32 @@ más recientes):
 
 Fuentes: [Bosquet et al., *Effects of tapering on performance: a meta-analysis*](https://www.semanticscholar.org/paper/Effects-of-tapering-on-performance:-a-Bosquet-Montpetit/a41517ab5fa06b92568b861e2b1aa32b3003d214) ·
 [*Effects of tapering on performance in endurance athletes* (PLOS One, 2023)](https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0282838)
+
+### El plan se reescribe solo mientras lo sigues
+
+`currentWeeklyKm` es una suma **móvil de 7 días**, así que cada carrera que registras sube la base
+y el plan recalcula objetivos más altos. **El plan que viste el lunes no es el que ves el jueves**,
+y la adherencia te mide contra el del jueves, no contra el que aceptaste. "Seguir el plan" es
+imposible por construcción.
+
+Es la misma raíz que ya bloquea la adherencia histórica: el plan **no se persiste**, es una función
+pura de tu volumen de hoy. Regenerarlo para una semana pasada da un plan distinto al que viste.
+
+El arreglo es **congelar la semana**: al generarla por primera vez, guardar una foto (días, km,
+`plansFrom`) y usar esa hasta que empiece la siguiente.
+
+> Mientras tanto, la vista previa presenta los días pasados con **lo que de verdad corriste** en vez
+> de con el plan que había. Cubre el 80% de la necesidad (revisar la semana un domingo) sin
+> persistir nada, y de hecho para revisar sirve más: lo que hiciste es un hecho, y el plan que te
+> prometieron el lunes ya no es accionable. Lo que **no** cubre es seguir un plan estable, que es
+> el motivo de fondo para congelarlo. Con eso caen tres cosas de golpe —
+adherencia histórica, un plan estable que seguir, y poder comparar lo planeado con lo hecho semanas
+después.
+
+No se hizo junto con lo de la semana ya empezada porque es de otra naturaleza: aquello son reglas
+de colocación dentro de un plan derivado, y esto cambia el plan de derivado a **persistido**, con
+su documento en Firestore, su migración y su decisión de cuándo invalidarlo (¿cambiar los días
+regenera la semana en curso, o solo la siguiente?).
 
 ### Periodización lineal
 

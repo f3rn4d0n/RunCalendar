@@ -40,8 +40,12 @@ final class GoalsViewModel {
 
     /// Config del plan (días/semana + días preferidos). Persistida en UserDefaults; el plan en sí
     /// es derivado de tus metas y no se persiste (función pura de metas + volumen + config).
+    ///
+    /// Se lee aquí y **no** en el `init`: asignarla ahí dispara el `didSet`, que persistiría la
+    /// config antes de que nadie la eligiera y haría creer a `seedPlanConfigIfNeeded()` que ya
+    /// estaba configurada. Los observadores no corren para el valor inicial de la propiedad.
     // ponytail: config local; muévela a Firestore si importa el sync entre dispositivos.
-    var planConfig = PlanConfig(daysPerWeek: 3) {
+    var planConfig = GoalsViewModel.loadPlanConfig() {
         didSet { Self.savePlanConfig(planConfig) }
     }
 
@@ -89,7 +93,6 @@ final class GoalsViewModel {
         self.suggestPlan = suggestPlan
         self.racesViewModel = racesViewModel
         self.trainingViewModel = trainingViewModel
-        self.planConfig = Self.loadPlanConfig()
     }
 
     func start() async {
@@ -148,7 +151,7 @@ final class GoalsViewModel {
     /// ¿Ya hay un review en la semana en curso?
     var hasReviewThisWeek: Bool {
         guard let last = bodyLogs.first?.date else { return false }
-        return Calendar.current.isDate(last, equalTo: Date(), toGranularity: .weekOfYear)
+        return Calendar.app.isDate(last, equalTo: Date(), toGranularity: .weekOfYear)
     }
 
     /// Aviso de recomposición: peso estancado pero cintura bajando. `nil` si no aplica
@@ -353,8 +356,16 @@ final class GoalsViewModel {
 
     /// Plan de la semana, derivado de tus metas + volumen actual + config. `nil` si no hay meta
     /// que lo ancle. Reactivo: se recalcula al cambiar metas, sesiones o config.
-    var currentPlan: TrainingPlan? {
+    var currentPlan: TrainingPlan? { plan(weekOffset: 0) }
+
+    /// El plan de una semana concreta: `0` la actual, `1` la próxima. `nil` si no hay meta ancla.
+    ///
+    /// El desfase existe porque planificar un sábado **no** es planificar el sábado: es planificar
+    /// la semana que viene. Con `0` el plan solo propone los días que quedan de hoy en adelante y
+    /// descuenta lo que ya corriste; con `1` la semana está entera por delante.
+    func plan(weekOffset: Int) -> TrainingPlan? {
         guard let anchor = planAnchorGoal else { return nil }
+        let start = Self.weekStart(offset: weekOffset)
         return generatePlan(.init(
             primary: anchor,
             secondaries: goals.filter { $0.id != anchor.id },
@@ -362,7 +373,8 @@ final class GoalsViewModel {
             currentWeeklyKm: runningWeeklyKm,
             currentLongRunKm: runningLongestKm,
             races: racesViewModel.races,
-            weekStart: Self.currentWeekStart()
+            completed: runningSessions(since: start),
+            weekStart: start
         ))
     }
 
@@ -429,6 +441,22 @@ final class GoalsViewModel {
         )
     }
 
+    /// Km corridos por día en la semana de ese plan.
+    ///
+    /// Es lo que permite presentar la semana entera sin persistir nada: los días que ya pasaron se
+    /// pintan con **lo que de verdad corriste** y los que quedan con lo que el plan propone. El
+    /// pasado son hechos y el futuro una sugerencia, que es justo la diferencia que la vista debe
+    /// dejar clara.
+    func doneKmByWeekday(for plan: TrainingPlan) -> [Int: Double] {
+        let cal = Calendar.app
+        let weekEnd = cal.date(byAdding: .day, value: 7, to: plan.weekStart) ?? plan.weekStart
+        let done = trainingViewModel.sessions.filter {
+            $0.completed && $0.type == .running && $0.date >= plan.weekStart && $0.date < weekEnd
+        }
+        return Dictionary(grouping: done) { cal.component(.weekday, from: $0.date) }
+            .mapValues { $0.compactMap(\.distanceKm).reduce(0, +) }
+    }
+
     /// La semana día por día: qué pedía el plan y qué corriste. Vacío sin plan.
     /// Los días que aún no llegan salen como `.upcoming`: no se juzga lo que no tocó todavía.
     var weekOutcomes: [PlanDayOutcome] {
@@ -452,7 +480,11 @@ final class GoalsViewModel {
                     doneMinutes: sessions.compactMap(\.durationMin).reduce(0, +),
                     status: PlanDayOutcome.status(
                         plannedKm: planned?.targetKm, doneKm: km,
-                        hasPassed: PlannedDay.position(of: weekday) < todayPosition
+                        hasPassed: PlannedDay.position(of: weekday) < todayPosition,
+                        // Los días anteriores a que el plan existiera no se juzgan: lo que
+                        // corriste ahí cuenta como hecho, y lo que no, como descanso. Marcarlos
+                        // "fallado" o "extra" era pedir cuentas de un plan que no existía.
+                        beforePlan: PlannedDay.position(of: weekday) < plan.plansFrom
                     )
                 )
             }
@@ -533,6 +565,29 @@ final class GoalsViewModel {
         suggestPlan(runningSessions: runningSessions(withinDays: 42))
     }
 
+    /// Siembra la config del plan desde tu historial la **primera** vez que hay datos.
+    ///
+    /// Sin esto todo el mundo empieza en 3 días/semana, que es un número inventado — y chirría
+    /// porque el resto del plan **sí** sale de tus datos (volumen, tirada larga, tus carreras). La
+    /// frecuencia era lo único adivinado, y encima es la que decide la estructura de la semana: con
+    /// pocos días y volumen alto las sesiones de calidad topan y el plan **descarta kilómetros en
+    /// silencio** (40 km en 3 días acaban en 37, bajo el umbral que dispara el aviso).
+    ///
+    /// No hace nada si ya hay config guardada —aunque sea porque elegiste 3 a mano— ni si todavía
+    /// no hay historial suficiente, que es el único caso donde el 3 de fábrica sigue siendo lo
+    /// razonable. Se llama al llegar sesiones nuevas y es idempotente.
+    ///
+    /// Siembra **solo la config**, no la meta de volumen que sí crea `applyPlanSuggestion`: ajustar
+    /// tus días es reversible con un stepper, crearte una meta a tus espaldas no.
+    func seedPlanConfigIfNeeded() {
+        guard !Self.hasSavedPlanConfig, let suggestion = planSuggestion() else { return }
+        planConfig = suggestion.config   // el `didSet` lo persiste, y con eso deja de sembrar
+    }
+
+    private static var hasSavedPlanConfig: Bool {
+        UserDefaults.standard.object(forKey: planDaysKey) != nil
+    }
+
     /// Aplica una sugerencia: fija la config del plan y crea/actualiza la meta de volumen que lo
     /// ancla. El usuario puede editar ambos después.
     func applyPlanSuggestion(_ suggestion: PlanSuggestion) async {
@@ -549,7 +604,13 @@ final class GoalsViewModel {
     }
 
     private static func currentWeekStart(_ now: Date = Date()) -> Date {
-        Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        Calendar.app.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+    }
+
+    /// Inicio de la semana `offset` semanas adelante (0 = la actual).
+    private static func weekStart(offset: Int, now: Date = Date()) -> Date {
+        let start = currentWeekStart(now)
+        return Calendar.app.date(byAdding: .day, value: 7 * offset, to: start) ?? start
     }
 
     private static let weekStatusKey = "week.status"
