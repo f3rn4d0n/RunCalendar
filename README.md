@@ -89,7 +89,16 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   y uno suave a un rodaje.
 - **Selector de semana en *Ajustar*** (*Esta semana / La próxima*): planificar un sábado casi nunca
   es planificar el sábado, es planificar la semana que viene — y hasta ahora no había forma de
-  verla. La próxima sale entera porque no ha empezado.
+  verla. La próxima sale entera porque no ha empezado. **Se abre en «La próxima»** cuando de esta
+  quedan menos días de los que entrenas: ahí ya no hay nada que planificar.
+- **La vista previa muestra la semana completa**: los días que ya pasaron con **lo que de verdad
+  corriste** (`doneKmByWeekday`, sin acción ni chevron — un día vivido no es una sugerencia) y los
+  que quedan con lo que el plan propone. El pasado son hechos y el futuro una sugerencia, y la
+  vista lo separa. No hace falta persistir nada: "el plan que tenías" no existe (el plan es
+  derivado), pero lo que corriste sí — y para revisar la semana sirve más.
+- **Si las sesiones no caben en los días que quedan, se dice.** Antes se descartaban en el `zip`
+  final **en silencio**: planificar un domingo mostraba "1 día · 6 km" de una semana de 45 km. El
+  `unfit` de `allocate` no lo veía porque mira los topes de sesión, no cuántos días quedan.
 - **Carreras inscritas dentro del plan**: si tienes una carrera **inscrita** (`isRegistered`) esta
   semana, el plan la ancla como **día fijo** (`PlannedDay.raceId`, `PlannedWorkoutKind.race`) en vez
   de ignorarla. Tres consecuencias: (1) no te pide otra sesión ese día — antes te ponía "Tirada
@@ -590,7 +599,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 141 pruebas en 15 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 143 pruebas en 15 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -709,7 +718,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 141 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 143 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

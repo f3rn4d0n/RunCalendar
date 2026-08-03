@@ -326,6 +326,11 @@ struct GeneratePlanUseCase: Sendable {
         let eves = eveWeekdays(of: raceDays, raceWeekdays: taken)
         let weekdays = weekdays(for: input.config, count: structure.count,
                                 excluding: taken, avoiding: eves)
+        // Si no hay días para todas las sesiones, `zip` de más abajo las descarta. Antes eso pasaba
+        // **en silencio**: planificar un domingo mostraba "1 día · 6 km" de una semana de 45 km, sin
+        // decir por qué. El `unfit` de `allocate` no lo ve — ese mira los topes de sesión, no
+        // cuántos días quedan.
+        let dropped = max(0, structure.count - weekdays.count)
         let slots = arrangeAvoidingEves(Array(zip(structure, kmByIndex)).map { ($0, $1) },
                                         on: weekdays, eves: eves)
 
@@ -352,7 +357,8 @@ struct GeneratePlanUseCase: Sendable {
         let planned = (generated + raceDays).sorted { $0.weekPosition < $1.weekPosition }
 
         let note = planNote(planned: planned, weekKm: taperedKm, days: days, unfit: unfit,
-                            taper: taper, demotedEve: demotedEve)
+                            taper: taper, demotedEve: demotedEve, dropped: dropped,
+                            weekStarted: plansFrom > 0)
 
         return TrainingPlan(
             primaryGoalId: input.primary.id,
@@ -507,7 +513,17 @@ struct GeneratePlanUseCase: Sendable {
     /// error del plan y hay que decirlo—; (1) el volumen no cabe → faltan días; (2) demasiados días
     /// → sesiones muy cortas; (3) sesiones exigentes en días seguidos (por los días elegidos).
     private func planNote(planned: [PlannedDay], weekKm: Double, days: Int, unfit: Double,
-                          taper: Double?, demotedEve: Bool = false) -> String? {
+                          taper: Double?, demotedEve: Bool = false,
+                          dropped: Int = 0, weekStarted: Bool = false) -> String? {
+        if dropped > 0 {
+            let sesiones = dropped == 1 ? "una sesión" : "\(dropped) sesiones"
+            return weekStarted
+                ? "De esta semana quedan pocos días, así que \(sesiones) del plan no caben. "
+                    + "Planifica «La próxima» para ver la semana completa."
+                : "\(sesiones.prefix(1).uppercased() + sesiones.dropFirst()) no cabe\(dropped == 1 ? "" : "n") "
+                    + "en los días disponibles: tus carreras y días preferidos no dejan hueco. "
+                    + "Libera un día o baja las sesiones de la semana."
+        }
         if demotedEve {
             return "La única sesión que cabía te quedaba en la víspera de tu carrera, así que se "
                 + "cambió por un rodaje suave. Esta semana te quedas sin sesión de calidad: llegar "

@@ -129,7 +129,7 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 | `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
 | `RacesInPlanTests` | carreras inscritas + víspera protegida | 18 |
-| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, siembra de días, semana empezada, pausas, adherencia | 30 |
+| `GoalsViewModelTests` | **el cableado**: qué alimenta el plan, siembra de días, semana empezada, pausas, adherencia | 33 |
 | `RacesViewModelTests` | gasto del año, motivos de clima ausente, calendario | 12 |
 
 Los cuatro scripts de `Scripts/` se migraron y se borraron: ya no hay que acordarse de invocarlos.
@@ -345,7 +345,13 @@ Es la misma raíz que ya bloquea la adherencia histórica: el plan **no se persi
 pura de tu volumen de hoy. Regenerarlo para una semana pasada da un plan distinto al que viste.
 
 El arreglo es **congelar la semana**: al generarla por primera vez, guardar una foto (días, km,
-`plansFrom`) y usar esa hasta que empiece la siguiente. Con eso caen tres cosas de golpe —
+`plansFrom`) y usar esa hasta que empiece la siguiente.
+
+> Mientras tanto, la vista previa presenta los días pasados con **lo que de verdad corriste** en vez
+> de con el plan que había. Cubre el 80% de la necesidad (revisar la semana un domingo) sin
+> persistir nada, y de hecho para revisar sirve más: lo que hiciste es un hecho, y el plan que te
+> prometieron el lunes ya no es accionable. Lo que **no** cubre es seguir un plan estable, que es
+> el motivo de fondo para congelarlo. Con eso caen tres cosas de golpe —
 adherencia histórica, un plan estable que seguir, y poder comparar lo planeado con lo hecho semanas
 después.
 

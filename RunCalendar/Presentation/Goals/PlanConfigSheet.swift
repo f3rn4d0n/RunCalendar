@@ -64,7 +64,15 @@ struct PlanConfigSheet: View {
                     }
                 }
             }
-            .onAppear { configAtOpen = viewModel.planConfig }
+            .onAppear {
+                configAtOpen = viewModel.planConfig
+                // Si de esta semana quedan menos días de los que entrenas, lo que estás
+                // planificando es la siguiente — se abre ahí en vez de en un muñón de un día.
+                if let plan = viewModel.plan(weekOffset: 0),
+                   7 - plan.plansFrom < viewModel.planConfig.daysPerWeek {
+                    weekOffset = 1
+                }
+            }
             .sheet(item: $detailDay) { day in
                 WorkoutDetailView(day: day, viewModel: viewModel)
             }
@@ -129,8 +137,14 @@ struct PlanConfigSheet: View {
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
 
+                let doneKm = viewModel.doneKmByWeekday(for: plan)
                 ForEach(plan.fullWeek(), id: \.weekday) { entry in
-                    if let day = entry.session {
+                    // Los días que ya pasaron se pintan con lo que **de verdad corriste**, no con
+                    // lo que se hubiera planeado: el plan no se guarda, así que "el plan que tenías"
+                    // no existe — pero lo que hiciste sí, y para revisar la semana sirve más.
+                    if PlannedDay.position(of: entry.weekday) < plan.plansFrom {
+                        pastRow(weekday: entry.weekday, km: doneKm[entry.weekday] ?? 0)
+                    } else if let day = entry.session {
                         Button { detailDay = day } label: { sessionRow(day) }
                             .buttonStyle(.plain)
                     } else {
@@ -169,6 +183,24 @@ struct PlanConfigSheet: View {
             }
             Spacer()
             Image(systemName: "chevron.right").font(.mCaption2).foregroundStyle(.tertiary)
+        }
+    }
+
+    /// Un día que ya pasó: hecho consumado, no una sugerencia. Sin chevron ni acción — no hay nada
+    /// que abrir ni que editar de un día que ya viviste.
+    private func pastRow(weekday: Int, km: Double) -> some View {
+        let name = (1...7).contains(weekday) ? Calendar.current.weekdaySymbols[weekday - 1] : "—"
+        let ran = km > 0
+        return HStack(spacing: 12) {
+            Image(systemName: ran ? "checkmark.circle.fill" : "circle.dashed")
+                .foregroundStyle(ran ? AnyShapeStyle(Neon.green) : AnyShapeStyle(.tertiary))
+                .frame(width: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name.capitalized).font(.mCaption2).foregroundStyle(.tertiary)
+                Text(ran ? "\(Goal.trim(km)) km corridos" : "Sin correr")
+                    .font(.mSubheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
         }
     }
 

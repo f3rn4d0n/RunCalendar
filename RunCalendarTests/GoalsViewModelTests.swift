@@ -420,6 +420,44 @@ struct GoalsViewModelTests {
         if todayPosition > 0 { #expect(pedido <= base) }
     }
 
+    @Test("Cuando no caben las sesiones en los días que quedan, se dice")
+    func warnsWhenSessionsDoNotFitInTheRemainingDays() async {
+        // El caso del domingo: la semana pide 4 sesiones y solo queda un día. Antes se mostraba
+        // "1 día · 6 km" de una semana de 45 km, sin decir por qué — el `unfit` de `allocate` no lo
+        // ve, porque ese mira los topes de sesión y no cuántos días quedan.
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 3))
+        await app.start()
+        app.goals.planConfig = PlanConfig(daysPerWeek: 4)
+
+        guard let plan = app.goals.currentPlan else { return }
+        let quedan = 7 - plan.plansFrom
+        if quedan < 4 {
+            #expect(plan.note != nil, "se pierden sesiones y no se avisa")
+            #expect(plan.note?.contains("próxima") == true, "y se dice a dónde ir: \(plan.note ?? "")")
+        }
+        // La semana que viene está entera, así que ahí no debe avisar de esto.
+        #expect(app.goals.plan(weekOffset: 1)?.note?.contains("quedan pocos días") != true)
+    }
+
+    @Test("Los km del pasado salen de lo que corriste, no de lo que se había planeado")
+    func pastDaysReportWhatYouActuallyRan() async {
+        let app = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: thisWeek(position: 0), type: .running,
+                            title: "Lunes", distanceKm: 7.5, completed: true),
+            TrainingSession(date: thisWeek(position: 0), type: .running,
+                            title: "Lunes doble", distanceKm: 2.5, completed: true),
+            TrainingSession(date: thisWeek(position: 0), type: .walking,
+                            title: "Caminata", distanceKm: 30, completed: true)
+        ])
+        await app.start()
+        guard let plan = app.goals.currentPlan else { return }
+
+        let done = app.goals.doneKmByWeekday(for: plan)
+        let lunes = PlannedDay.weekday(atPosition: 0)
+        // Dos carreras el mismo día suman; la caminata no cuenta, igual que en el volumen del plan.
+        #expect(done[lunes] == 10)
+    }
+
     // MARK: - Planificar la semana que viene
 
     @Test("La semana que viene se planifica entera, no solo los días que quedan de esta")

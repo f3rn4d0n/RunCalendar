@@ -441,6 +441,22 @@ final class GoalsViewModel {
         )
     }
 
+    /// Km corridos por día en la semana de ese plan.
+    ///
+    /// Es lo que permite presentar la semana entera sin persistir nada: los días que ya pasaron se
+    /// pintan con **lo que de verdad corriste** y los que quedan con lo que el plan propone. El
+    /// pasado son hechos y el futuro una sugerencia, que es justo la diferencia que la vista debe
+    /// dejar clara.
+    func doneKmByWeekday(for plan: TrainingPlan) -> [Int: Double] {
+        let cal = Calendar.app
+        let weekEnd = cal.date(byAdding: .day, value: 7, to: plan.weekStart) ?? plan.weekStart
+        let done = trainingViewModel.sessions.filter {
+            $0.completed && $0.type == .running && $0.date >= plan.weekStart && $0.date < weekEnd
+        }
+        return Dictionary(grouping: done) { cal.component(.weekday, from: $0.date) }
+            .mapValues { $0.compactMap(\.distanceKm).reduce(0, +) }
+    }
+
     /// La semana día por día: qué pedía el plan y qué corriste. Vacío sin plan.
     /// Los días que aún no llegan salen como `.upcoming`: no se juzga lo que no tocó todavía.
     var weekOutcomes: [PlanDayOutcome] {
