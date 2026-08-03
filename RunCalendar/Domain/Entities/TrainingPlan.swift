@@ -374,6 +374,19 @@ enum QualityEmphasis: String, Sendable, Equatable, CaseIterable {
     case hills
     /// Mismo estímulo que `shortReps`, por sensaciones y sin pista. Por disfrute.
     case fartlek
+
+    /// Cómo se llama en la app. Es lo que se lee en la vista previa de la semana, así que tiene
+    /// que decir **el enfoque** de un vistazo: "Series" a secas ya no distingue entre unas cortas,
+    /// unas cuestas y un fartlek, que es justo lo que la rotación viene a diferenciar.
+    var displayName: String {
+        switch self {
+        case .shortReps: return "Series cortas"
+        case .longReps:  return "Series largas"
+        case .racePace:  return "Ritmo de carrera"
+        case .hills:     return "Cuestas"
+        case .fartlek:   return "Fartlek"
+        }
+    }
 }
 
 /// Configuración del plan que da el usuario: cuántos días puede entrenar y cuáles.

@@ -163,6 +163,36 @@ struct QualityEmphasisTests {
         #expect(!porSemana.contains(.racePace), "el ritmo de carrera se reserva para el final")
     }
 
+    @Test("La vista previa dice qué sesión de calidad toca, no solo «Series»")
+    func previewNamesTheFocus() {
+        // Desde que el estímulo rota, "Series" a secas ya no distingue entre unas cortas, unas
+        // cuestas y un fartlek — que es justo lo que la rotación viene a diferenciar.
+        for weeks in [2, 4, 5, 6, 7] {
+            guard let series = plan(weeksToGoal: weeks).days.first(where: { $0.kind == .intervals }),
+                  let emphasis = series.emphasis else { continue }
+            #expect(series.label.hasPrefix(emphasis.displayName), "label: \(series.label)")
+            // "fuertes" porque `targetKm` en una sesión por repeticiones es solo la parte fuerte;
+            // el calentamiento y el enfriamiento están en el detalle.
+            #expect(series.label.contains("fuertes"))
+        }
+    }
+
+    @Test("Cada enfoque explica en una línea de qué va, sin repetir la misma frase")
+    func eachFocusHasItsOwnOneLiner() {
+        let details = [2, 4, 5, 6, 7].compactMap { weeks in
+            plan(weeksToGoal: weeks).days.first { $0.kind == .intervals }?.detail
+        }
+        #expect(Set(details).count >= 3, "la línea de apoyo no cambia con el enfoque: \(details)")
+    }
+
+    @Test("Los demás tipos se siguen nombrando por su tipo")
+    func otherKindsKeepTheirName() {
+        // Homologado: todos los tipos dicen su enfoque en el mismo sitio y con el mismo formato.
+        for day in plan(weeksToGoal: 8).days where day.kind != .intervals && day.kind != .race {
+            #expect(day.label.hasPrefix(day.kind.rawValue), "label: \(day.label)")
+        }
+    }
+
     @Test("Los días que no son series no llevan énfasis")
     func onlyIntervalsCarryEmphasis() {
         for day in plan(weeksToGoal: 8).days where day.kind != .intervals {

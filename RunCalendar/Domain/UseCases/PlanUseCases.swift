@@ -429,8 +429,8 @@ struct GeneratePlanUseCase: Sendable {
             let km = isEve ? min(slot.km, minEasyKm) : slot.km
             return PlannedDay(
                 weekday: weekday, kind: kind, targetKm: km,
-                label: label(kind, km: km),
-                detail: isEve ? eveDetail : detail(kind),
+                label: label(kind, km: km, emphasis: emphasis),
+                detail: isEve ? eveDetail : detail(kind, emphasis: emphasis),
                 emphasis: kind == .intervals ? emphasis : nil
             )
         }
@@ -729,17 +729,31 @@ struct GeneratePlanUseCase: Sendable {
         return nil
     }
 
-    private func label(_ kind: PlannedWorkoutKind, km: Double) -> String {
-        "\(kind.rawValue) \(Goal.trim(km)) km"
+    /// Cómo se lee la sesión en la vista previa de la semana.
+    ///
+    /// En series se nombra el **enfoque** (cortas, cuestas, fartlek…) y no un genérico "Series":
+    /// desde que el estímulo rota, saber cuál toca esta semana es justo lo que se quiere ver de un
+    /// vistazo. Y los km llevan "fuertes" porque en una sesión por repeticiones `targetKm` es solo
+    /// la parte fuerte — el calentamiento y el enfriamiento van aparte, en el detalle.
+    private func label(_ kind: PlannedWorkoutKind, km: Double, emphasis: QualityEmphasis?) -> String {
+        guard kind == .intervals else { return "\(kind.rawValue) \(Goal.trim(km)) km" }
+        return "\((emphasis ?? .shortReps).displayName) \(Goal.trim(km)) km fuertes"
     }
 
-    private func detail(_ kind: PlannedWorkoutKind) -> String {
+    private func detail(_ kind: PlannedWorkoutKind, emphasis: QualityEmphasis?) -> String {
         switch kind {
         case .longRun:   return "Ritmo cómodo y conversable; construye base aeróbica."
         case .tempo:     return "Ritmo umbral (cómodo-duro), tu \"fase 2\"."
-        case .intervals: return "Repeticiones a ritmo ~5K con recuperación entre cada una."
         case .easy:      return "Rodaje suave de recuperación."
         case .race:      return "Carrera inscrita: el día es fijo."
+        case .intervals:
+            switch emphasis ?? .shortReps {
+            case .shortReps: return "Repeticiones cortas a ritmo ~5K. Velocidad y VO₂max."
+            case .longReps:  return "Repeticiones largas a ritmo umbral. Aguantar más tiempo fuerte."
+            case .racePace:  return "A tu ritmo objetivo. Lo específico manda cerca de la carrera."
+            case .hills:     return "Repeticiones en cuesta. Fuerza específica y economía."
+            case .fartlek:   return "Tramos fuertes por sensaciones, sin pista ni vueltas."
+            }
         }
     }
 
