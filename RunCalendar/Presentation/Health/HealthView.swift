@@ -143,16 +143,6 @@ struct HealthView: View {
             // 6. Registrar. Las entradas estaban en medio del informe e interrumpían la lectura.
             if viewModel.todayCheckIn != nil { checkInSection }
             bodyReviewSection
-
-#if DEBUG
-            Section {
-                Button("Sembrar 18 check-ins (debug)") {
-                    Task { await viewModel.seedDemoCheckIns() }
-                }
-            } footer: {
-                Text("Solo desarrollo: simula 2+ semanas de registros para ver la calibración. Se borra al reiniciar.")
-            }
-#endif
         }
         .scrollContentBackground(.hidden)
         .listRowBackground(Neon.surface)

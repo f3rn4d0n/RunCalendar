@@ -654,7 +654,7 @@ los tabs**, no en una pantalla.
 | **Condición dice "disponible en iPhone"** | Estás en Mac. HealthKit no existe en macOS. |
 | **No aparece mi historial de Salud** | El Simulador no tiene tu historial: usa tu **iPhone físico**. |
 | **El RPE no llega solo del Apple Watch** | Solo iOS 18+ expone `workoutEffortScore`, y solo si calificaste el esfuerzo en el reloj. Si no, el RPE queda vacío y se pone editando. |
-| **La calibración no se activa** | Necesita ~14 check-ins en días distintos. Para probar ya, usa el botón **"Sembrar 18 check-ins (debug)"** en Condición (solo builds DEBUG; en memoria, no persiste). |
+| **La calibración no se activa** | Necesita ~14 check-ins en días distintos, y se registran de uno en uno. Hubo un botón de siembra en DEBUG y se borró: con historial real deja de hacer falta, y un andamio que ya no se usa es código que alguien mantiene sin saber por qué. |
 | **Sign in with Apple falla en dispositivo** | Cuenta gratis de Apple Developer no soporta la capability. Quita `com.apple.developer.applesignin` del entitlements **en local** (no lo commitees). |
 | **"Cannot find type…" en Xcode pero compila** | Ruido del índice de SourceKit en frío. Confía en `xcodebuild` (BUILD SUCCEEDED). |
 | **Archivo nuevo no compila** | XcodeGen no lo conoce: corre `xcodegen generate` (el `.xcodeproj` está gitignored). |
