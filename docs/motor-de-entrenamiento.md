@@ -45,9 +45,9 @@ Esta distinción es la que evita que la app dé consejo con más seguridad de la
 | | Hoy | Evidencia | Propuesta |
 |---|---|---|---|
 | **Distribución de intensidad** | Pesos de volumen; la prueba solo fija que la calidad no se lleve más del 50% | El **80/20** está **sólido** (Seiler y otros) — pero se define por *tiempo* o *sesiones*, no por km | Medirlo como toca antes de presumir de 80/20 |
-| **Tipos de sesión** | Series, tempo, fácil, larga. Las series salen de una fórmula de km → 400/600/800 m | **Sólido**: repeticiones cortas y largas no dan el mismo estímulo. Solo 5×800 deja fuera velocidad y umbral | Variar el tipo de calidad **a lo largo del bloque** |
-| **Cuestas, rectas, progresivos, ritmo de carrera** | **No existen** | Cuestas y rectas: **principio** (fuerza específica, economía). Ritmo de carrera: **sólido** para especificidad | Al menos ritmo de carrera cerca de la meta |
-| **Fartlek vs. series en pista** | No hay fartlek | A intensidad y duración iguales el estímulo es **equivalente**. Cambiar el envoltorio no adapta más — eso es el **mito** de la "confusión muscular" | Sí, pero **por adherencia**: el disfrute predice la constancia y la constancia predice el resultado. Y se dice así en la app, sin fingir fisiología |
+| **Tipos de sesión** | ✅ El día de series rota entre cortas (VO₂max), largas (umbral), cuestas y fartlek; cerca de la meta pasa a ritmo de carrera | **Sólido**: repeticiones cortas y largas no dan el mismo estímulo. Solo 5×800 deja fuera velocidad y umbral | Variar el tipo de calidad **a lo largo del bloque** |
+| **Cuestas, rectas, progresivos, ritmo de carrera** | ✅ Cuestas y ritmo de carrera. Faltan rectas y progresivos | Cuestas y rectas: **principio** (fuerza específica, economía). Ritmo de carrera: **sólido** para especificidad | Al menos ritmo de carrera cerca de la meta |
+| **Fartlek vs. series en pista** | ✅ Entra en la rotación, **etiquetado como lo que es** — la tarjeta dice «el mismo estímulo, en otro envoltorio» | A intensidad y duración iguales el estímulo es **equivalente**. Cambiar el envoltorio no adapta más — eso es el **mito** de la "confusión muscular" | Sí, pero **por adherencia**: el disfrute predice la constancia y la constancia predice el resultado. Y se dice así en la app, sin fingir fisiología |
 
 ### Estructura temporal
 
@@ -80,12 +80,20 @@ Esta distinción es la que evita que la app dé consejo con más seguridad de la
 2. ~~**Descargas cada 4ª semana**~~ ✅
 3. ~~**Techo por ACWR**~~ ✅
 4. ~~**Escalones decrecientes**~~ ✅ — salen solos del ritmo acompasado a la meta
-5. **Variar el tipo de calidad** dentro del bloque. ← siguiente
-6. **Fartlek y cuestas** como presentación alterna, etiquetado como lo que es.
-7. **Bloque persistido** — periodización de verdad e historia.
+5. ~~**Variar el tipo de calidad**~~ ✅
+6. ~~**Fartlek y cuestas**~~ ✅
+7. **Bloque persistido** — periodización de verdad e historia. ← siguiente
 8. **Fases** — solo si aparecen datos que las justifiquen.
 
-Del 1 al 4 es el motor de volumen; 5 y 6 el de calidad; son separables.
+Lo que queda del motor de calidad: **rectas** (unos 6×20 s al final de un rodaje fácil) y
+**progresivos**. Los dos son baratos, pero ninguno cambia el cuadro como lo hacía la rotación.
+
+Del 1 al 4 es el motor de volumen; 5 y 6 el de calidad. **Los seis están hechos.**
+
+Una consecuencia de modelar el fartlek y las cuestas: `IntervalSpec.Rep` distingue repeticiones
+**por distancia o por tiempo**. Nadie corre "400 m" en un fartlek, corre un minuto fuerte, y
+modelarlo en metros obligaba a inventar una distancia que el atleta no va a medir. El reloj traduce
+cada caso a su meta de WorkoutKit.
 
 ## Lo que NO vamos a hacer, y por qué
 

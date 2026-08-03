@@ -23,7 +23,12 @@ enum WatchWorkoutBuilder {
         if let spec = structure.intervals {
             blocks.append(IntervalBlock(
                 steps: [
-                    IntervalStep(.work, goal: .distance(spec.repMeters, .meters)),
+                    IntervalStep(.work, goal: {
+                        switch spec.rep {
+                        case .meters(let m):  return .distance(m, .meters)
+                        case .seconds(let s): return .time(s, .seconds)
+                        }
+                    }()),
                     IntervalStep(.recovery, goal: .time(spec.recoverySeconds, .seconds))
                 ],
                 iterations: spec.reps

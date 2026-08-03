@@ -128,8 +128,8 @@ xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iP
 | `BestSplitTests` | `BestSplit.fastestWindow` (récords por tramo) | 4 |
 | `RaceReadinessTests` | `RaceReadiness.timing` (readiness vs. semanas) | 6 |
 | `PlanAdherenceTests` | adherencia, campañas, día por día, `WeekStatus` | 19 |
-| `WorkoutStructureTests` | `WorkoutStructure` vs. la prosa de la guía | 10 |
-| `GeneratePlanTests` | **el motor del plan**, por invariantes | 20 |
+| `WorkoutStructureTests` | `WorkoutStructure` vs. la prosa de la guía · rotación del estímulo | 18 |
+| `GeneratePlanTests` | **el motor del plan**, por invariantes · descargas y techo de carga | 30 |
 | `RecoveryTests` | recuperación y calibración, por propiedades | 16 |
 | `RecompositionTests` | recomposición (peso quieto + cintura bajando) | 5 |
 | `RacesInPlanTests` | carreras inscritas + víspera protegida | 18 |
