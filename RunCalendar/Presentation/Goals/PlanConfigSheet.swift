@@ -178,7 +178,7 @@ struct PlanConfigSheet: View {
                             .foregroundStyle(Neon.gold)
                     }
                 }
-                SessionHeadline(day: day)
+                Text(day.label).font(.mSubheadline).foregroundStyle(.primary)
                 Text(day.detail).font(.mCaption2).foregroundStyle(.tertiary)
             }
             Spacer()

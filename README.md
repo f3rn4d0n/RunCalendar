@@ -69,9 +69,26 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   días** en vez de inflar. A más días, la misma carga se **reparte** en sesiones más cortas (water-filling).
 - **Ajustar** (`PlanConfigSheet`): selector de días/semana + días preferidos, con **vista previa en
   vivo** de la semana completa (con descansos) — WYSIWYG. Cada sesión se toca para el detalle.
+  Cada fila dice **el enfoque** y nada más ("Cuestas 3.3 km fuertes", "Tempo 8 km"): el
+  calentamiento y el enfriamiento viven en el detalle, que es donde se consultan. Antes las series
+  eran la excepción —"10 min cal. + 3.3 km fuerte + 10 min enf."— y encima decían "Series" a secas,
+  que desde que el estímulo rota ya no distingue entre unas cortas, unas cuestas y un fartlek. Los
+  km de una sesión por repeticiones llevan **"fuertes"** porque `targetKm` es solo la parte fuerte.
 - **Detalle de la sesión** (`WorkoutDetailView`): qué es, cómo se hace (series como "5 × 600 m
   fuerte" con cal./enf.), para qué sirve y **por qué ese número**. Ritmos cualitativos (no inventa
   ritmos exactos).
+- **El día de series no es siempre la misma sesión** (`QualityEmphasis`). Rota por semana entre
+  **cortas** (400–800 m, VO₂max), **largas** (1000–1600 m a umbral), **cuestas** (60 s, fuerza y
+  economía) y **fartlek**; en las últimas 4 semanas antes de la meta todo pasa a **ritmo de
+  carrera**, que es donde manda la especificidad. Antes solo existían repeticiones de 400–800 m
+  salidas de una fórmula, así que quien entrenaba con la app nunca tocaba ni la velocidad pura ni
+  el umbral en repeticiones. Comparte ancla con las descargas, así que el ciclo de calidad y el de
+  carga van acompasados.
+  **El fartlek va etiquetado con honestidad**: es el mismo estímulo que las cortas en otro
+  envoltorio, y la tarjeta lo dice — está ahí para que apetezca salir, no porque adapte más.
+  Cuestas y fartlek se miden **en tiempo** (`IntervalSpec.Rep`), no en metros: nadie corre "400 m"
+  en un fartlek, y modelarlo así obligaría a inventar una distancia que nadie mide. El reloj
+  traduce cada caso a su meta de WorkoutKit.
 - **Enviar al Apple Watch** (`WatchWorkoutBuilder`, WorkoutKit): la sesión deja de ser lectura y se
   vuelve **ejecutable**. Desde el detalle, un botón manda el entrenamiento estructurado al reloj y
   la app **Entrenamiento nativa** lo corre: háptico y voz al cerrar cada repetición, avance solo
@@ -613,7 +630,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 153 pruebas en 15 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 164 pruebas en 16 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -732,7 +749,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 153 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 164 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

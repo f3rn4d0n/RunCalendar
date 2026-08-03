@@ -72,7 +72,7 @@ struct DescribeWorkoutUseCase: Sendable {
     func callAsFunction(_ day: PlannedDay) -> WorkoutGuide {
         let km = day.targetKm ?? 0
         switch day.kind {
-        case .intervals: return intervals(km)
+        case .intervals: return intervals(km, emphasis: day.emphasis ?? .shortReps)
         case .tempo:     return tempo(km)
         case .longRun:   return longRun(km)
         case .easy:      return easy(km)
@@ -108,41 +108,102 @@ struct DescribeWorkoutUseCase: Sendable {
         )
     }
 
-    /// Series: el volumen "fuerte" se parte en repeticiones. Distancia de repetición según el total,
-    /// para que salgan entre ~4 y ~8 repeticiones (el rango útil de una sesión de calidad).
-    private func intervals(_ km: Double) -> WorkoutGuide {
+    /// Series. El volumen "fuerte" se parte en repeticiones, y **el tipo de repetición depende del
+    /// estímulo de la semana** (ver `QualityEmphasis`): antes era siempre 400–800 m salidos de una
+    /// fórmula sobre el volumen, así que quien entrenaba con la app nunca tocaba ni la velocidad
+    /// pura ni el umbral en repeticiones.
+    ///
+    /// La recuperación se da como número y no como rango ("90 s – 2 min") porque la sesión se puede
+    /// mandar al reloj y ahí hay que comprometerse. Se toma el extremo largo: si el paso avanza
+    /// solo, quedarse corto arruina la repetición siguiente; sobrar no cuesta nada.
+    private func intervals(_ km: Double, emphasis: QualityEmphasis) -> WorkoutGuide {
         let qualityM = km * 1000
-        let repM = qualityM <= 2400 ? 400.0 : (qualityM <= 4000 ? 600.0 : 800.0)
-        let reps = max(3, Int((qualityM / repM).rounded()))
-        // La recuperación era un rango ("90 s – 2 min"); al poder mandar la sesión al reloj hay que
-        // comprometerse con un número. Se toma el extremo largo: si el paso avanza solo, quedarse
-        // corto de recuperación arruina la repetición siguiente; sobrar no cuesta nada.
+        switch emphasis {
+        case .shortReps:
+            let repM = qualityM <= 2400 ? 400.0 : (qualityM <= 4000 ? 600.0 : 800.0)
+            let reps = max(3, Int((qualityM / repM).rounded()))
+            return repsGuide(
+                km: km, reps: reps, rep: .meters(repM), recovery: repM <= 400 ? 90 : 120,
+                headline: "\(reps) × \(Int(repM)) m fuerte",
+                pace: "Ritmo ~5K: rápido pero repetible, esfuerzo 8–9 de 10 (no un sprint).",
+                main: "\(reps) repeticiones de \(Int(repM)) m a ritmo ~5K",
+                purpose: "Suben tu velocidad y tu VO₂max: enseñan al cuerpo a correr rápido y a "
+                    + "tolerar el esfuerzo. Es el estímulo de intensidad de la semana.")
+        case .longReps:
+            // Repeticiones largas: menos y más lentas que las cortas, con recuperación más amplia.
+            let repM = qualityM <= 4000 ? 1000.0 : 1600.0
+            let reps = max(3, Int((qualityM / repM).rounded()))
+            return repsGuide(
+                km: km, reps: reps, rep: .meters(repM), recovery: 180,
+                headline: "\(reps) × \(Int(repM)) m a umbral",
+                pace: "Cómodo-duro, ~ritmo de 10–15K. Más lento que las series cortas: aquí no se "
+                    + "trata de ir rápido, sino de sostener.",
+                main: "\(reps) repeticiones de \(Int(repM)) m a ritmo umbral",
+                purpose: "Suben tu umbral de lactato en formato de repeticiones: acumulas más "
+                    + "tiempo a ritmo fuerte del que aguantarías de corrido.")
+        case .racePace:
+            let repM = qualityM <= 4000 ? 1000.0 : 2000.0
+            let reps = max(2, Int((qualityM / repM).rounded()))
+            return repsGuide(
+                km: km, reps: reps, rep: .meters(repM), recovery: 120,
+                headline: "\(reps) × \(Int(repM)) m a ritmo de carrera",
+                pace: "Tu ritmo objetivo, ni más rápido ni más lento. El día de la carrera lo vas a "
+                    + "reconocer por sensación, y eso se entrena aquí.",
+                main: "\(reps) repeticiones de \(Int(repM)) m a tu ritmo objetivo",
+                purpose: "Especificidad: cuanto más cerca está la meta, más importa entrenar al "
+                    + "ritmo exacto que vas a correr, no más rápido.")
+        case .hills:
+            let reps = min(12, max(6, Int((qualityM / 400).rounded())))
+            return repsGuide(
+                km: km, reps: reps, rep: .seconds(60), recovery: 90,
+                headline: "\(reps) × 60 s en cuesta",
+                pace: "Esfuerzo fuerte pero controlado, zancada corta y activa. La cuesta pone la "
+                    + "intensidad; no hace falta forzar el ritmo.",
+                main: "\(reps) repeticiones de 60 s subiendo una cuesta moderada",
+                purpose: "Fuerza específica y economía de carrera. Es intensidad con menos impacto "
+                    + "que la pista, porque la pendiente frena la velocidad de caída.",
+                recoveryText: "bajando al trote")
+        case .fartlek:
+            let reps = min(12, max(6, Int((qualityM / 400).rounded())))
+            return repsGuide(
+                km: km, reps: reps, rep: .seconds(60), recovery: 90,
+                headline: "\(reps) × 1 min fuerte, por sensaciones",
+                pace: "Fuerte pero repetible, como las series cortas. Sin reloj de vueltas ni "
+                    + "pista: donde estés y a lo que te pida el cuerpo.",
+                main: "\(reps) tramos de 1 min fuerte",
+                purpose: "El mismo estímulo que las series cortas, en otro envoltorio. No adapta "
+                    + "más por ser variado — está aquí para que apetezca salir, y eso a la larga "
+                    + "pesa más que la sesión perfecta que te saltas.")
+        }
+    }
+
+    /// Arma la guía de una sesión por repeticiones. Todas comparten forma —calentar, bloque,
+    /// enfriar— y solo cambian los números y el porqué.
+    private func repsGuide(km: Double, reps: Int, rep: IntervalSpec.Rep, recovery: Double,
+                           headline: String, pace: String, main: String, purpose: String,
+                           recoveryText: String = "de trote suave (o caminar)") -> WorkoutGuide {
         let structure = WorkoutStructure(
             warmupMinutes: 12,
-            intervals: IntervalSpec(reps: reps, repMeters: repM,
-                                    recoverySeconds: repM <= 400 ? 90 : 120),
+            intervals: IntervalSpec(reps: reps, rep: rep, recoverySeconds: recovery),
             cooldownMinutes: 10
         )
         return WorkoutGuide(
             title: "Series",
-            headline: "\(reps) × \(Int(repM)) m fuerte",
-            pace: "Ritmo ~5K: rápido pero repetible, esfuerzo 8–9 de 10 (no un sprint).",
+            headline: headline,
+            pace: pace,
             steps: [
                 GuideStep(label: "Calentamiento",
                           detail: "\(Self.mins(structure.warmupMinutes)) de trote muy suave "
                               + "+ 3–4 aceleraciones cortas."),
                 GuideStep(label: "Bloque principal",
-                          detail: "\(reps) repeticiones de \(Int(repM)) m a ritmo ~5K, con "
-                              + "\(Self.secs(structure.intervals?.recoverySeconds)) de trote suave "
-                              + "(o caminar) entre cada una."),
+                          detail: "\(main), con \(Self.secs(recovery)) \(recoveryText) entre cada una."),
                 GuideStep(label: "Enfriamiento",
                           detail: "\(Self.mins(structure.cooldownMinutes)) de trote muy suave.")
             ],
-            purpose: "Suben tu velocidad y tu VO₂max: enseñan al cuerpo a correr rápido y a tolerar "
-                + "el esfuerzo. Es el estímulo de intensidad de la semana.",
-            rationale: "Los ~\(Goal.trim(km)) km fuertes son cerca del 15% de tu volumen semanal, "
-                + "topados a propósito para que sean calidad sin vaciarte. Por eso el número no es "
-                + "redondo: sale de tu volumen actual, no de una tabla genérica.",
+            purpose: purpose,
+            rationale: "Los ~\(Goal.trim(km)) km fuertes salen de tu volumen actual, no de una "
+                + "tabla genérica, y están topados para que sean calidad sin vaciarte. El tipo de "
+                + "sesión cambia cada semana para cubrir todo el rango de intensidades.",
             structure: structure
         )
     }
@@ -350,6 +411,8 @@ struct GeneratePlanUseCase: Sendable {
         let slots = arrangeAvoidingEves(Array(zip(structure, kmByIndex)).map { ($0, $1) },
                                         on: weekdays, eves: eves)
 
+        // El estímulo de calidad de la semana. Rota para que no sea siempre la misma sesión.
+        let emphasis = qualityEmphasis(input)
         var demotedEve = false
         let generated: [PlannedDay] = zip(weekdays, slots).map { weekday, slot in
             let isEve = eves.contains(weekday)
@@ -366,8 +429,9 @@ struct GeneratePlanUseCase: Sendable {
             let km = isEve ? min(slot.km, minEasyKm) : slot.km
             return PlannedDay(
                 weekday: weekday, kind: kind, targetKm: km,
-                label: label(kind, km: km),
-                detail: isEve ? eveDetail : detail(kind)
+                label: label(kind, km: km, emphasis: emphasis),
+                detail: isEve ? eveDetail : detail(kind, emphasis: emphasis),
+                emphasis: kind == .intervals ? emphasis : nil
             )
         }
         let planned = (generated + raceDays).sorted { $0.weekPosition < $1.weekPosition }
@@ -515,6 +579,28 @@ struct GeneratePlanUseCase: Sendable {
         return weeks > 0 && weeks % 4 == 0 ? (.deload, 0.60) : nil
     }
 
+    /// El estímulo de calidad de esta semana.
+    ///
+    /// Rota entre los cuatro tipos para cubrir el espectro —cortas para VO₂max, largas para umbral,
+    /// cuestas para fuerza, fartlek por disfrute— en vez de repetir la misma sesión indefinidamente.
+    /// Comparte ancla con las descargas, así que el ciclo de calidad y el de carga van acompasados.
+    ///
+    /// **Cerca de la meta manda la especificidad**: en las últimas 4 semanas todo pasa a ritmo de
+    /// carrera. Es lo único de aquí con respaldo directo; la rotación en sí es cobertura del rango,
+    /// que es un principio, no un ensayo. Ver `docs/motor-de-entrenamiento.md`.
+    private func qualityEmphasis(_ input: Input) -> QualityEmphasis {
+        if let weeks = weeksLeft(input.primary.deadline, input.now), weeks <= 3 { return .racePace }
+        let cycle: [QualityEmphasis] = [.shortReps, .longReps, .fartlek, .hills]
+        return cycle[cycleIndex(input) % cycle.count]
+    }
+
+    /// Posición dentro del ciclo de 4 semanas. Se cuenta hacia atrás desde la meta si la hay —así
+    /// las descargas caen en múltiplos de 4— y desde que creaste la meta si no.
+    private func cycleIndex(_ input: Input) -> Int {
+        if let weeks = weeksLeft(input.primary.deadline, input.now) { return weeks }
+        return elapsedWeeks(since: input.primary.createdAt, to: input.now)
+    }
+
     private func elapsedWeeks(since start: Date, to now: Date) -> Int {
         let days = Calendar.app.dateComponents([.day], from: start, to: now).day ?? 0
         return max(0, days / 7)
@@ -643,17 +729,31 @@ struct GeneratePlanUseCase: Sendable {
         return nil
     }
 
-    private func label(_ kind: PlannedWorkoutKind, km: Double) -> String {
-        "\(kind.rawValue) \(Goal.trim(km)) km"
+    /// Cómo se lee la sesión en la vista previa de la semana.
+    ///
+    /// En series se nombra el **enfoque** (cortas, cuestas, fartlek…) y no un genérico "Series":
+    /// desde que el estímulo rota, saber cuál toca esta semana es justo lo que se quiere ver de un
+    /// vistazo. Y los km llevan "fuertes" porque en una sesión por repeticiones `targetKm` es solo
+    /// la parte fuerte — el calentamiento y el enfriamiento van aparte, en el detalle.
+    private func label(_ kind: PlannedWorkoutKind, km: Double, emphasis: QualityEmphasis?) -> String {
+        guard kind == .intervals else { return "\(kind.rawValue) \(Goal.trim(km)) km" }
+        return "\((emphasis ?? .shortReps).displayName) \(Goal.trim(km)) km fuertes"
     }
 
-    private func detail(_ kind: PlannedWorkoutKind) -> String {
+    private func detail(_ kind: PlannedWorkoutKind, emphasis: QualityEmphasis?) -> String {
         switch kind {
         case .longRun:   return "Ritmo cómodo y conversable; construye base aeróbica."
         case .tempo:     return "Ritmo umbral (cómodo-duro), tu \"fase 2\"."
-        case .intervals: return "Repeticiones a ritmo ~5K con recuperación entre cada una."
         case .easy:      return "Rodaje suave de recuperación."
         case .race:      return "Carrera inscrita: el día es fijo."
+        case .intervals:
+            switch emphasis ?? .shortReps {
+            case .shortReps: return "Repeticiones cortas a ritmo ~5K. Velocidad y VO₂max."
+            case .longReps:  return "Repeticiones largas a ritmo umbral. Aguantar más tiempo fuerte."
+            case .racePace:  return "A tu ritmo objetivo. Lo específico manda cerca de la carrera."
+            case .hills:     return "Repeticiones en cuesta. Fuerza específica y economía."
+            case .fartlek:   return "Tramos fuertes por sensaciones, sin pista ni vueltas."
+            }
         }
     }
 

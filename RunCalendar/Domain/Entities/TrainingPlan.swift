@@ -60,6 +60,9 @@ struct PlannedDay: Identifiable, Equatable, Sendable {
     /// Id de la carrera si este día **es** una carrera inscrita. No nulo ⇒ el día es un hecho,
     /// no una sugerencia: ya pagaste inscripción para correr esa distancia ese día.
     var raceId: String? = nil
+    /// Qué estímulo busca la sesión de calidad. Solo en `.intervals`; el resto de tipos ya son un
+    /// estímulo en sí. Lo elige el motor por semana para que no sea siempre la misma sesión.
+    var emphasis: QualityEmphasis? = nil
 
     var id: String { String(weekday) }
 
@@ -329,9 +332,61 @@ struct WorkoutStructure: Equatable, Sendable {
 
 /// Un bloque de repeticiones: `reps` × `repMeters` con `recoverySeconds` de trote entre cada una.
 struct IntervalSpec: Equatable, Sendable {
+    /// Cómo se mide cada repetición. **Por distancia o por tiempo**, nunca las dos: un fartlek o
+    /// una cuesta se corren "un minuto fuerte", no "400 m" — y modelarlas con metros obligaría a
+    /// inventar una distancia que nadie va a medir. El reloj traduce cada caso a su meta.
+    enum Rep: Equatable, Sendable {
+        case meters(Double)
+        case seconds(Double)
+    }
+
     var reps: Int
-    var repMeters: Double
+    var rep: Rep
     var recoverySeconds: Double
+
+    /// Metros por repetición, si esta sesión se mide en distancia.
+    var repMeters: Double? {
+        if case .meters(let m) = rep { return m }
+        return nil
+    }
+}
+
+/// Qué estímulo busca la sesión de calidad de la semana.
+///
+/// Existe porque el motor hacía **siempre la misma sesión**: repeticiones de 400–800 m salidas de
+/// una fórmula sobre el volumen. Quien solo hace 5×800 nunca entrena ni la velocidad ni el umbral.
+///
+/// Ojo con mezclar dos cosas que no son iguales (ver `docs/motor-de-entrenamiento.md`):
+///
+/// - `shortReps`, `longReps`, `racePace` y `hills` son **estímulos distintos**. Cubrirlos tiene
+///   respaldo: repeticiones cortas y largas no adaptan lo mismo.
+/// - `fartlek` es el **mismo estímulo** que `shortReps` con otro envoltorio. Se incluye por
+///   **adherencia**, que es un motivo legítimo y distinto — y la app lo dice con esas palabras en
+///   vez de fingir que es fisiología.
+enum QualityEmphasis: String, Sendable, Equatable, CaseIterable {
+    /// Repeticiones cortas a ritmo ~5K. VO₂max y velocidad.
+    case shortReps
+    /// Repeticiones largas a ritmo umbral. Tolerancia al lactato.
+    case longReps
+    /// A tu ritmo objetivo de carrera. Especificidad.
+    case racePace
+    /// Cuestas cortas. Fuerza específica y economía de carrera.
+    case hills
+    /// Mismo estímulo que `shortReps`, por sensaciones y sin pista. Por disfrute.
+    case fartlek
+
+    /// Cómo se llama en la app. Es lo que se lee en la vista previa de la semana, así que tiene
+    /// que decir **el enfoque** de un vistazo: "Series" a secas ya no distingue entre unas cortas,
+    /// unas cuestas y un fartlek, que es justo lo que la rotación viene a diferenciar.
+    var displayName: String {
+        switch self {
+        case .shortReps: return "Series cortas"
+        case .longReps:  return "Series largas"
+        case .racePace:  return "Ritmo de carrera"
+        case .hills:     return "Cuestas"
+        case .fartlek:   return "Fartlek"
+        }
+    }
 }
 
 /// Configuración del plan que da el usuario: cuántos días puede entrenar y cuáles.
