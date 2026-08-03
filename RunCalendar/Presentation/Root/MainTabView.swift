@@ -86,6 +86,11 @@ struct MainTabView: View {
         // Al llegar sesiones, siembra los días/semana del plan desde el historial. Va con `id`
         // porque en el arranque las sesiones todavía no están (los streams corren en paralelo) y
         // un `.task` suelto lo haría demasiado pronto. Idempotente: solo actúa la primera vez.
-        .task(id: trainingViewModel.sessions.count) { goalsViewModel.seedPlanConfigIfNeeded() }
+        .task(id: trainingViewModel.sessions.count) {
+            goalsViewModel.seedPlanConfigIfNeeded()
+            // Se congela después de sembrar: si no, la primera foto saldría con los días por
+            // defecto y se rehría al instante.
+            goalsViewModel.freezeCurrentWeekIfNeeded()
+        }
     }
 }
