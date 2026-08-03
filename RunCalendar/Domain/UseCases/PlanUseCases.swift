@@ -243,12 +243,18 @@ struct GeneratePlanUseCase: Sendable {
         /// Lo que el atleta **ya corrió** dentro de la semana de este plan. Planificar a media
         /// semana sin esto proponía días que ya pasaron y los daba por fallados.
         var completed: [TrainingSession]
+        /// Volumen semanal **crónico**: la media de las últimas 4 semanas. Es el denominador del
+        /// ACWR y sirve de techo — la misma subida es segura si vienes de un bloque cargado y
+        /// arriesgada si vienes de dos semanas parado, y un porcentaje fijo no distingue.
+        /// `nil` = sin historial suficiente, y entonces no se acota por carga.
+        var chronicWeeklyKm: Double?
         var weekStart: Date
         var now: Date
 
         init(primary: Goal, secondaries: [Goal] = [], config: PlanConfig,
              currentWeeklyKm: Double, currentLongRunKm: Double? = nil,
              races: [Race] = [], completed: [TrainingSession] = [],
+             chronicWeeklyKm: Double? = nil,
              weekStart: Date = Date(), now: Date = Date()) {
             self.primary = primary
             self.secondaries = secondaries
@@ -257,6 +263,7 @@ struct GeneratePlanUseCase: Sendable {
             self.currentLongRunKm = currentLongRunKm
             self.races = races
             self.completed = completed
+            self.chronicWeeklyKm = chronicWeeklyKm
             self.weekStart = weekStart
             self.now = now
         }
@@ -267,10 +274,18 @@ struct GeneratePlanUseCase: Sendable {
         let volumeTarget  = input.secondaries.first { $0.type == .weeklyVolume }?.targetValue
         let longRunTarget = input.secondaries.first { $0.type == .longRun }?.targetValue
 
-        // Volumen de la semana. Sin historial (arranque en frío) usa un default por días disponibles.
+        // Volumen de la semana, en cuatro pasos. El orden importa: el piso protege de bajar sin
+        // motivo, pero el techo de carga puede saltárselo — si vienes sobrecargado, bajar **es**
+        // el motivo. Ver docs/motor-de-entrenamiento.md.
+        //
+        // Sin historial (arranque en frío) usa un default por días disponibles.
         let base = input.currentWeeklyKm > 0 ? input.currentWeeklyKm : Double(days) * 5
-        var weekKm = min(base * 1.08, volumeTarget ?? base * 1.08)
-        weekKm = max(weekKm, base)                       // nunca por debajo del actual
+        var weekKm = base * growthRate(base: base, target: volumeTarget, input: input)
+        if let volumeTarget { weekKm = min(weekKm, volumeTarget) }
+        weekKm = max(weekKm, base)                       // no se baja por capricho…
+        if let ceiling = loadCeiling(input) {            // …pero la carga aguda sí manda
+            weekKm = min(weekKm, ceiling)
+        }
 
         // Carreras inscritas de esta semana: días fijos. Ocupan su lugar antes que nada, porque no
         // son una decisión del motor sino un compromiso ya adquirido.
@@ -291,10 +306,11 @@ struct GeneratePlanUseCase: Sendable {
         removeCovered(&structure, byDaysCount: doneByDay)
         let doneKm = doneByDay.values.flatMap { $0 }.compactMap(\.distanceKm).reduce(0, +)
 
-        // Taper. Dos repartos: el volumen fácil (rodajes y tirada larga) sale del recorte completo,
-        // y las sesiones de calidad de un recorte a la mitad — menos repeticiones, mismo ritmo.
-        // Fuera de taper `taper` es nil y solo se hace el reparto normal.
-        let taper = taperFactor(weeksLeft(input.primary.deadline, input.now))
+        // Semanas más ligeras a propósito: el taper antes de la meta y las **descargas** cada 4ª.
+        // Las dos recortan igual —volumen abajo, intensidad intacta— así que comparten el mismo
+        // reparto en dos pasadas. Fuera de ellas `lighter` es nil y solo se hace el reparto normal.
+        let lighter = lighterWeek(input)
+        let taper = lighter?.factor
         let taperedKm = weekKm * (taper ?? 1)
         // Afinando, la tirada larga deja de progresar: sigue al volumen recortado y no al historial.
         // Si no, se queda pegada a los km de la semana pasada y acapara media semana de taper.
@@ -357,7 +373,7 @@ struct GeneratePlanUseCase: Sendable {
         let planned = (generated + raceDays).sorted { $0.weekPosition < $1.weekPosition }
 
         let note = planNote(planned: planned, weekKm: taperedKm, days: days, unfit: unfit,
-                            taper: taper, demotedEve: demotedEve, dropped: dropped,
+                            lighter: lighter, demotedEve: demotedEve, dropped: dropped,
                             weekStarted: plansFrom > 0)
 
         return TrainingPlan(
@@ -462,23 +478,83 @@ struct GeneratePlanUseCase: Sendable {
         return (structure.map { $0 == .longRun ? longKm : round1(iter.next() ?? 0) }, unfit)
     }
 
-    /// Afinamiento previo a la meta, en dos escalones progresivos: la penúltima semana ya recorta y
-    /// la de la carrera recorta más. `nil` fuera de esa ventana.
-    ///
-    /// El factor se aplica al volumen fácil; la calidad se recorta la mitad (`(1 + taper) / 2`), que
-    /// es lo que la evidencia sostiene: bajar volumen 41–60% durante ~2 semanas **manteniendo**
-    /// intensidad y frecuencia (Bosquet et al., meta-análisis de ~50 estudios). Bajar también el
-    /// ritmo pierde economía de carrera y sensación de ritmo, que es justo lo que vas a necesitar.
-    ///
-    /// ponytail: dos escalones fijos e iguales para toda meta. Un 5K afina distinto que un maratón;
-    /// hazlo por distancia si el atleta reporta llegar pesado o pasado de rosca.
-    private func taperFactor(_ weeksLeft: Int?) -> Double? {
-        switch weeksLeft {
-        case 0:  return 0.50    // semana de la carrera
-        case 1:  return 0.75    // penúltima
-        default: return nil
-        }
+    /// Por qué esta semana pesa menos que la anterior a propósito.
+    enum LighterWeek: Equatable, Sendable {
+        /// Afinamiento antes de la meta.
+        case taper
+        /// Descarga periódica: se baja el volumen para asimilar lo acumulado.
+        case deload
     }
+
+    /// Semanas deliberadamente ligeras y cuánto recortan. `nil` en una semana normal.
+    ///
+    /// El factor se aplica al volumen fácil; la calidad se recorta la mitad (`(1 + factor) / 2`),
+    /// que es lo que la evidencia sostiene para el taper: bajar volumen manteniendo **intensidad y
+    /// frecuencia** (Bosquet et al.). Una descarga es la misma idea con menos recorte, así que
+    /// comparten maquinaria.
+    ///
+    /// La descarga cada 4ª semana **contando hacia atrás desde la meta**, para que caiga en 4, 8,
+    /// 12… y nunca choque con el taper (que ocupa 0 y 1). Sin fecha de meta se cuenta desde que
+    /// creaste la meta, que es el único ancla que queda.
+    ///
+    /// ponytail: escalones fijos e iguales para toda meta y para todo atleta. El principio de
+    /// alternar carga y descarga está bien establecido; **la cadencia exacta es convención** (ver
+    /// docs/motor-de-entrenamiento.md). Ajústala cuando haya datos que lo justifiquen.
+    private func lighterWeek(_ input: Input) -> (kind: LighterWeek, factor: Double)? {
+        if let weeks = weeksLeft(input.primary.deadline, input.now) {
+            switch weeks {
+            case 0:  return (.taper, 0.50)               // semana de la carrera
+            case 1:  return (.taper, 0.75)               // penúltima
+            default:
+                if weeks % 4 == 0 { return (.deload, 0.60) }
+                return nil
+            }
+        }
+        // Sin fecha de meta, el ancla es cuándo la creaste.
+        let weeks = elapsedWeeks(since: input.primary.createdAt, to: input.now)
+        return weeks > 0 && weeks % 4 == 0 ? (.deload, 0.60) : nil
+    }
+
+    private func elapsedWeeks(since start: Date, to now: Date) -> Int {
+        let days = Calendar.app.dateComponents([.day], from: start, to: now).day ?? 0
+        return max(0, days / 7)
+    }
+
+    /// Cuánto puede crecer el volumen esta semana respecto a tu base.
+    ///
+    /// El 8% de siempre es un techo, no un objetivo: si tu meta está a diez semanas, subir 8%
+    /// semanal te haría llegar en cuatro y pasar seis en plano. Se reparte el crecimiento que
+    /// **de verdad hace falta** entre las semanas que quedan, y así los escalones se achican solos
+    /// conforme te acercas al techo — sin inventar una curva ni una constante nueva.
+    ///
+    /// Sin meta o sin fecha no hay con qué acompasar y se queda en el 8%. Ese número es la "regla
+    /// del 10%" rebajada, y **esa regla no está sostenida** por la evidencia (ver
+    /// docs/motor-de-entrenamiento.md); se mantiene solo como tope superior mientras el techo por
+    /// carga —que sí sale de datos— hace el trabajo de verdad.
+    private func growthRate(base: Double, target: Double?, input: Input) -> Double {
+        guard let target, target > base, base > 0,
+              let weeks = weeksLeft(input.primary.deadline, input.now), weeks > 0
+        else { return maxWeeklyGrowth }
+        let paced = pow(target / base, 1 / Double(weeks))
+        return min(maxWeeklyGrowth, paced)
+    }
+
+    /// Techo del volumen por **carga aguda vs. crónica** (ACWR). `nil` sin historial suficiente.
+    ///
+    /// Es un gobernador mejor que un porcentaje fijo porque mira de dónde vienes: subir a 50 km
+    /// es rutina si llevas un mes en 45 y una temeridad si vienes de dos semanas parado. Ese
+    /// contexto el 8% no lo ve.
+    ///
+    /// ponytail: 1.3 es el borde alto del rango que se suele citar como seguro. El ACWR fue
+    /// popularizado por Gabbett y después criticado con fundamento (acoplamiento matemático,
+    /// Impellizzeri et al.), así que se usa como **techo** y no como prescripción.
+    private func loadCeiling(_ input: Input) -> Double? {
+        guard let chronic = input.chronicWeeklyKm, chronic > 0 else { return nil }
+        return chronic * maxAcuteChronicRatio
+    }
+
+    private var maxWeeklyGrowth: Double     { 1.08 }
+    private var maxAcuteChronicRatio: Double { 1.3 }
 
     /// Reparte `budget` km entre `kinds` por pesos, respetando el tope de cada tipo (water-filling):
     /// lo que rebasa un tope se re-reparte entre los que aún tienen cupo. Devuelve los km por índice
@@ -513,7 +589,7 @@ struct GeneratePlanUseCase: Sendable {
     /// error del plan y hay que decirlo—; (1) el volumen no cabe → faltan días; (2) demasiados días
     /// → sesiones muy cortas; (3) sesiones exigentes en días seguidos (por los días elegidos).
     private func planNote(planned: [PlannedDay], weekKm: Double, days: Int, unfit: Double,
-                          taper: Double?, demotedEve: Bool = false,
+                          lighter: (kind: LighterWeek, factor: Double)?, demotedEve: Bool = false,
                           dropped: Int = 0, weekStarted: Bool = false) -> String? {
         if dropped > 0 {
             let sesiones = dropped == 1 ? "una sesión" : "\(dropped) sesiones"
@@ -529,9 +605,17 @@ struct GeneratePlanUseCase: Sendable {
                 + "cambió por un rodaje suave. Esta semana te quedas sin sesión de calidad: llegar "
                 + "descansado a la carrera vale más."
         }
-        if taper != nil {
+        switch lighter?.kind {
+        case .taper:
             return "Semana de afinamiento: menos kilómetros, mismo ritmo en series y tempo. Bajas "
                 + "el volumen para llegar descansado, no la intensidad — esa es la que te da la chispa."
+        case .deload:
+            // Se explica el porqué porque una semana más corta sin motivo se lee como un error del
+            // plan — o peor, como permiso para "recuperar" los km, que es justo lo contrario.
+            return "Semana de descarga: bajas volumen a propósito para asimilar lo de las tres "
+                + "anteriores. Se adapta descansando, no acumulando. La calidad se mantiene."
+        case nil:
+            break
         }
         if unfit > unfitThresholdKm {
             return "Tu volumen (~\(Goal.trim(weekKm)) km) no cabe sano en \(days) días: sube a "

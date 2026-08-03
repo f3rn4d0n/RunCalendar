@@ -28,16 +28,17 @@ Esta distinción es la que evita que la app dé consejo con más seguridad de la
 
 | | Hoy | Evidencia | Propuesta |
 |---|---|---|---|
-| **Progresión semanal** | `base × 1.08` hasta topar con tu meta | La "regla del 10%" es **tradición**: un ECA con 532 novatos no encontró diferencia en lesiones entre un programa graduado y uno estándar. Lo que sí aparece es que saltos **>30%** aumentan lesiones | Techo por **ACWR** en vez de un porcentaje fijo, y escalones que se achican al acercarse a tu techo |
-| **De dónde sale la base** | Suma **móvil de 7 días** de lo que corriste | — | Base estable (media de 28 días o máximo de las últimas 3 semanas) |
-| **Semanas de descarga** | **No existen.** Solo `WeekStatus.deload` manual, y solo pausa la medición | **Principio**: sin recuperación planificada la sobrecarga deja de adaptar. La cadencia exacta (cada 3ª o 4ª) es convención | Cada 4ª semana: volumen −40%, intensidad intacta — la misma regla del taper |
-| **Techo de carga** | Ninguno más allá del 8% y los topes por sesión | **ACWR** (agudo 7 d / crónico 28 d) es mejor gobernador que un % fijo, con la crítica metodológica de Impellizzeri et al. encima | Cablearlo al plan |
+| **Progresión semanal** | ✅ Acompasada a la meta: se reparte el crecimiento que hace falta entre las semanas que quedan, con el 8% de tope | La "regla del 10%" es **tradición**: un ECA con 532 novatos no encontró diferencia en lesiones entre un programa graduado y uno estándar. Lo que sí aparece es que saltos **>30%** aumentan lesiones | Techo por **ACWR** en vez de un porcentaje fijo, y escalones que se achican al acercarse a tu techo |
+| **De dónde sale la base** | ✅ Máximo de las últimas 4 semanas de calendario | — | Base estable (media de 28 días o máximo de las últimas 3 semanas) |
+| **Semanas de descarga** | ✅ Cada 4ª contando hacia atrás desde la meta: volumen −40%, intensidad intacta | **Principio**: sin recuperación planificada la sobrecarga deja de adaptar. La cadencia exacta (cada 3ª o 4ª) es convención | Cada 4ª semana: volumen −40%, intensidad intacta — la misma regla del taper |
+| **Techo de carga** | ✅ ACWR: el volumen no pasa de 1.3× tu carga crónica (media de 4 semanas) | **ACWR** (agudo 7 d / crónico 28 d) es mejor gobernador que un % fijo, con la crítica metodológica de Impellizzeri et al. encima | Cablearlo al plan |
 | **Taper** | ✅ 2 semanas, volumen −40/50%, intensidad intacta | **Sólido** (Bosquet et al., meta-análisis de ~50 estudios) | Sin cambios |
 
-> **El bloqueador de verdad.** La base sale de tu propio output de la semana pasada, así que una
-> descarga al 60% hace que el motor crea que bajaste de forma y arranque desde ahí. **El motor pelea
-> activamente contra cualquier periodización.** Arreglar esto es prerrequisito de todo lo demás, y
-> es barato.
+> **El bloqueador que había.** La base salía de tu propio output de la semana pasada, así que una
+> descarga al 60% hacía que el motor creyera que bajaste de forma y arrancara desde ahí — el motor
+> peleaba contra su propia periodización. Resuelto tomando el **máximo** de las últimas 4 semanas:
+> sube cuando de verdad subes y no se hunde con una semana suave. Si dejas de correr de verdad, las
+> cuatro caen y la base baja con ellas, que es lo correcto.
 
 ### Motor de calidad
 
@@ -61,7 +62,7 @@ Esta distinción es la que evita que la app dé consejo con más seguridad de la
 | | Hoy | Evidencia | Propuesta |
 |---|---|---|---|
 | **Recuperación (HRV, sueño, FC)** | Se calcula y se muestra en *Condición* | — | — |
-| **¿Alimenta el plan?** | **No.** `AssessWorkloadUseCase` y `RecoveryCalibration` viven solo en Progreso | — | El ACWR es el primer puente entre las dos mitades de la app |
+| **¿Alimenta el plan?** | ✅ **Parcialmente**: el plan calcula su propio ACWR en km y lo usa de techo. `RecoveryCalibration` (RPE) sigue solo en Progreso | — | Cablear también la calibración |
 | **Calibración por RPE** | Ajusta la estimación de recuperación con tu feedback | — | Mismo camino, más adelante |
 
 ---
@@ -75,11 +76,11 @@ Esta distinción es la que evita que la app dé consejo con más seguridad de la
 
 ## Orden propuesto
 
-1. **Base estable** — que una descarga no hunda la semana siguiente. *Prerrequisito de todo.*
-2. **Descargas cada 4ª semana** — lo de mayor respaldo por lo que cuesta.
-3. **Techo por ACWR** — cablear lo que ya se calcula.
-4. **Escalones decrecientes** al acercarse al techo personal.
-5. **Variar el tipo de calidad** dentro del bloque.
+1. ~~**Base estable**~~ ✅
+2. ~~**Descargas cada 4ª semana**~~ ✅
+3. ~~**Techo por ACWR**~~ ✅
+4. ~~**Escalones decrecientes**~~ ✅ — salen solos del ritmo acompasado a la meta
+5. **Variar el tipo de calidad** dentro del bloque. ← siguiente
 6. **Fartlek y cuestas** como presentación alterna, etiquetado como lo que es.
 7. **Bloque persistido** — periodización de verdad e historia.
 8. **Fases** — solo si aparecen datos que las justifiquen.
