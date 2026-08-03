@@ -338,6 +338,56 @@ struct GoalsViewModelTests {
         #expect(app.goalRepo.updated.isEmpty)
     }
 
+    // MARK: - La base del volumen
+
+    @Test("Una semana suave no hunde la base de la siguiente")
+    func aLightWeekDoesNotSinkTheBase() async {
+        // Es lo que hacía imposible periodizar: con la suma móvil de 7 días, una descarga al 60%
+        // se leía como "bajó de forma" y la semana siguiente arrancaba desde ahí. El escalón hacia
+        // abajo se volvía permanente.
+        let cargadas = (1...3).flatMap { back in
+            (0..<4).map { day in
+                TrainingSession(date: weekStart(back: back, plus: day), type: .running,
+                                title: "Bloque", distanceKm: 10, completed: true)
+            }
+        }
+        let conDescarga = cargadas + [
+            TrainingSession(date: thisWeek(position: 0), type: .running,
+                            title: "Descarga", distanceKm: 6, completed: true)
+        ]
+        let app = TestApp(goals: [volumeGoal(60)], sessions: conDescarga)
+        await app.start()
+
+        // Tres semanas de 40 km y una suave de 6: la base sigue siendo ~40, no 6. El umbral es
+        // holgado a propósito — separa "mantuvo la base" de "se desplomó", sin fijar el reparto
+        // exacto (que además lo acota el techo por carga crónica).
+        let pedido = app.goals.plan(weekOffset: 1)?.totalKm ?? 0
+        #expect(pedido > 30, "la base se hundió con la semana suave: \(pedido) km")
+    }
+
+    @Test("La base sí baja si dejas de correr de verdad")
+    func theBaseFallsWithRealDetraining() async {
+        // El máximo protege de una semana suave, no de un parón. Si no, alguien que dejó de correr
+        // hace un mes volvería a un plan de su mejor semana — que es cómo se lesiona la gente.
+        let viejas = (5...8).flatMap { back in
+            (0..<4).map { day in
+                TrainingSession(date: weekStart(back: back, plus: day), type: .running,
+                                title: "Hace tiempo", distanceKm: 12, completed: true)
+            }
+        }
+        let app = TestApp(goals: [volumeGoal(60)], sessions: viejas)
+        await app.start()
+        #expect((app.goals.plan(weekOffset: 1)?.totalKm ?? 0) < 48,
+                "un plan de 48 km para quien lleva un mes sin correr")
+    }
+
+    /// Inicio de la semana `back` semanas atrás, más `plus` días.
+    private func weekStart(back: Int, plus: Int) -> Date {
+        let start = Calendar.app.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        let week = Calendar.app.date(byAdding: .day, value: -7 * back, to: start) ?? start
+        return Calendar.app.date(byAdding: .day, value: plus, to: week) ?? week
+    }
+
     // MARK: - La semana ya empezada
 
     /// Fecha de esta semana en la posición dada (0 = lunes … 6 = domingo).

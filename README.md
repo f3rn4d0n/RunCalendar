@@ -43,8 +43,20 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   config, se recalcula reactivo. Solo la **config** (días/semana + días preferidos) se guarda
   (UserDefaults). Vive en `GoalsViewModel`; motor en `GeneratePlanUseCase`.
 - **Estructura por días/semana** (1–7): 3 días → series + tempo + tirada larga; más días meten
-  rodajes fáciles **alternados** (duro/fácil) para no encadenar calidad. Volumen progresivo (~+8%/sem,
-  techo 10%), **80/20**, tirada larga como día más largo.
+  rodajes fáciles **alternados** (duro/fácil) para no encadenar calidad. **80/20**, tirada larga
+  como día más largo.
+- **Motor de volumen** (ver **[docs/motor-de-entrenamiento.md](docs/motor-de-entrenamiento.md)**):
+  la base es el **máximo de tus últimas 4 semanas**, no la suma móvil de 7 días — así una semana
+  suave no se convierte en un escalón permanente hacia abajo (con la móvil, una descarga se leía
+  como "bajó de forma" y el plan **peleaba contra su propia periodización**). El crecimiento se
+  **acompasa a tu meta** repartiendo lo que falta entre las semanas que quedan, con el 8% solo de
+  tope; así los escalones se achican solos al acercarte. Y hay un **techo por carga**: el volumen
+  no pasa de 1.3× tu carga crónica, porque subir a 50 km es rutina si llevas un mes en 45 y una
+  temeridad si vienes de dos semanas parado — contexto que un porcentaje fijo no ve.
+- **Semanas de descarga** cada 4ª contando hacia atrás desde tu meta (nunca chocan con el taper,
+  que ocupa las dos últimas): volumen −40%, **intensidad intacta**, con la misma maquinaria del
+  taper. Se adapta descansando, no acumulando — y el aviso lo explica para que una semana corta no
+  se lea como error del plan, ni como permiso para "recuperar" los km.
 - **Taper que baja el volumen, no la intensidad** (`taperFactor`): en las 2 semanas previas a la
   meta el recorte cae sobre los rodajes fáciles y la tirada larga (que además deja de progresar);
   series y tempo se recortan la mitad — menos repeticiones, **mismo ritmo**. Progresivo: la
@@ -601,7 +613,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 143 pruebas en 15 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 153 pruebas en 15 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -720,7 +732,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 143 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 153 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

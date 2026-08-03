@@ -331,8 +331,40 @@ final class GoalsViewModel {
         }
     }
 
+    /// Base de volumen del plan: el **máximo** de las últimas 4 semanas de calendario (la actual
+    /// incluida, aunque vaya a medias).
+    ///
+    /// Antes era la suma móvil de 7 días, y eso convertía cualquier semana ligera en un escalón
+    /// permanente hacia abajo: bajabas al 60% en una descarga, el motor leía "bajó de forma" y
+    /// arrancaba la siguiente desde ese 60%. El plan peleaba contra su propia periodización.
+    ///
+    /// El máximo tiene la propiedad que hace falta: **sube cuando de verdad subes y no se hunde
+    /// con una semana suave**. Si dejas de correr de verdad, las cuatro semanas caen y la base
+    /// baja con ellas — que es lo correcto, solo que sin sobresaltos.
     private var runningWeeklyKm: Double {
-        runningSessions(withinDays: 7).compactMap(\.distanceKm).reduce(0, +)
+        weeklyKmByWeek(lastWeeks: 4).max() ?? 0
+    }
+
+    /// Volumen semanal **crónico**: la media de las últimas 4 semanas. Denominador del ACWR, que el
+    /// motor usa como techo. `nil` sin al menos dos semanas con datos — con una sola, "crónico" no
+    /// significa nada.
+    private var chronicWeeklyKm: Double? {
+        let weeks = weeklyKmByWeek(lastWeeks: 4).filter { $0 > 0 }
+        guard weeks.count >= 2 else { return nil }
+        return weeks.reduce(0, +) / Double(weeks.count)
+    }
+
+    /// Km corridos en cada una de las últimas `lastWeeks` semanas de calendario, la actual primero.
+    private func weeklyKmByWeek(lastWeeks: Int) -> [Double] {
+        let cal = Calendar.app
+        let thisWeek = Self.currentWeekStart()
+        return (0..<lastWeeks).map { back in
+            let start = cal.date(byAdding: .day, value: -7 * back, to: thisWeek) ?? thisWeek
+            let end = cal.date(byAdding: .day, value: 7, to: start) ?? start
+            return trainingViewModel.sessions
+                .filter { $0.completed && $0.type == .running && $0.date >= start && $0.date < end }
+                .compactMap(\.distanceKm).reduce(0, +)
+        }
     }
 
     private var runningLongestKm: Double? {
@@ -374,6 +406,7 @@ final class GoalsViewModel {
             currentLongRunKm: runningLongestKm,
             races: racesViewModel.races,
             completed: runningSessions(since: start),
+            chronicWeeklyKm: chronicWeeklyKm,
             weekStart: start
         ))
     }

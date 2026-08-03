@@ -103,6 +103,86 @@ struct GeneratePlanTests {
         #expect(week.allSatisfy { ($0.targetKm ?? 0) > 0 })
     }
 
+    // MARK: - Descargas y techo de carga
+
+    @Test("Cada 4ª semana antes de la meta es descarga")
+    func deloadEveryFourthWeek() {
+        let normal = plan(days: 4, weeklyKm: 40, deadline: inDays(7 * 6 + 3)).totalKm   // 6 semanas
+        let descarga = plan(days: 4, weeklyKm: 40, deadline: inDays(7 * 4 + 3)).totalKm // 4 semanas
+        #expect(descarga < normal, "descarga \(descarga) vs. semana normal \(normal)")
+    }
+
+    @Test("La descarga no toca la intensidad, igual que el taper")
+    func deloadKeepsIntensity() {
+        let normal = kmByKind(plan(days: 5, weeklyKm: 50, longRunKm: 16, deadline: inDays(7 * 6 + 3)))
+        let descarga = kmByKind(plan(days: 5, weeklyKm: 50, longRunKm: 16, deadline: inDays(7 * 4 + 3)))
+        func recorte(_ kind: PlannedWorkoutKind) -> Double {
+            1 - (descarga[kind] ?? 0) / (normal[kind] ?? 1)
+        }
+        for calidad in [PlannedWorkoutKind.intervals, .tempo] {
+            #expect(recorte(calidad) < recorte(.easy),
+                    "\(calidad.rawValue) se recortó \(recorte(calidad)) y el fácil \(recorte(.easy))")
+        }
+    }
+
+    @Test("La descarga se explica: una semana corta sin motivo se lee como error")
+    func deloadIsExplained() {
+        let note = plan(days: 4, weeklyKm: 40, deadline: inDays(7 * 4 + 3)).note
+        #expect(note?.contains("descarga") == true, "aviso: \(note ?? "nil")")
+    }
+
+    @Test("La descarga nunca cae en la ventana del taper")
+    func deloadNeverCollidesWithTaper() {
+        for daysOut in [1, 4, 8, 11] {
+            let note = plan(days: 4, weeklyKm: 40, deadline: inDays(daysOut)).note
+            #expect(note?.contains("descarga") != true, "a \(daysOut) días es taper, no descarga")
+        }
+    }
+
+    @Test("La carga crónica acota la subida: volver de un parón no dispara el volumen")
+    func acuteChronicRatioCapsTheJump() {
+        // Misma semana buena (40 km) con dos historias distintas detrás.
+        let enForma = engine(GeneratePlanUseCase.Input(
+            primary: goal(.raceTime, 7200), config: PlanConfig(daysPerWeek: 4),
+            currentWeeklyKm: 40, chronicWeeklyKm: 38
+        )).totalKm
+        let volviendo = engine(GeneratePlanUseCase.Input(
+            primary: goal(.raceTime, 7200), config: PlanConfig(daysPerWeek: 4),
+            currentWeeklyKm: 40, chronicWeeklyKm: 15   // dos semanas parado detrás
+        )).totalKm
+
+        #expect(volviendo < enForma, "volviendo \(volviendo) vs. en forma \(enForma)")
+        #expect(volviendo <= 15 * 1.3 + 0.5, "el techo es 1.3× la carga crónica")
+    }
+
+    @Test("Sin historial crónico no se acota nada")
+    func noChronicNoCeiling() {
+        let sinDato = plan(days: 4, weeklyKm: 40).totalKm
+        #expect(sinDato >= 40, "sin saber de dónde vienes, no se puede juzgar la subida")
+    }
+
+    // MARK: - Ritmo de progresión
+
+    @Test("El crecimiento se acompasa a la meta en vez de correr al 8% y quedarse plano")
+    func growthIsPacedTowardsTheGoal() {
+        // Meta a 21 semanas: subir al 8% semanal te dejaría ~16 semanas en plano.
+        // Ojo con los múltiplos de 4: esas semanas son descarga y compararían otra cosa.
+        let lejos = plan(days: 4, weeklyKm: 40, secondaries: [goal(.weeklyVolume, 50)],
+                         deadline: inDays(7 * 21 + 3)).totalKm
+        let cerca = plan(days: 4, weeklyKm: 40, secondaries: [goal(.weeklyVolume, 50)],
+                         deadline: inDays(7 * 3 + 3)).totalKm
+        #expect(lejos < cerca, "con más tiempo, escalones más chicos: \(lejos) vs \(cerca)")
+        #expect(lejos >= 40, "pero nunca por debajo de tu base")
+    }
+
+    @Test("El 8% sigue siendo el tope aunque la meta pida más prisa")
+    func growthNeverExceedsTheCap() {
+        // A 3 semanas: ni taper ni descarga, así que lo único que acota es el tope de crecimiento.
+        let total = plan(days: 5, weeklyKm: 40, secondaries: [goal(.weeklyVolume, 200)],
+                         deadline: inDays(7 * 3 + 3)).totalKm
+        #expect(total <= 40 * 1.08 + 0.5, "saltó a \(total)")
+    }
+
     // MARK: - Taper
 
     /// Meta a `days` días vista, para caer en la ventana de afinamiento que se quiera probar.
