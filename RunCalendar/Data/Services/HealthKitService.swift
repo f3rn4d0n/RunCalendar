@@ -141,8 +141,10 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
         let start = calendar.date(byAdding: .day, value: -7 * weeks, to: calendar.startOfDay(for: Date())) ?? Date()
         let runs = try await runningWorkouts(since: start)
 
-        // VO₂max: promedio semanal de los últimos ~6 meses (se mueve lento).
+        // VO₂max y línea base de HRV: promedio semanal de los últimos ~6 meses. Los dos se mueven
+        // lento y por eso van aquí y no en Recuperación, que mira el día.
         async let vo2 = weeklyVO2Series(weeks: 26)
+        async let hrv = weeklyHRVSeries(weeks: 26)
 
         // Volumen: km por semana (semana que empieza el lunes), cronológico.
         var kmByWeek: [Date: Double] = [:]
@@ -170,7 +172,40 @@ final class HealthKitService: HealthRepository, @unchecked Sendable {
             }
             .sorted { $0.date < $1.date }
 
-        return FitnessTrend(weeklyVolume: weeklyVolume, pace: pace, vo2Max: try await vo2)
+        return FitnessTrend(weeklyVolume: weeklyVolume, pace: pace,
+                            vo2Max: try await vo2, hrvBaseline: try await hrv)
+    }
+
+    /// Promedio semanal de HRV (SDNN) de las últimas `weeks` semanas, solo semanas con dato.
+    ///
+    /// Mismo mecanismo que el VO₂max porque responde a la misma clase de pregunta: cómo evoluciona
+    /// algo que se mueve en meses. El promedio semanal es lo que hace legible un dato que a diario
+    /// es ruido.
+    private func weeklyHRVSeries(weeks: Int) async throws -> [HRVPoint] {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) else { return [] }
+        let calendar = Calendar.current
+        let anchor = calendar.startOfDay(for: Date())
+        let start = calendar.date(byAdding: .day, value: -7 * weeks, to: anchor) ?? Date()
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
+        var interval = DateComponents(); interval.weekOfYear = 1
+        let unit = HKUnit.secondUnit(with: .milli)
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: type, quantitySamplePredicate: predicate,
+                options: .discreteAverage, anchorDate: anchor, intervalComponents: interval
+            )
+            query.initialResultsHandler = { _, collection, error in
+                if let error { continuation.resume(throwing: error); return }
+                var result: [HRVPoint] = []
+                collection?.enumerateStatistics(from: start, to: Date()) { stat, _ in
+                    if let avg = stat.averageQuantity()?.doubleValue(for: unit) {
+                        result.append(HRVPoint(date: stat.startDate, milliseconds: avg))
+                    }
+                }
+                continuation.resume(returning: result)
+            }
+            store.execute(query)
+        }
     }
 
     /// Promedio semanal de VO₂max de las últimas `weeks` semanas (solo semanas con dato).

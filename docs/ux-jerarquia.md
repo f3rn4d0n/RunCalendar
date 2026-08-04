@@ -121,6 +121,19 @@ ahí está bien.
 llega, y a quien sí las busca un plegado solo le cuesta un toque de más. Plegar todo lo avanzado
 sería sobrediseñar — el criterio 5 dice *baja o pliega*, no las dos cosas.
 
+### Una métrica, dos preguntas, dos sitios
+
+El HRV aparece **dos veces** en *Progreso* y no es duplicación:
+
+| Dónde | Qué pregunta responde | Forma |
+|---|---|---|
+| Recuperación | ¿Puedo apretar **hoy**? | Diario, con su ruido |
+| Tu evolución | ¿Me estoy **adaptando**? | Promedio semanal, ~6 meses |
+
+Es el mismo patrón que los kilómetros: el número de la semana en *Resumen*, la curva en *Tu
+evolución*. **Antes de mover una métrica "que está repetida", comprueba si las dos instancias
+responden la misma pregunta.** Si no, moverlas juntas empeora las dos.
+
 ## Antes de mover una pantalla
 
 1. ¿Qué pregunta responde? ¿La responde ya otra?
