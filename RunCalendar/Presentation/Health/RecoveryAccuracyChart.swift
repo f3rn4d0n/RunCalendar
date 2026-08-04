@@ -52,9 +52,8 @@ struct RecoveryAccuracyChart: View {
             .frame(height: 160)
         } header: {
             Text("¿Acierta el modelo?")
-        } footer: {
-            Text("Compara tu sensación con lo que el estimado predijo. Con ~3–4 semanas de registros "
-                + "se podrá personalizar la heurística a tu cuerpo.")
+            SectionNote("Compara tu sensación con lo que el estimado predijo. Con ~3–4 semanas "
+                        + "de registros se podrá personalizar la heurística a tu cuerpo.")
         }
     }
 

@@ -19,6 +19,8 @@ Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Au
 > tiene la visión; [Pendientes](docs/pendientes.md) tiene el backlog priorizado, y
 > [El motor de entrenamiento](docs/motor-de-entrenamiento.md) compara lo que hay con lo que
 > sostiene la evidencia (progresión, descargas, tipos de sesión, periodización).
+> Si vas a tocar una pantalla, lee antes
+> [Jerarquía de pantallas](docs/ux-jerarquia.md): qué va arriba y con qué criterio.
 
 ---
 
@@ -262,7 +264,36 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
 - Detalle de **solo lectura** (editar es explícito).
 
 ### 📈 Progreso · Condición (Apple Salud / HealthKit)
-- **Resumen de forma**: VO₂max, FC en reposo, tendencia de fitness (Swift Charts interactivas).
+
+> **Orden de la pantalla** (el porqué, en **[docs/ux-jerarquia.md](docs/ux-jerarquia.md)**):
+> check-in *si está pendiente* → resumen → ¿listo para…? → recuperación y carga → gráficas →
+> registrar. *Hoy* ya responde "¿cómo estoy hoy?" con el anillo, así que aquí se responde **"¿dónde
+> estoy y hacia dónde voy?"** — y la recuperación baja de puesto sin perder nada. Antes la
+> recuperación estaba en **cuatro** pedazos separados, el readiness partido en dos con nueve
+> secciones en medio, y las entradas (check-in, review) cortaban el informe por la mitad.
+
+- **Resumen de forma**, ordenado de lo accionable a lo avanzado: volumen de la semana, promedio y
+  carrera más larga primero; VO₂max y FC en reposo al final. No todos los atletas están buscando
+  mejorar su VO₂max, y a quien solo quiere ver sus kilómetros esa fila no debe competirle la primera
+  mirada. **Con seis filas el orden basta**: se probó plegando las tres últimas y cobrar un toque
+  por tres filas es fricción, no jerarquía.
+- **Las notas explicativas van dentro de su sección** (`SectionNote`), no en el `footer`: el pie de
+  una sección y el encabezado de la siguiente se leen con el mismo peso y no se distingue de quién
+  habla el texto.
+- **Tendencia de fitness** (Swift Charts interactivas), al final: estar abajo ya es jerarquía
+  suficiente, y a quien las busca un plegado solo le costaría un toque de más. Volumen semanal,
+  ritmo, cadencia, **VO₂max** y **línea base de HRV**.
+- **Línea base de HRV** (`HRVPoint`): el promedio **semanal** en ~6 meses, con un veredicto de si
+  sube, se mantiene o baja. No es el HRV de hoy —ese vive en *Recuperación* y responde "¿puedo
+  apretar?"— sino la pregunta de meses: **"¿me estoy adaptando?"**.
+  Se compara el último bloque de 4 semanas con el anterior, y **solo aparece con 8 semanas de
+  datos**: dos puntos bastan para dibujar una línea pero no para decir nada. Cambios por debajo del
+  5% se llaman "estable", porque el HRV varía ~5–10% de una semana a otra sin que cambie nada, y
+  llamarle mejora a eso sería inventar una señal.
+  Los textos son deliberadamente cautos: el HRV **no es un marcador de rendimiento**, lo mueven el
+  sueño y el estrés tanto como el entrenamiento, y el dato de Apple Salud se muestrea cuando el
+  reloj puede —no en una medición matinal controlada—, así que sirve para tu tendencia y **nunca**
+  para compararte con otra persona.
 - **Recuperación estimada** (orientativa, no médica): horas hasta estar recuperado a partir de
   **HRV (SDNN)**, **FC en reposo**, **carga reciente** (ponderada por RPE) y **sueño**.
 - **Check-in diario** "¿cómo te sientes?" (1–5) + gráfica **"¿acierta el modelo?"**
@@ -639,7 +670,7 @@ los tabs**, no en una pantalla.
 | **Condición dice "disponible en iPhone"** | Estás en Mac. HealthKit no existe en macOS. |
 | **No aparece mi historial de Salud** | El Simulador no tiene tu historial: usa tu **iPhone físico**. |
 | **El RPE no llega solo del Apple Watch** | Solo iOS 18+ expone `workoutEffortScore`, y solo si calificaste el esfuerzo en el reloj. Si no, el RPE queda vacío y se pone editando. |
-| **La calibración no se activa** | Necesita ~14 check-ins en días distintos. Para probar ya, usa el botón **"Sembrar 18 check-ins (debug)"** en Condición (solo builds DEBUG; en memoria, no persiste). |
+| **La calibración no se activa** | Necesita ~14 check-ins en días distintos, y se registran de uno en uno. Hubo un botón de siembra en DEBUG y se borró: con historial real deja de hacer falta, y un andamio que ya no se usa es código que alguien mantiene sin saber por qué. |
 | **Sign in with Apple falla en dispositivo** | Cuenta gratis de Apple Developer no soporta la capability. Quita `com.apple.developer.applesignin` del entitlements **en local** (no lo commitees). |
 | **"Cannot find type…" en Xcode pero compila** | Ruido del índice de SourceKit en frío. Confía en `xcodebuild` (BUILD SUCCEEDED). |
 | **Archivo nuevo no compila** | XcodeGen no lo conoce: corre `xcodegen generate` (el `.xcodeproj` está gitignored). |
@@ -663,7 +694,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 183 pruebas en 16 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 191 pruebas en 17 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -782,7 +813,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 183 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 191 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

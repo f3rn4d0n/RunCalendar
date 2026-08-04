@@ -97,31 +97,39 @@ struct HealthView: View {
         .padding()
     }
 
+    /// Orden de la pantalla. El **porqué** está en `docs/ux-jerarquia.md`; en corto:
+    ///
+    /// - *Hoy* ya responde "¿cómo estoy hoy?" con el anillo de recuperación, así que aquí se
+    ///   responde "¿dónde estoy y hacia dónde voy?" — y la recuperación baja de puesto sin perder
+    ///   nada, porque su titular vive en otra pantalla.
+    /// - Lo **accionable pendiente** manda: un check-in sin hacer va arriba; hecho, se va al final.
+    ///   Una tarea cumplida es ruido en un informe.
+    /// - Un tema, un bloque. La recuperación estaba en cuatro pedazos separados por otras
+    ///   secciones, y el readiness partido en dos con nueve secciones en medio.
+    /// - Lo avanzado no se esconde, **deja de competir**: baja en la página o se pliega. Quien
+    ///   busca su VO₂max lo encuentra; a quien solo quiere sus kilómetros no le estorba.
     private func loaded(_ data: HealthLoaded) -> some View {
         List {
-            raceReadinessSection(data: data)
+            // 1. Lo único que la pantalla te pide hacer, y solo si está pendiente.
+            if viewModel.todayCheckIn == nil { checkInSection }
 
+            // 2. Dónde estás.
+            summarySection(data.summary)
+
+            // 3. Para qué te está sirviendo: tus carreras y las distancias, juntas.
+            raceReadinessSection(data: data)
+            distanceReadinessSection(data: data)
+
+            // 4. Si puedes apretar. Un solo bloque, no cuatro pedazos, y dentro de él en orden
+            //    de cercanía: el estimado de hoy, qué tan fiable es, tu tendencia, tu carga.
+            //    "¿Acierta el modelo?" estaba detrás de la tendencia, y mide el estimado — no la
+            //    tendencia. Va pegado a lo que juzga.
             if let recovery = data.recovery {
                 recoverySection(recovery)
             }
-
-            checkInSection
-            bodyReviewSection
-
             if viewModel.recentCheckIns.count >= 3 {
                 RecoveryAccuracyChart(checkIns: viewModel.recentCheckIns)
             }
-
-#if DEBUG
-            Section {
-                Button("Sembrar 18 check-ins (debug)") {
-                    Task { await viewModel.seedDemoCheckIns() }
-                }
-            } footer: {
-                Text("Solo desarrollo: simula 2+ semanas de registros para ver la calibración. Se borra al reiniciar.")
-            }
-#endif
-
             if let trend = data.recoveryTrend {
                 RecoveryTrendSection(trend: trend)
             }
@@ -129,33 +137,15 @@ struct HealthView: View {
                 workloadSection(workload)
             }
 
-            summarySection(data.summary)
-
+            // 5. Cómo evolucionas. Al final: estar abajo ya es jerarquía suficiente — quien no las
+            // busca no llega, y a quien sí, un plegado solo le costaría un toque de más.
             if let fitnessTrend = data.fitnessTrend {
                 FitnessTrendSection(trend: fitnessTrend)
             }
 
-            Section {
-                ForEach(data.readiness) { item in
-                    NavigationLink {
-                        ReadinessDetailView(readiness: item)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: item.level.systemImage)
-                                .foregroundStyle(color(for: item.level))
-                                .frame(width: 28)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(item.distance.displayName) · \(item.level.rawValue)")
-                                Text(item.note).font(.mCaption).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            } header: {
-                Text("¿Listo para…?")
-            } footer: {
-                Text("Toca una distancia para ver qué mejorar. Estimado orientativo, no es consejo médico.")
-            }
+            // 6. Registrar. Las entradas estaban en medio del informe e interrumpían la lectura.
+            if viewModel.todayCheckIn != nil { checkInSection }
+            bodyReviewSection
         }
         .scrollContentBackground(.hidden)
         .listRowBackground(Neon.surface)
@@ -189,9 +179,37 @@ struct HealthView: View {
                 }
             } header: {
                 Text(rows.contains { $0.0.isPriority } ? "Tus carreras prioritarias" : "Tu próxima carrera")
-            } footer: {
-                Text("Toca una carrera para ver qué mejorar antes del evento.")
+                SectionNote("Toca una carrera para ver qué mejorar antes del evento.")
             }
+        }
+    }
+
+    /// Readiness **por distancia**: ¿podría con un 21K?
+    ///
+    /// Va pegada a la de tus carreras porque responden la misma pregunta con distinto alcance —
+    /// una mira tu calendario y la otra es exploratoria. Antes estaban en extremos opuestos de la
+    /// pantalla, con nueve secciones en medio, y eso era buena parte de la sensación de desorden.
+    private func distanceReadinessSection(data: HealthLoaded) -> some View {
+        Section {
+            ForEach(data.readiness) { item in
+                NavigationLink {
+                    ReadinessDetailView(readiness: item)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: item.level.systemImage)
+                            .foregroundStyle(color(for: item.level))
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(item.distance.displayName) · \(item.level.rawValue)")
+                            Text(item.note).font(.mCaption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text("¿Listo para…?")
+            SectionNote("Toca una distancia para ver qué mejorar. Estimado orientativo, no es "
+                        + "consejo médico.")
         }
     }
 
@@ -212,9 +230,8 @@ struct HealthView: View {
                     }
                 }
             }
-        } footer: {
-            Text("Peso, cintura, energía y hambre. Las medidas se guardan en Salud; "
-                + "la cintura detecta el progreso que la báscula esconde.")
+            SectionNote("Peso, cintura, energía y hambre. Las medidas se guardan en Salud; "
+                        + "la cintura detecta el progreso que la báscula esconde.")
         }
     }
 
@@ -224,73 +241,27 @@ struct HealthView: View {
             if let checkIn = viewModel.todayCheckIn, !editingCheckIn {
                 // Compacto: ya registraste hoy.
                 HStack {
-                    Label("Hoy: \(feelingLabel(checkIn.feeling))", systemImage: "\(checkIn.feeling).circle.fill")
-                        .foregroundStyle(feelingColor(checkIn.feeling))
+                    Label("Hoy: \(FeelingPicker.label(checkIn.feeling))",
+                          systemImage: "\(checkIn.feeling).circle.fill")
+                        .foregroundStyle(FeelingPicker.color(checkIn.feeling))
                     Spacer()
                     Button("Cambiar") { editingCheckIn = true }.font(.mSubheadline)
                 }
             } else {
-                feelingButtons(selected: viewModel.todayCheckIn?.feeling)
+                FeelingPicker(selected: viewModel.todayCheckIn?.feeling) { value in
+                    await viewModel.submitCheckIn(feeling: value)
+                    editingCheckIn = false
+                }
             }
         } header: {
             Text("¿Cómo te sientes hoy?")
-        } footer: {
             if viewModel.todayCheckIn == nil || editingCheckIn {
-                Text("Tu registro se compara con el estimado del modelo para personalizarlo con el tiempo.")
+                SectionNote("Tu registro se compara con el estimado del modelo para "
+                            + "personalizarlo con el tiempo.")
             }
         }
     }
 
-    private func feelingButtons(selected: Int?) -> some View {
-        HStack(spacing: 8) {
-            ForEach(1...5, id: \.self) { value in
-                Button {
-                    Task {
-                        await viewModel.submitCheckIn(feeling: value)
-                        editingCheckIn = false
-                    }
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: "\(value).circle.fill").font(.system(size: 26))
-                            .foregroundStyle(feelingColor(value))
-                        Text(feelingLabel(value)).font(.mCaption2).lineLimit(1)
-                            .foregroundStyle(selected == value ? AnyShapeStyle(feelingColor(value))
-                                                               : AnyShapeStyle(.secondary))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(selected == value ? AnyShapeStyle(feelingColor(value).opacity(0.16))
-                                                  : AnyShapeStyle(Color.clear),
-                                in: RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.vertical, 2)
-    }
-
-    private func feelingLabel(_ value: Int) -> String {
-        switch value {
-        case 1: return "Agotado"
-        case 2: return "Cansado"
-        case 3: return "Normal"
-        case 4: return "Bien"
-        default: return "Fresco"
-        }
-    }
-
-    /// Color por nivel de cansancio: rojo (agotado) → verde (fresco).
-    private func feelingColor(_ value: Int) -> Color {
-        switch value {
-        case 1: return Color(red: 0.90, green: 0.25, blue: 0.30)
-        case 2: return Neon.orange
-        case 3: return Neon.gold
-        case 4: return Neon.teal
-        default: return Neon.green
-        }
-    }
-
-    @ViewBuilder
     private func workloadSection(_ w: WorkloadRatio) -> some View {
         Section {
             HStack(spacing: 16) {
@@ -310,10 +281,9 @@ struct HealthView: View {
             Text(w.note).font(.mCaption).foregroundStyle(.secondary)
         } header: {
             Text("Carga de entrenamiento")
-        } footer: {
-            Text("Relación carga aguda:crónica (ACWR): tu semana vs. tu promedio de 4 semanas. "
-                + "Usa tus entrenamientos registrados, ponderados por esfuerzo (RPE): una sesión "
-                + "intensa pesa más que una suave de la misma duración.")
+            SectionNote("Relación carga aguda:crónica (ACWR): tu semana vs. tu promedio de 4 "
+                        + "semanas. Usa tus entrenamientos registrados, ponderados por esfuerzo "
+                        + "(RPE): una sesión intensa pesa más que una suave de la misma duración.")
         }
     }
 
@@ -376,8 +346,8 @@ struct HealthView: View {
             }
         } header: {
             Text("Recuperación")
-        } footer: {
-            Text("Estimado orientativo a partir de tu HRV, FC en reposo y carga reciente. No es consejo médico.")
+            SectionNote("Estimado orientativo a partir de tu HRV, FC en reposo y carga "
+                        + "reciente. No es consejo médico.")
         }
     }
 
@@ -399,8 +369,14 @@ struct HealthView: View {
     }
 
     @ViewBuilder
+    /// Dónde estás. Seis métricas, de lo accionable a lo que hay que ir a buscar.
+    ///
+    /// Estuvieron plegadas tras un "Más detalle" y se quitó: eran **tres filas**, y cobrar un toque
+    /// por tres filas no es jerarquía, es fricción. La sección ya está arriba y ordenada de lo
+    /// esencial a lo avanzado, que es suficiente — ver el criterio 5 en `docs/ux-jerarquia.md`,
+    /// que dice *baja **o** pliega*, no las dos.
     private func summarySection(_ summary: FitnessSummary) -> some View {
-        Section("Resumen (\(summary.weeks) semanas)") {
+        Section {
             MetricRow(label: "Esta semana (7 días)", value: km(summary.last7DaysKm), icon: "calendar",
                       info: HealthMetricInfo.thisWeek())
             MetricRow(label: "Promedio semanal (\(summary.weeks) sem)",
@@ -411,7 +387,8 @@ struct HealthView: View {
             MetricRow(label: "Entrenamientos", value: "\(summary.runCount)", icon: "number",
                       info: HealthMetricInfo.runCount())
             if let vo2 = summary.vo2Max {
-                MetricRow(label: "VO₂max", value: vo2.formatted(.number.precision(.fractionLength(1))),
+                MetricRow(label: "VO₂max",
+                          value: vo2.formatted(.number.precision(.fractionLength(1))),
                           icon: "lungs.fill",
                           info: HealthMetricInfo.vo2Max(vo2, age: summary.age))
             }
@@ -419,6 +396,8 @@ struct HealthView: View {
                 MetricRow(label: "FC en reposo", value: "\(Int(resting)) lpm", icon: "heart.fill",
                           info: HealthMetricInfo.restingHeartRate(resting))
             }
+        } header: {
+            Text("Resumen (\(summary.weeks) semanas)")
         }
     }
 

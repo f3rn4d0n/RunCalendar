@@ -10,6 +10,7 @@ struct FitnessTrendSection: View {
     @State private var paceSel: Date?
     @State private var cadenceSel: Date?
     @State private var vo2Sel: Date?
+    @State private var hrvSel: Date?
 
     /// Corridas con cadencia registrada (cronológico, ya viene ordenado).
     private var cadence: [RunPacePoint] { trend.pace.filter { $0.stepsPerMinute != nil } }
@@ -18,6 +19,9 @@ struct FitnessTrendSection: View {
     private var enoughPace: Bool { trend.pace.count >= 3 }
     private var enoughCadence: Bool { cadence.count >= 3 }
     private var enoughVO2: Bool { trend.vo2Max.count >= 2 }
+    /// Dos puntos bastan para dibujar una línea, pero no para decir nada: el veredicto necesita dos
+    /// bloques de cuatro semanas. Se pinta desde ahí para no insinuar una tendencia que no existe.
+    private var enoughHRV: Bool { trend.hrvBaseline.count >= HRVPoint.weeksForVerdict }
 
     var body: some View {
         Section {
@@ -25,6 +29,7 @@ struct FitnessTrendSection: View {
             if enoughPace { paceChart }
             if enoughCadence { cadenceChart }
             if enoughVO2 { vo2Chart }
+            if enoughHRV { hrvChart }
             if !enoughVolume && !enoughPace && !enoughVO2 {
                 Label("Corre unas semanas más para ver tu tendencia aquí.",
                       systemImage: "chart.bar.xaxis")
@@ -32,9 +37,11 @@ struct FitnessTrendSection: View {
             }
         } header: {
             Text("Tu evolución")
-        } footer: {
-            Text("Toca cualquier punto para ver su valor. El VO₂max se mueve en meses: es la mejor "
-                + "señal de que tu base aeróbica mejora.")
+            SectionNote("Toca cualquier punto para ver su valor. El VO₂max y la línea base de HRV "
+                        + "se mueven en **meses**: son señales de adaptación, no de cómo estás hoy "
+                        + "— eso vive en Recuperación. El HRV de Apple Salud se muestrea cuando el "
+                        + "reloj puede, no en una medición matinal controlada, así que sirve para "
+                        + "ver tu tendencia y no para compararte con nadie.")
         }
     }
 
@@ -153,6 +160,75 @@ struct FitnessTrendSection: View {
             .frame(height: 150)
         }
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Línea base de HRV
+
+    /// La **línea base** de HRV en meses, que no es lo mismo que el HRV de hoy.
+    ///
+    /// El dato diario ya está en *Recuperación* y responde "¿puedo apretar hoy?". Éste responde
+    /// "¿me estoy adaptando?", y por eso vive aquí, junto al VO₂max y el volumen.
+    private var hrvChart: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Línea base de HRV").font(.mSubheadline.weight(.semibold))
+            Text("Promedio semanal (ms). Compara tus últimas 4 semanas con las 4 anteriores — "
+                 + "nunca con las de otra persona: el valor absoluto no dice nada entre individuos.")
+                .font(.mCaption2).foregroundStyle(.secondary)
+
+            Chart {
+                ForEach(trend.hrvBaseline) { point in
+                    LineMark(x: .value("Fecha", point.date),
+                             y: .value("HRV", point.milliseconds))
+                        .foregroundStyle(Neon.teal)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.catmullRom)
+                    PointMark(x: .value("Fecha", point.date),
+                              y: .value("HRV", point.milliseconds))
+                        .foregroundStyle(Neon.teal)
+                        .symbolSize(30)
+                }
+                if let sel = nearestByDate(hrvSel, in: trend.hrvBaseline, \.date) {
+                    chartSelectionMark(date: sel.date,
+                                       title: sel.date.mediumString(),
+                                       value: "\(Int(sel.milliseconds)) ms")
+                }
+            }
+            .chartXSelection(value: $hrvSel)
+            .chartYScale(domain: .automatic(includesZero: false))
+            .chartYAxis { AxisMarks(position: .leading) }
+            .frame(height: 150)
+
+            hrvVerdict
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// Qué significa la curva, en una frase — y qué **no** significa.
+    @ViewBuilder private var hrvVerdict: some View {
+        switch HRVPoint.trend(of: trend.hrvBaseline) {
+        case .rising:
+            verdictLine("Tu base viene subiendo", Neon.green,
+                        "Suele acompañar a una buena adaptación al entrenamiento. No es una nota: "
+                        + "es una señal más, y el sueño y el estrés la mueven tanto como correr.")
+        case .stable:
+            verdictLine("Tu base se mantiene", Neon.gold,
+                        "Lo normal en un bloque estable. Que no suba no significa que no estés "
+                        + "mejorando — el HRV no es un marcador de rendimiento.")
+        case .falling:
+            verdictLine("Tu base viene bajando", Neon.orange,
+                        "Puede ser carga acumulada sin recuperar, pero también sueño, enfermedad, "
+                        + "alcohol o estrés. Míralo junto a tu carga y a cómo te sientes, no solo.")
+        case .notEnough:
+            EmptyView()
+        }
+    }
+
+    private func verdictLine(_ title: String, _ color: Color, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.mCaption.weight(.semibold)).foregroundStyle(color)
+            Text(detail).font(.mCaption2).foregroundStyle(.secondary)
+        }
+        .padding(.top, 2)
     }
 
     // MARK: - VO₂max en el tiempo

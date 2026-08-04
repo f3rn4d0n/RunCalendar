@@ -225,37 +225,4 @@ final class HealthViewModel {
         }
     }
 
-#if DEBUG
-    /// Debug: siembra check-ins sintéticos en memoria para ver la calibración v2 sin esperar
-    /// días. Un tercio son "días duros" (poco sueño + carga alta + te sentiste peor), para que
-    /// el segmento se active si hoy también es día duro. No toca Firestore; se pierde al reiniciar.
-    func seedDemoCheckIns() async {
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        recentCheckIns = (1...18).reversed().map { day in
-            let hardDay = day % 3 == 0
-            return RecoveryCheckIn(
-                date: cal.date(byAdding: .day, value: -day, to: today) ?? today,
-                feeling: hardDay ? 2 : 5,       // peor en día duro, fresco el resto
-                predictedRemainingHours: 20,    // modelFeeling 3
-                hrv: nil, baselineHRV: nil,
-                sleepHours: hardDay ? 5.5 : 8,
-                loadMinutes: hardDay ? 420 : 120
-            )
-        }
-        guard case .loaded(let data) = state else { return }
-        let sessions = trainingViewModel.sessions
-        let sessionLoad = sessions.isEmpty ? nil : computeTrainingLoad(sessions)
-        let snapshot = (try? await fetchRecovery()) ?? nil
-        let recovery = snapshot.map { makeRecovery(from: $0, sessionLoad: sessionLoad) } ?? data.recovery
-        state = .loaded(HealthLoaded(
-            summary: data.summary,
-            readiness: data.readiness,
-            recovery: recovery,
-            recoveryTrend: data.recoveryTrend,
-            workload: data.workload,
-            fitnessTrend: data.fitnessTrend
-        ))
-    }
-#endif
 }
