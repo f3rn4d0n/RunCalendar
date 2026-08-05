@@ -34,9 +34,15 @@ final class GoalsViewModel {
     private let inferPrimary: InferPrimaryGoalUseCase
     private let describeWorkout: DescribeWorkoutUseCase
     private let suggestPlan: SuggestPlanUseCase
+    private let saveWeekPlan: SaveWeekPlanUseCase
+    private let fetchRecentWeekPlans: FetchRecentWeekPlansUseCase
 
     /// Datos actuales del atleta (de Salud), para progreso de VO₂max/peso y recomendaciones.
     private(set) var metrics: AthleteMetrics = .empty
+
+    /// Semanas ya decididas, traídas de Firestore. En memoria porque `plan(weekOffset:)` se lee
+    /// mientras SwiftUI dibuja y no puede esperar a la red.
+    private(set) var storedWeeks: [FrozenWeek] = []
 
     /// Config del plan (días/semana + días preferidos). Persistida en UserDefaults; el plan en sí
     /// es derivado de tus metas y no se persiste (función pura de metas + volumen + config).
@@ -87,6 +93,8 @@ final class GoalsViewModel {
         inferPrimary: InferPrimaryGoalUseCase,
         describeWorkout: DescribeWorkoutUseCase,
         suggestPlan: SuggestPlanUseCase,
+        saveWeekPlan: SaveWeekPlanUseCase,
+        fetchRecentWeekPlans: FetchRecentWeekPlansUseCase,
         racesViewModel: RacesViewModel,
         trainingViewModel: TrainingViewModel
     ) {
@@ -109,6 +117,8 @@ final class GoalsViewModel {
         self.inferPrimary = inferPrimary
         self.describeWorkout = describeWorkout
         self.suggestPlan = suggestPlan
+        self.saveWeekPlan = saveWeekPlan
+        self.fetchRecentWeekPlans = fetchRecentWeekPlans
         self.racesViewModel = racesViewModel
         self.trainingViewModel = trainingViewModel
     }
@@ -116,6 +126,7 @@ final class GoalsViewModel {
     func start() async {
         guard !hasStarted else { return }
         hasStarted = true
+        await loadStoredWeeks()
         await refreshBody()
         for await goals in observeGoals(userID: userID) {
             self.goals = goals
@@ -417,7 +428,8 @@ final class GoalsViewModel {
         // La semana en curso se sirve **congelada** si ya se decidió: es lo que hace que el plan
         // que ves el jueves sea el que aceptaste el lunes. La próxima nunca se congela — es una
         // vista previa y tiene que reflejar al instante cualquier cambio que hagas.
-        if weekOffset == 0, let frozen = Self.loadFrozenWeek(),
+        if weekOffset == 0,
+           let frozen = storedWeeks.first(where: { Calendar.app.isDate($0.weekStart, inSameDayAs: Self.weekStart(offset: 0)) }),
            frozen.isValid(for: Self.weekStart(offset: 0), fingerprint: currentFingerprint) {
             return frozen.plan
         }
@@ -429,15 +441,31 @@ final class GoalsViewModel {
     /// Va aparte y no dentro de `plan(weekOffset:)` a propósito: ese se lee mientras SwiftUI dibuja,
     /// y guardar desde ahí sería un efecto secundario en pleno render. Se llama desde un `.task`,
     /// igual que la siembra de días.
-    func freezeCurrentWeekIfNeeded() {
+    func freezeCurrentWeekIfNeeded() async {
         let start = Self.weekStart(offset: 0)
         let fingerprint = currentFingerprint
-        if let frozen = Self.loadFrozenWeek(), frozen.isValid(for: start, fingerprint: fingerprint) {
+        if let frozen = storedWeeks.first(where: { Calendar.app.isDate($0.weekStart, inSameDayAs: start) }),
+           frozen.isValid(for: start, fingerprint: fingerprint) {
             return
         }
         guard let plan = generatedPlan(weekOffset: 0) else { return }
-        Self.saveFrozenWeek(FrozenWeek(weekStart: start, fingerprint: fingerprint, plan: plan))
+        let week = FrozenWeek(weekStart: start, fingerprint: fingerprint, plan: plan)
+        // Se refleja en memoria aunque la escritura falle: el atleta no puede quedarse con un plan
+        // que se rehace en cada render porque Firestore no respondió.
+        storedWeeks.removeAll { Calendar.app.isDate($0.weekStart, inSameDayAs: start) }
+        storedWeeks.append(week)
+        do { try await saveWeekPlan(week, userID: userID) }
+        catch { Log.health.failure("weekPlan: al guardar la semana", error) }
     }
+
+    /// Trae las semanas guardadas. Sin esto, cada arranque volvería a decidir la semana en curso.
+    func loadStoredWeeks() async {
+        storedWeeks = (try? await fetchRecentWeekPlans(weeks: Self.weeksOfHistory, userID: userID)) ?? []
+    }
+
+    /// Cuántas semanas atrás se traen. ponytail: un trimestre alcanza para mirar un bloque; súbelo
+    /// si algún día hay una vista de temporada.
+    private static let weeksOfHistory = 13
 
     /// Las decisiones con las que se generó la semana. Cambiarlas la rehace; entrenar, no.
     private var currentFingerprint: String {
@@ -513,11 +541,30 @@ final class GoalsViewModel {
     /// para adherencia histórica hay que guardar un snapshot del plan por semana.
     var weekAdherence: PlanAdherence? {
         guard let plan = currentPlan, weekStatus == nil else { return nil }
-        let done = runningSessions(since: plan.weekStart)
+        return adherence(for: plan)
+    }
+
+    /// Adherencia de **cualquier** semana con plan guardado, no solo la actual.
+    ///
+    /// Está separada de `weekAdherence` porque ahora se usa dos veces: para la semana en curso y
+    /// para las pasadas. Las sesiones ya eran durables; lo que faltaba era el plan de entonces —
+    /// regenerarlo hoy daría otro, porque depende de tu volumen de hoy.
+    ///
+    /// Los días duros "fallados" solo cuentan hasta hoy en la semana en curso; en una semana
+    /// cerrada cuentan todos, que es lo correcto: ya no hay margen para hacerlos.
+    func adherence(for plan: TrainingPlan) -> PlanAdherence {
+        let cal = Calendar.app
+        let weekEnd = cal.date(byAdding: .day, value: 7, to: plan.weekStart) ?? plan.weekStart
+        let done = trainingViewModel.sessions.filter {
+            $0.completed && $0.type == .running && $0.date >= plan.weekStart && $0.date < weekEnd
+        }
         let hardDays = plan.days.filter { $0.kind.isHard }
-        let todayPosition = PlannedDay.position(of: Calendar.current.component(.weekday, from: Date()))
+        let isPast = weekEnd <= Date()
+        let cutoff = isPast
+            ? 7
+            : PlannedDay.position(of: cal.component(.weekday, from: Date()))
         let hardWeekdays = Set(done.filter { isHard($0, plan: plan) }
-            .map { Calendar.current.component(.weekday, from: $0.date) })
+            .map { cal.component(.weekday, from: $0.date) })
         return PlanAdherence(
             plannedSessions: plan.days.count,
             completedSessions: done.count,
@@ -526,10 +573,22 @@ final class GoalsViewModel {
             plannedHardSessions: hardDays.count,
             completedHardSessions: done.filter { isHard($0, plan: plan) }.count,
             missedHardDays: hardDays.filter {
-                $0.weekPosition < todayPosition && !hardWeekdays.contains($0.weekday)
+                $0.weekPosition < cutoff && !hardWeekdays.contains($0.weekday)
             }.count,
             completedMinutes: done.compactMap(\.durationMin).reduce(0, +)
         )
+    }
+
+    /// Las semanas cerradas con su adherencia, de la más reciente a la más vieja.
+    ///
+    /// Es lo que la foto en `UserDefaults` no podía dar: solo guardaba la semana en curso, así que
+    /// mirar atrás era imposible por construcción.
+    var pastWeeks: [(plan: TrainingPlan, adherence: PlanAdherence)] {
+        let thisWeek = Self.currentWeekStart()
+        return storedWeeks
+            .filter { $0.weekStart < thisWeek }
+            .sorted { $0.weekStart > $1.weekStart }
+            .map { ($0.plan, adherence(for: $0.plan)) }
     }
 
     /// Km corridos por día en la semana de ese plan.
@@ -781,18 +840,6 @@ final class GoalsViewModel {
     private static func savePlanConfig(_ config: PlanConfig) {
         UserDefaults.standard.set(config.daysPerWeek, forKey: planDaysKey)
         UserDefaults.standard.set(config.preferredWeekdays, forKey: planWeekdaysKey)
-    }
-
-    private static let frozenWeekKey = "plan.frozenWeek"
-
-    private static func saveFrozenWeek(_ week: FrozenWeek) {
-        guard let data = try? JSONEncoder().encode(week) else { return }
-        UserDefaults.standard.set(data, forKey: frozenWeekKey)
-    }
-
-    private static func loadFrozenWeek() -> FrozenWeek? {
-        guard let data = UserDefaults.standard.data(forKey: frozenWeekKey) else { return nil }
-        return try? JSONDecoder().decode(FrozenWeek.self, from: data)
     }
 
     private static let intentKey = "intake.intent"

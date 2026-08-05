@@ -52,6 +52,13 @@ avatar de la barra superior. (Antes eran 6 tabs por tipo de dato → iOS las col
   cuando cambian tus **datos**. Sin eso, cualquier carrera rompería la foto y no habríamos arreglado
   nada. La semana **siguiente nunca se congela**: es una vista previa y refleja los cambios al
   instante.
+- **Las semanas se guardan** (`WeekPlanRepository`, Firestore: `users/{uid}/weekPlans/{yyyy-MM-dd}`),
+  y con eso llega la **adherencia histórica**: en la vista de la semana, un bloque de *Semanas
+  anteriores* con lo que cada una pidió y lo que hiciste. Cada semana se mide **contra el plan que
+  tenías entonces** — regenerarlo hoy daría otro, porque depende de tu volumen actual, y te estaría
+  midiendo contra algo que nunca viste. Esa es la razón de fondo para persistirlo, más que la
+  comodidad. El plan va como **JSON en un campo**: es un árbol que solo se lee entero, y mapearlo
+  campo a campo costaría un DTO grande en paralelo a las entidades.
 - **Estructura por días/semana** (1–7): 3 días → series + tempo + tirada larga; más días meten
   rodajes fáciles **alternados** (duro/fácil) para no encadenar calidad. **80/20**, tirada larga
   como día más largo.
@@ -694,7 +701,7 @@ Contexto que **no** se deduce del código y ahorra tropiezos:
   widget está en el backlog y el clima usa **Open-Meteo** (REST) en vez de WeatherKit.
 - **Idioma**: identificadores y tipos en **inglés**; textos de UI, comentarios, commits y PRs en
   **español**. Mantén esa división.
-- **Pruebas** (`RunCalendarTests`, Swift Testing): 191 pruebas en 17 suites, **en CI en cada PR**
+- **Pruebas** (`RunCalendarTests`, Swift Testing): 195 pruebas en 17 suites, **en CI en cada PR**
   (`.github/workflows/pruebas.yml`). En local, con ⌘U o con
   ```bash
   xcodebuild test -scheme RunCalendar -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
@@ -813,7 +820,7 @@ Lo que hay que saber sin abrirlo:
 |---|---|
 | **P0 · roto hoy** | *vacío* — el modo lesión/enfermedad ya existe (`WeekStatus`) |
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
-| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 191 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
+| **P1 · antes de tener usuarios** | **Observabilidad**: Crashlytics ✅ + no fatales ✅ (`Logger.failure`) + 5 eventos de uso ✅ (`Usage`) · **pruebas**: target ✅ + 195 pruebas ✅ + CI ✅; dobles de repositorio ✅ + cableado de ViewModels ✅; faltan HealthViewModel y TrainingViewModel |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
 | **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |

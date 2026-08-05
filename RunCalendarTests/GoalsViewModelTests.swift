@@ -615,12 +615,12 @@ struct GoalsViewModelTests {
 
         let lunesApp = TestApp(goals: [meta], sessions: base)
         await lunesApp.start()
-        lunesApp.goals.freezeCurrentWeekIfNeeded()
+        await lunesApp.goals.freezeCurrentWeekIfNeeded()
         guard let lunes = lunesApp.goals.currentPlan else {
             Issue.record("hace falta un plan")
             return
         }
-        let foto = UserDefaults.standard.data(forKey: "plan.frozenWeek")
+        let foto = lunesApp.weekPlanRepo.weeks
 
         // Otro día de la misma instalación: llega una carrera larga que subiría la base, y con ella
         // todos los objetivos. `TestApp` limpia los defaults al montarse, así que se restaura la
@@ -629,7 +629,7 @@ struct GoalsViewModelTests {
             TrainingSession(date: Date(), type: .running, title: "Hoy",
                             distanceKm: 25, completed: true)
         ])
-        UserDefaults.standard.set(foto, forKey: "plan.frozenWeek")
+        jueves.weekPlanRepo.weeks = foto
         await jueves.start()
 
         #expect(jueves.goals.currentPlan == lunes, "la semana ya estaba decidida")
@@ -640,7 +640,7 @@ struct GoalsViewModelTests {
         let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
         await app.start()
         app.goals.planConfig = PlanConfig(daysPerWeek: 3)
-        app.goals.freezeCurrentWeekIfNeeded()
+        await app.goals.freezeCurrentWeekIfNeeded()
         let antes = app.goals.currentPlan
 
         app.goals.planConfig = PlanConfig(daysPerWeek: 6)
@@ -654,7 +654,7 @@ struct GoalsViewModelTests {
         let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 5, weeks: 4))
         await app.start()
         app.goals.planConfig = PlanConfig(daysPerWeek: 5)
-        app.goals.freezeCurrentWeekIfNeeded()
+        await app.goals.freezeCurrentWeekIfNeeded()
         #expect(app.goals.currentPlan?.days.contains { $0.kind == .intervals } == true)
 
         app.goals.intake.intent = .finish
@@ -666,7 +666,7 @@ struct GoalsViewModelTests {
     func nextWeekIsNeverFrozen() async {
         let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
         await app.start()
-        app.goals.freezeCurrentWeekIfNeeded()
+        await app.goals.freezeCurrentWeekIfNeeded()
 
         // Lo primero es que sea **otra semana**. Sin esto la prueba no distingue "no se congela"
         // de "se congela pero la huella cambió" — comprobado por mutación: servir la foto también
@@ -689,27 +689,115 @@ struct GoalsViewModelTests {
     func freezingIsIdempotent() async {
         let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
         await app.start()
-        app.goals.freezeCurrentWeekIfNeeded()
+        await app.goals.freezeCurrentWeekIfNeeded()
         let primera = app.goals.currentPlan
-        app.goals.freezeCurrentWeekIfNeeded()
+        await app.goals.freezeCurrentWeekIfNeeded()
         #expect(app.goals.currentPlan == primera)
     }
 
-    @Test("Una foto de otra semana no se reutiliza")
+    @Test("La foto de una semana pasada no se sirve como si fuera la de ahora")
     func staleSnapshotIsIgnored() async {
+        // Ahora las semanas viejas **se conservan** en vez de sobreescribirse, así que hace falta
+        // que la de la semana en curso se distinga de las demás y no se sirva una cualquiera.
+        let vieja = FrozenWeek(
+            weekStart: Calendar.app.date(byAdding: .day, value: -7,
+                                         to: thisWeek(position: 0)) ?? Date(),
+            fingerprint: "cualquiera",
+            plan: TrainingPlan(primaryGoalId: "x", config: PlanConfig(daysPerWeek: 1),
+                               days: [], weekStart: Date())
+        )
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
+        app.weekPlanRepo.weeks = [vieja]
+        await app.start()
+
+        #expect(app.goals.currentPlan?.days.isEmpty == false, "no sirve el plan de la semana pasada")
+        #expect(Calendar.app.isDate(app.goals.currentPlan?.weekStart ?? Date(),
+                                    inSameDayAs: thisWeek(position: 0)))
+    }
+
+    @Test("Las semanas cerradas se conservan y se pueden mirar atrás")
+    func pastWeeksAreKept() async {
+        // Es lo que la foto en UserDefaults no podía dar: solo guardaba la semana en curso.
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
+        app.weekPlanRepo.weeks = (1...3).map { back in
+            let start = Calendar.app.date(byAdding: .day, value: -7 * back,
+                                          to: thisWeek(position: 0)) ?? Date()
+            return FrozenWeek(
+                weekStart: start, fingerprint: "h\(back)",
+                plan: TrainingPlan(primaryGoalId: "x", config: PlanConfig(daysPerWeek: 3),
+                                   days: [PlannedDay(weekday: 3, kind: .easy, targetKm: 8,
+                                                     label: "Fácil 8 km", detail: "")],
+                                   weekStart: start))
+        }
+        await app.start()
+        // Se congela también la semana en curso: sin ella, quitar el filtro de "solo las pasadas"
+        // no se notaba — comprobado por mutación.
+        await app.goals.freezeCurrentWeekIfNeeded()
+
+        #expect(app.goals.pastWeeks.count == 3, "la semana en curso no es historial")
+        #expect(app.goals.pastWeeks.allSatisfy { $0.plan.weekStart < thisWeek(position: 0) })
+        // De la más reciente a la más vieja.
+        #expect(app.goals.pastWeeks[0].plan.weekStart > app.goals.pastWeeks[1].plan.weekStart)
+        #expect(app.goals.pastWeeks.allSatisfy { $0.adherence.plannedKm == 8 })
+    }
+
+    @Test("La adherencia de una semana pasada se mide contra el plan de entonces")
+    func pastAdherenceUsesThePlanOfThatWeek() async {
+        // El punto entero de guardarlo: regenerar el plan hoy daría otro, porque depende de tu
+        // volumen de hoy — y la adherencia histórica quedaría medida contra algo que nunca viste.
+        let semanaPasada = Calendar.app.date(byAdding: .day, value: -7,
+                                             to: thisWeek(position: 0)) ?? Date()
+        let corridaDeEntonces = Calendar.app.date(byAdding: .day, value: 2, to: semanaPasada) ?? Date()
+
+        let app = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: corridaDeEntonces, type: .running,
+                            title: "La de entonces", distanceKm: 6, completed: true),
+            // Una de esta semana: no debe contar para la adherencia de la pasada. Sin ella, medir
+            // contra todo el historial daba el mismo número — comprobado por mutación.
+            TrainingSession(date: Date(), type: .running,
+                            title: "La de ahora", distanceKm: 99, completed: true)
+        ])
+        app.weekPlanRepo.weeks = [FrozenWeek(
+            weekStart: semanaPasada, fingerprint: "h",
+            plan: TrainingPlan(primaryGoalId: "x", config: PlanConfig(daysPerWeek: 1),
+                               days: [PlannedDay(weekday: Calendar.app.component(.weekday, from: corridaDeEntonces),
+                                                 kind: .easy, targetKm: 10,
+                                                 label: "Fácil 10 km", detail: "")],
+                               weekStart: semanaPasada))]
+        await app.start()
+
+        guard let pasada = app.goals.pastWeeks.first else {
+            Issue.record("debería haber una semana cerrada")
+            return
+        }
+        #expect(pasada.adherence.plannedKm == 10, "lo que pedía el plan de entonces")
+        #expect(pasada.adherence.completedKm == 6, "lo que de verdad corriste esa semana")
+    }
+
+    @Test("Congelar guarda la semana en el repositorio, no solo en memoria")
+    func freezingPersists() async {
         let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
         await app.start()
-        app.goals.freezeCurrentWeekIfNeeded()
-        guard let actual = app.goals.currentPlan else { return }
+        await app.goals.freezeCurrentWeekIfNeeded()
 
-        // Se envejece la foto: es lo que hace el paso del tiempo al cambiar de semana.
-        if let data = UserDefaults.standard.data(forKey: "plan.frozenWeek"),
-           var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            json["weekStart"] = (json["weekStart"] as? Double ?? 0) - 7 * 86400
-            let aged = try? JSONSerialization.data(withJSONObject: json)
-            UserDefaults.standard.set(aged, forKey: "plan.frozenWeek")
-        }
-        #expect(app.goals.currentPlan?.weekStart == actual.weekStart, "regenera para la semana nueva")
+        #expect(app.weekPlanRepo.saved.count == 1)
+        #expect(app.weekPlanRepo.saved.first.map {
+            Calendar.app.isDate($0.weekStart, inSameDayAs: thisWeek(position: 0))
+        } == true)
+    }
+
+    @Test("Si guardar falla, la semana sigue congelada en memoria")
+    func freezeSurvivesAWriteFailure() async {
+        // El atleta no puede quedarse con un plan que se rehace en cada render porque Firestore
+        // no respondió.
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
+        await app.start()
+        app.weekPlanRepo.failure = FakeFailure()
+        await app.goals.freezeCurrentWeekIfNeeded()
+
+        let primera = app.goals.currentPlan
+        await app.goals.freezeCurrentWeekIfNeeded()
+        #expect(app.goals.currentPlan == primera)
     }
 
     // MARK: - Lo que la app observa de ti

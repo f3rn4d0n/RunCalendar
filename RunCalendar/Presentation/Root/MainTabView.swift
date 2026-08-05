@@ -90,7 +90,7 @@ struct MainTabView: View {
             goalsViewModel.seedPlanConfigIfNeeded()
             // Se congela después de sembrar: si no, la primera foto saldría con los días por
             // defecto y se rehría al instante.
-            goalsViewModel.freezeCurrentWeekIfNeeded()
+            await goalsViewModel.freezeCurrentWeekIfNeeded()
         }
     }
 }
