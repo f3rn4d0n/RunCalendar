@@ -800,6 +800,68 @@ struct GoalsViewModelTests {
         #expect(app.goals.currentPlan == primera)
     }
 
+    @Test("Sin metas cargadas no se congela nada, y se reintenta cuando llegan")
+    func freezeWaitsForGoals() async {
+        // El fallo real: el congelado se disparaba solo al cambiar el número de sesiones, y si los
+        // streams entregaban las sesiones antes que las metas, `planAnchorGoal` era nil y se
+        // saltaba **sin reintentar**. El siguiente disparo era registrar una carrera — así que la
+        // semana se congelaba después de entrenar, con el día de hoy ya descontado.
+        let app = TestApp(goals: [volumeGoal()], sessions: history(daysPerWeek: 4, weeks: 4))
+
+        // Antes de `start()` no hay metas: no hay con qué anclar el plan.
+        await app.goals.freezeCurrentWeekIfNeeded()
+        #expect(app.weekPlanRepo.saved.isEmpty, "sin meta ancla no hay plan que congelar")
+
+        await app.start()
+        await app.goals.freezeCurrentWeekIfNeeded()
+        #expect(app.weekPlanRepo.saved.count == 1, "al llegar las metas sí se congela")
+    }
+
+    @Test("Congelar antes de entrenar deja la semana con todas sus sesiones")
+    func freezingBeforeTrainingKeepsEveryDay() async {
+        // El síntoma que reportó el atleta: 1/3 por la mañana y 1/2 por la tarde. Si la semana se
+        // congela cuando toca —al abrir la app— entrenar ya no la rehace.
+        // La **misma** meta en las dos: su id y su valor son parte de la huella, así que dos metas
+        // distintas serían dos decisiones distintas y la semana se rehría con razón.
+        let meta = volumeGoal()
+        let base = history(daysPerWeek: 4, weeks: 4)
+
+        let app = TestApp(goals: [meta], sessions: base)
+        await app.start()
+        app.goals.planConfig = PlanConfig(daysPerWeek: 3)
+        await app.goals.freezeCurrentWeekIfNeeded()
+
+        let sesiones = app.goals.weekAdherence?.plannedSessions
+        #expect(sesiones == 3, "las tres que configuró")
+
+        // Y entrenar hoy no cambia el denominador.
+        let conCorrida = TestApp(goals: [meta], sessions: base + [
+            TrainingSession(date: Date(), type: .running, title: "Hoy", distanceKm: 8, completed: true)
+        ])
+        conCorrida.weekPlanRepo.weeks = app.weekPlanRepo.weeks
+        await conCorrida.start()
+        #expect(conCorrida.goals.weekAdherence?.plannedSessions == sesiones,
+                "el denominador no se mueve por haber entrenado")
+    }
+
+    @Test("Un día en el que corriste nunca se presenta como descanso")
+    func aDayYouRanIsNeverRest() async {
+        // La vista miraba `position < plansFrom` (estricto), así que **hoy** no entraba; y como el
+        // motor le quita la sesión a un día ya entrenado, la semana decía "Descanso" el día que el
+        // atleta salió a correr.
+        let app = TestApp(goals: [volumeGoal()], sessions: [
+            TrainingSession(date: Date(), type: .running, title: "Hoy", distanceKm: 8, completed: true)
+        ])
+        await app.start()
+        guard let plan = app.goals.currentPlan else { return }
+
+        let hoy = cal.component(.weekday, from: Date())
+        #expect(app.goals.doneKmByWeekday(for: plan)[hoy] == 8,
+                "la vista decide por esto: si hay km, el día se pinta como hecho")
+        #expect(!plan.days.contains { $0.weekday == hoy },
+                "el motor sí le quita la sesión — por eso la vista no puede fiarse solo del plan")
+    }
+
     // MARK: - Lo que la app observa de ti
 
     @Test("Lo observado sale del historial, sin preguntar nada")

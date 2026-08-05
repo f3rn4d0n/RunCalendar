@@ -134,6 +134,22 @@ Es el mismo patrón que los kilómetros: el número de la semana en *Resumen*, l
 evolución*. **Antes de mover una métrica "que está repetida", comprueba si las dos instancias
 responden la misma pregunta.** Si no, moverlas juntas empeora las dos.
 
+### Lo que las pruebas de este repo **no** ven
+
+Dos defectos reales llegaron al teléfono porque vivían justo donde no hay cobertura:
+
+- **La ramificación de una vista.** La semana decía "Descanso" el día que el atleta había corrido:
+  la condición miraba `position < plansFrom` (estricto), así que **hoy** no entraba, y como el motor
+  le quita la sesión a un día ya entrenado, caía al `else` final. Ninguna prueba mira ramas de
+  SwiftUI.
+- **Un `.task(id:)`.** El congelado de la semana dependía solo del número de sesiones, así que si
+  las metas cargaban después se saltaba y **no se reintentaba hasta que el atleta registrara una
+  carrera** — la semana se congelaba después de entrenar y el plan cambiaba bajo sus pies.
+
+Lo que sí se puede fijar es **el dato que la vista consume** y **la lógica que el `task` dispara**, y
+eso es lo que hacen las pruebas de regresión. Pero la conclusión operativa no cambia: **una pantalla
+no está terminada hasta verla en el teléfono**, y un CI verde no dice nada de la experiencia.
+
 ## Antes de mover una pantalla
 
 1. ¿Qué pregunta responde? ¿La responde ya otra?
