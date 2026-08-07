@@ -356,10 +356,20 @@ cuando cambian tus **datos** de entrenamiento. Sin esa regla congelar no servir�
 carrera registrada rompería la foto y volveríamos al punto de partida. La semana siguiente nunca se
 congela; es una vista previa.
 
-> **Lo que sigue pendiente es la adherencia histórica.** La foto vive en `UserDefaults`, así que
-> cubre la semana en curso y nada más. Guardar semanas pasadas pide almacenamiento durable y
-> multi-semana, y eso llega con el bloque — hacerlo antes sería escribir dos veces la misma
-> serialización.
+✅ **Y la adherencia histórica también.** Las semanas viven ahora en Firestore
+(`WeekPlanRepository`, `users/{uid}/weekPlans/{yyyy-MM-dd}`) en vez de en `UserDefaults`, así que
+las pasadas se conservan y cada una se mide **contra el plan que tenías entonces**. Regenerarlo hoy
+daría otro —depende de tu volumen actual— y te estaríamos midiendo contra algo que nunca viste.
+
+> El plan se guarda como **JSON en un campo**, no desplegado en campos de Firestore: es un árbol con
+> enumeraciones y opcionales que solo se lee entero, y mapearlo campo a campo costaría un DTO grande
+> en paralelo a las entidades. Lo único que se consulta —la fecha— sí va en su propio campo.
+
+**Lo que queda del bloque** es la cabecera: agrupar semanas en un mesociclo con su horizonte
+("vas en la semana 3 de 12") y el ajuste de días para una semana concreta. Al desglosarlo se vio que
+**casi todo el valor estaba en las fotos semanales**, no en la cabecera: la adherencia histórica no
+la necesita, y las descargas ya salen de la fecha de meta. La cabecera es sobre todo narrativa, y
+por eso va después.
 
 El planteamiento original era:
 

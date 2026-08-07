@@ -86,11 +86,16 @@ struct MainTabView: View {
         // Al llegar sesiones, siembra los días/semana del plan desde el historial. Va con `id`
         // porque en el arranque las sesiones todavía no están (los streams corren en paralelo) y
         // un `.task` suelto lo haría demasiado pronto. Idempotente: solo actúa la primera vez.
-        .task(id: trainingViewModel.sessions.count) {
+        // Depende de **las dos** cargas, no solo de las sesiones. Los streams corren en paralelo,
+        // y si las sesiones llegaban primero el congelado se saltaba —`planAnchorGoal` todavía era
+        // nil— y no se reintentaba hasta que el conteo volviera a cambiar: es decir, **hasta que
+        // registrabas una carrera**. La semana acababa congelándose después de entrenar, con el
+        // día de hoy ya descontado, y el plan cambiaba bajo los pies del atleta.
+        .task(id: "\(trainingViewModel.sessions.count)-\(goalsViewModel.goals.count)") {
             goalsViewModel.seedPlanConfigIfNeeded()
             // Se congela después de sembrar: si no, la primera foto saldría con los días por
             // defecto y se rehría al instante.
-            goalsViewModel.freezeCurrentWeekIfNeeded()
+            await goalsViewModel.freezeCurrentWeekIfNeeded()
         }
     }
 }

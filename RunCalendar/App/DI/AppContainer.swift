@@ -18,6 +18,7 @@ final class AppContainer {
     private let recoveryLogRepository: RecoveryLogRepository
     private let goalRepository: GoalRepository
     private let bodyLogRepository: BodyLogRepository
+    private let weekPlanRepository: WeekPlanRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
@@ -31,7 +32,8 @@ final class AppContainer {
         calendarRepository: CalendarRepository = EventKitService(),
         recoveryLogRepository: RecoveryLogRepository = FirestoreRecoveryLogRepository(),
         goalRepository: GoalRepository = FirestoreGoalRepository(),
-        bodyLogRepository: BodyLogRepository = FirestoreBodyLogRepository()
+        bodyLogRepository: BodyLogRepository = FirestoreBodyLogRepository(),
+        weekPlanRepository: WeekPlanRepository = FirestoreWeekPlanRepository()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
@@ -44,6 +46,7 @@ final class AppContainer {
         self.recoveryLogRepository = recoveryLogRepository
         self.goalRepository = goalRepository
         self.bodyLogRepository = bodyLogRepository
+        self.weekPlanRepository = weekPlanRepository
     }
 
     // MARK: - ViewModels
@@ -129,6 +132,8 @@ final class AppContainer {
             inferPrimary: InferPrimaryGoalUseCase(),
             describeWorkout: DescribeWorkoutUseCase(),
             suggestPlan: SuggestPlanUseCase(),
+            saveWeekPlan: SaveWeekPlanUseCase(repository: weekPlanRepository),
+            fetchRecentWeekPlans: FetchRecentWeekPlansUseCase(repository: weekPlanRepository),
             racesViewModel: racesViewModel,
             trainingViewModel: trainingViewModel
         )

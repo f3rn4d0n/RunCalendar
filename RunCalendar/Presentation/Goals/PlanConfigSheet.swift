@@ -111,11 +111,15 @@ struct PlanConfigSheet: View {
 
                 let doneKm = viewModel.doneKmByWeekday(for: plan)
                 ForEach(plan.fullWeek(), id: \.weekday) { entry in
-                    // Los días que ya pasaron se pintan con lo que **de verdad corriste**, no con
-                    // lo que se hubiera planeado: el plan no se guarda, así que "el plan que tenías"
-                    // no existe — pero lo que hiciste sí, y para revisar la semana sirve más.
-                    if PlannedDay.position(of: entry.weekday) < plan.plansFrom {
-                        pastRow(weekday: entry.weekday, km: doneKm[entry.weekday] ?? 0)
+                    // **Haber corrido manda sobre todo lo demás.** Con la comparación estricta
+                    // contra `plansFrom`, el día de hoy no entraba aquí; y como el motor le quita
+                    // la sesión a un día ya entrenado, caía al `else` final y la vista decía
+                    // "Descanso" el día que el atleta había salido a correr.
+                    if let km = doneKm[entry.weekday], km > 0 {
+                        pastRow(weekday: entry.weekday, km: km)
+                    } else if PlannedDay.position(of: entry.weekday) < plan.plansFrom {
+                        // Ya pasó y no corriste: tampoco se juzga, el plan no existía o no lo pidió.
+                        pastRow(weekday: entry.weekday, km: 0)
                     } else if let day = entry.session {
                         Button { detailDay = day } label: { sessionRow(day) }
                             .buttonStyle(.plain)

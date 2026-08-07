@@ -187,6 +187,28 @@ final class FakeCalendarRepository: CalendarRepository, @unchecked Sendable {
     }
 }
 
+final class FakeWeekPlanRepository: WeekPlanRepository, @unchecked Sendable {
+    var weeks: [FrozenWeek] = []
+    var failure: Error?
+
+    private(set) var saved: [FrozenWeek] = []
+
+    func save(_ week: FrozenWeek, userID: String) async throws {
+        if let failure { throw failure }
+        saved.append(week)
+        weeks.removeAll { Calendar.app.isDate($0.weekStart, inSameDayAs: week.weekStart) }
+        weeks.append(week)
+    }
+
+    func fetch(weekStart: Date, userID: String) async throws -> FrozenWeek? {
+        weeks.first { Calendar.app.isDate($0.weekStart, inSameDayAs: weekStart) }
+    }
+
+    func recent(weeks count: Int, userID: String) async throws -> [FrozenWeek] {
+        Array(weeks.sorted { $0.weekStart > $1.weekStart }.prefix(count))
+    }
+}
+
 // MARK: - Montaje
 
 /// Arma los tres ViewModels cableados a dobles, igual que hace `AppContainer` con las
@@ -202,6 +224,7 @@ struct TestApp {
     let bodyLogRepo: FakeBodyLogRepository
     let weatherRepo: FakeWeatherRepository
     let calendarRepo: FakeCalendarRepository
+    let weekPlanRepo: FakeWeekPlanRepository
 
     let races: RacesViewModel
     let training: TrainingViewModel
@@ -217,6 +240,7 @@ struct TestApp {
         bodyLogRepo = FakeBodyLogRepository()
         weatherRepo = FakeWeatherRepository()
         calendarRepo = FakeCalendarRepository()
+        weekPlanRepo = FakeWeekPlanRepository()
 
         races = RacesViewModel(
             userID: userID,
@@ -258,6 +282,8 @@ struct TestApp {
             inferPrimary: InferPrimaryGoalUseCase(),
             describeWorkout: DescribeWorkoutUseCase(),
             suggestPlan: SuggestPlanUseCase(),
+            saveWeekPlan: SaveWeekPlanUseCase(repository: weekPlanRepo),
+            fetchRecentWeekPlans: FetchRecentWeekPlansUseCase(repository: weekPlanRepo),
             racesViewModel: races,
             trainingViewModel: training
         )

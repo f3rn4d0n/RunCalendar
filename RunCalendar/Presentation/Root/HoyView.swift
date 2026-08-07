@@ -77,7 +77,8 @@ struct HoyView: View {
             }
             .sheet(isPresented: $showWeekDetail) {
                 if let adherence = goalsViewModel.weekAdherence {
-                    WeekAdherenceView(adherence: adherence, outcomes: goalsViewModel.weekOutcomes)
+                    WeekAdherenceView(adherence: adherence, outcomes: goalsViewModel.weekOutcomes,
+                                      past: goalsViewModel.pastWeeks)
                 }
             }
             .sheet(item: $detailDay) { day in

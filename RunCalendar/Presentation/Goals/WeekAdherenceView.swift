@@ -5,7 +5,46 @@ import SwiftUI
 struct WeekAdherenceView: View {
     let adherence: PlanAdherence
     let outcomes: [PlanDayOutcome]
+    /// Semanas ya cerradas, de la más reciente a la más vieja. Vacío mientras no haya historial.
+    var past: [(plan: TrainingPlan, adherence: PlanAdherence)] = []
     @Environment(\.dismiss) private var dismiss
+
+    /// Las semanas anteriores con lo que pidieron y lo que hiciste.
+    ///
+    /// Solo es posible desde que el plan de cada semana se guarda: regenerarlo hoy daría otro,
+    /// porque depende de tu volumen actual — y te estaríamos midiendo contra un plan que nunca
+    /// viste. Es la razón de fondo para persistirlo, más que la comodidad.
+    @ViewBuilder private var pastWeeksSection: some View {
+        if !past.isEmpty {
+            Section {
+                ForEach(past, id: \.plan.id) { week in
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(weekLabel(week.plan.weekStart)).font(.mSubheadline)
+                            Text("\(week.adherence.completedSessions)/\(week.adherence.plannedSessions) sesiones · "
+                                 + "\(Goal.trim(week.adherence.completedKm))/\(Goal.trim(week.adherence.plannedKm)) km")
+                                .font(.mCaption2).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text("\(Int(week.adherence.fraction * 100))%")
+                            .font(.marker(16))
+                            .foregroundStyle(week.adherence.fraction >= 0.8 ? Neon.green : Neon.gold)
+                    }
+                }
+            } header: {
+                Text("Semanas anteriores")
+            } footer: {
+                SectionNote("Cada semana se mide contra el plan que tenías **entonces**, no contra "
+                            + "el de hoy. Por eso el plan de la semana se guarda al empezarla.")
+            }
+        }
+    }
+
+    private func weekLabel(_ start: Date) -> String {
+        let end = Calendar.app.date(byAdding: .day, value: 6, to: start) ?? start
+        return "\(start.formatted(.dateTime.day().month(.abbreviated))) – "
+            + "\(end.formatted(.dateTime.day().month(.abbreviated)))"
+    }
 
     var body: some View {
         NavigationStack {
@@ -56,6 +95,8 @@ struct WeekAdherenceView: View {
                          + "exacto.")
                         .font(.mCaption2).foregroundStyle(.secondary)
                 }
+
+                pastWeeksSection
             }
             .scrollContentBackground(.hidden)
             .listRowBackground(Neon.surface)
