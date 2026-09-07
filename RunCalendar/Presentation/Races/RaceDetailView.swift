@@ -29,13 +29,13 @@ struct RaceDetailView: View {
         linkedTrainings.filter(\.completed).count
     }
 
-    private static let standardDistances: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
-
-    /// Muestra la preparación solo para carreras próximas de distancia estándar.
+    /// Muestra la preparación solo para carreras próximas de distancia estándar (por el km real,
+    /// no por la disciplina: una carrera puede guardarse como "Carrera" + 10 km en vez de "10K").
     private var showsReadiness: Bool {
-        healthViewModel.isHealthAvailable
+        guard let km = race.distanceKm ?? race.discipline.standardDistanceKm else { return false }
+        return healthViewModel.isHealthAvailable
             && race.date.daysFromNow() >= 0
-            && Self.standardDistances.contains(race.discipline)
+            && RaceDiscipline.nearestStandard(toKm: km) != nil
     }
 
     /// Consciente de la fecha de **esta** carrera: subir la tirada larga solo se aconseja
