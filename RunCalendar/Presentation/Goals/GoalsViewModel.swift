@@ -700,11 +700,17 @@ final class GoalsViewModel {
     }
 
     /// La carrera que persigue esta meta: la próxima inscrita o prioritaria de esa distancia.
+    /// Compara por el km real (no por disciplina): una carrera se guarda como "Carrera" + km,
+    /// no como "10K", así que la disciplina exacta ya no identifica la distancia.
     private func targetRace(for anchor: Goal) -> Race? {
         let today = Calendar.current.startOfDay(for: Date())
         let upcoming = racesViewModel.races
             .filter { $0.status == .upcoming && $0.date >= today }
-            .filter { anchor.distance == nil || $0.discipline == anchor.distance }
+            .filter { race in
+                guard let target = anchor.distance else { return true }
+                guard let km = race.distanceKm ?? race.discipline.standardDistanceKm else { return false }
+                return RaceDiscipline.nearestStandard(toKm: km) == target
+            }
             .sorted { $0.date < $1.date }
         return upcoming.first { $0.isRegistered || $0.isPriority } ?? upcoming.first
     }

@@ -27,16 +27,26 @@ struct RaceListView: View {
     @State private var sort: RaceSort = .date
     @State private var registrationFilter: RegistrationFilter = .all
     @State private var disciplineFilter: RaceDiscipline?
+    /// Distinto del anterior: este filtra por km real (con `nearestStandard`), no por la
+    /// disciplina guardada — así agarra un trail de 10 km igual que una carrera de 10 km.
+    @State private var distanceFilter: RaceDiscipline?
     @State private var onlyPriority = false
 
     private var hasActiveFilters: Bool {
-        sort != .date || registrationFilter != .all || disciplineFilter != nil || onlyPriority
+        sort != .date || registrationFilter != .all || disciplineFilter != nil
+            || distanceFilter != nil || onlyPriority
     }
 
     private var filteredRaces: [Race] {
         var result = viewModel.races
         if let disciplineFilter {
             result = result.filter { $0.discipline == disciplineFilter }
+        }
+        if let distanceFilter {
+            result = result.filter { race in
+                guard let km = race.distanceKm ?? race.discipline.standardDistanceKm else { return false }
+                return RaceDiscipline.nearestStandard(toKm: km) == distanceFilter
+            }
         }
         switch registrationFilter {
         case .all: break
@@ -144,9 +154,13 @@ struct RaceListView: View {
             Picker("Inscripción", selection: $registrationFilter) {
                 ForEach(RegistrationFilter.allCases) { Text($0.rawValue).tag($0) }
             }
-            Picker("Disciplina", selection: $disciplineFilter) {
+            Picker("Actividad", selection: $disciplineFilter) {
                 Text("Todas").tag(RaceDiscipline?.none)
-                ForEach(RaceDiscipline.allCases) { Text($0.displayName).tag(Optional($0)) }
+                ForEach(RaceDiscipline.creationOptions) { Text($0.displayName).tag(Optional($0)) }
+            }
+            Picker("Distancia", selection: $distanceFilter) {
+                Text("Todas").tag(RaceDiscipline?.none)
+                ForEach(RaceDiscipline.standardRaceDistances) { Text($0.displayName).tag(Optional($0)) }
             }
             Toggle("Solo prioritarias", isOn: $onlyPriority)
         } label: {
@@ -247,6 +261,15 @@ struct RaceRow: View {
         race.isPriority ? AnyShapeStyle(Neon.gold.opacity(0.18)) : AnyShapeStyle(.quaternary)
     }
 
+    /// Disciplinas sin distancia fija ("Trail", "Caminata", "Hiking", "Otra") no traen el km en el
+    /// nombre, a diferencia de "10K", así que se agrega en una segunda línea (no junto al nombre,
+    /// para no ensanchar la fila) para distinguir de un vistazo un trail corto de uno largo,
+    /// una caminata corta de una larga, etc.
+    private var distanceLabel: String? {
+        guard race.discipline.standardDistanceKm == nil, let km = race.distanceKm else { return nil }
+        return "\(Goal.trim(km)) km"
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             VStack(spacing: 0) {
@@ -283,9 +306,16 @@ struct RaceRow: View {
                         .font(.mSubheadline.weight(.semibold))
                         .foregroundStyle(.tint)
                 }
-                Text(race.discipline.displayName)
-                    .font(.mSubheadline.weight(sort == .distance ? .semibold : .regular))
-                    .foregroundStyle(sort == .distance ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text(race.discipline.displayName)
+                        .font(.mSubheadline.weight(sort == .distance ? .semibold : .regular))
+                        .foregroundStyle(sort == .distance ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    if let distanceLabel {
+                        Text(distanceLabel)
+                            .font(.mCaption2)
+                            .foregroundStyle(sort == .distance ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    }
+                }
                 if race.isRegistered { RegisteredTag() }
                 if let seconds = race.finishTimeSeconds {
                     Text(seconds.durationString())

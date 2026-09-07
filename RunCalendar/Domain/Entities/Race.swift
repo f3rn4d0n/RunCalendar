@@ -1,17 +1,30 @@
 import Foundation
 
 /// Disciplina / distancia de una carrera.
+///
+/// `.fiveK`…`.marathon` ya no se ofrecen al crear una carrera (ver `RaceDiscipline.creationOptions`):
+/// `.race` los reemplazó ahí para no duplicar la distancia (una vez en el picker, otra en el campo
+/// de km). Se conservan en el enum porque Objetivos ("Tiempo en carrera") los sigue usando para
+/// predecir tiempos con Riegel, que necesita distancias estándar fijas, y porque una carrera vieja
+/// pudo haberse guardado con uno de estos valores.
 enum RaceDiscipline: String, CaseIterable, Identifiable, Sendable {
+    case race = "Carrera"
     case fiveK = "5K"
     case tenK = "10K"
     case fifteenK = "15K"
     case halfMarathon = "21K"
     case marathon = "42K"
     case trail = "Trail"
+    case walk = "Caminata"
+    case hiking = "Hiking"
     case other = "Otra"
 
     var id: String { rawValue }
     var displayName: String { rawValue }
+
+    /// Disciplinas que se ofrecen al crear una carrera: sin las distancias estándar duplicadas,
+    /// que ahora las cubre `.race` + el campo de km.
+    static let creationOptions: [RaceDiscipline] = [.race, .trail, .walk, .hiking, .other]
 
     /// Distancia oficial en km (para ritmo/récords). `nil` en distancias variables.
     var standardDistanceKm: Double? {
@@ -21,7 +34,21 @@ enum RaceDiscipline: String, CaseIterable, Identifiable, Sendable {
         case .fifteenK:     return 15
         case .halfMarathon: return 21.0975
         case .marathon:     return 42.195
-        case .trail, .other: return nil
+        case .race, .trail, .walk, .hiking, .other: return nil
+        }
+    }
+
+    /// Distancias con carga/heurísticas estándar (récords, "¿Listo para…?").
+    static let standardRaceDistances: [RaceDiscipline] = [.fiveK, .tenK, .fifteenK, .halfMarathon, .marathon]
+
+    /// La distancia estándar más cercana a `km` (±5%), o `nil` si no cae en ninguna.
+    ///
+    /// Una carrera ahora suele guardarse como `.race` + km (no como `.tenK`), así que lo que
+    /// dice si "es una 10K" para estas heurísticas es la distancia real, no la disciplina guardada.
+    static func nearestStandard(toKm km: Double) -> RaceDiscipline? {
+        standardRaceDistances.first {
+            guard let target = $0.standardDistanceKm else { return false }
+            return abs(km - target) / target <= 0.05
         }
     }
 }

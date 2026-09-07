@@ -53,10 +53,10 @@ enum PersonalRecords {
         }
     }
 
-    /// Carreras con tiempo (excluye trail: terreno no comparable con asfalto).
+    /// Carreras con tiempo (excluye trail/caminata/hiking: ritmo no comparable con correr).
     private static func raceEfforts(_ races: [Race]) -> [RunEffort] {
         races.compactMap { race in
-            guard race.discipline != .trail,
+            guard ![.trail, .walk, .hiking].contains(race.discipline),
                   let time = race.finishTimeSeconds, time > 0,
                   let km = race.distanceKm ?? race.discipline.standardDistanceKm, km > 0
             else { return nil }

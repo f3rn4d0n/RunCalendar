@@ -10,7 +10,7 @@ struct RaceFormView: View {
     // Campos del formulario
     @State private var name = ""
     @State private var date = Date()
-    @State private var discipline: RaceDiscipline = .tenK
+    @State private var discipline: RaceDiscipline = .race
     @State private var distanceText = ""
     @State private var location = RaceLocation(name: "")
     @State private var costText = ""
@@ -36,13 +36,22 @@ struct RaceFormView: View {
     @State private var kitNotes = ""
 
     private var isNew: Bool { race == nil }
-    private var title: String { isNew ? "Nueva carrera" : "Editar carrera" }
 
     /// La entrega de kit suele ser el día antes de la carrera; se asume a las 9am.
     private var defaultKitDate: Date {
         let cal = Calendar.current
         let dayBefore = cal.date(byAdding: .day, value: -1, to: date) ?? date
         return cal.date(bySettingHour: 9, minute: 0, second: 0, of: dayBefore) ?? dayBefore
+    }
+    private var title: String { isNew ? "Nueva carrera" : "Editar carrera" }
+
+    /// Opciones del picker: sin las distancias estándar (las cubre "Carrera" + el campo de km),
+    /// más la disciplina actual si es una de esas (carrera vieja, guardada como "10K" p. ej.) —
+    /// si no, el picker no tendría dónde mostrarla.
+    private var disciplineOptions: [RaceDiscipline] {
+        RaceDiscipline.creationOptions.contains(discipline)
+            ? RaceDiscipline.creationOptions
+            : RaceDiscipline.creationOptions + [discipline]
     }
 
     var body: some View {
@@ -52,7 +61,7 @@ struct RaceFormView: View {
                     TextField("Nombre", text: $name)
                     DatePicker("Fecha", selection: $date)
                     Picker("Disciplina", selection: $discipline) {
-                        ForEach(RaceDiscipline.allCases) { Text($0.displayName).tag($0) }
+                        ForEach(disciplineOptions) { Text($0.displayName).tag($0) }
                     }
                     TextField("Distancia (km)", text: $distanceText)
                         .keyboardType(.decimalPad)
