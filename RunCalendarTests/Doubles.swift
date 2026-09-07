@@ -116,16 +116,26 @@ final class FakeTrainingRepository: TrainingRepository, @unchecked Sendable {
 /// importa no romper (Mac, o alguien que negó el permiso). Cada prueba siembra lo que necesite.
 final class FakeHealthRepository: HealthRepository, @unchecked Sendable {
     var available = false
+    /// Separado de `available`: simula que el dispositivo soporta Salud pero el usuario
+    /// niega el permiso, algo que `HealthViewModel.connect()` distingue de "unavailable".
+    var grantsAuthorization = true
     var metrics: AthleteMetrics = .empty
     var measures: [BodyMeasure: [MeasurementEntry]] = [:]
     var workouts: [HealthWorkout] = []
     var splits: [BestSplit] = []
     var saveFailure: Error?
 
+    var summary: FitnessSummary = .empty
+    var summaryFailure: Error?
+    var recovery: RecoverySnapshot?
+    var recoveryTrend: RecoveryTrend?
+    var workload: WorkloadInput?
+    var fitnessTrend: FitnessTrend?
+
     private(set) var savedMeasures: [(measure: BodyMeasure, value: Double, date: Date)] = []
 
     func isAvailable() -> Bool { available }
-    func requestAuthorization() async -> Bool { available }
+    func requestAuthorization() async -> Bool { available && grantsAuthorization }
 
     func fetchAthleteMetrics() async throws -> AthleteMetrics { metrics }
     func fetchRecentWorkouts(days: Int) async throws -> [HealthWorkout] { workouts }
@@ -141,14 +151,31 @@ final class FakeHealthRepository: HealthRepository, @unchecked Sendable {
         measures[measure, default: []].insert(MeasurementEntry(date: date, value: value), at: 0)
     }
 
-    // Lo que ninguna prueba de ViewModel consulta todavía: sin datos, como un dispositivo sin Salud.
-    func fetchSummary(weeks: Int) async throws -> FitnessSummary { throw FakeFailure() }
-    func fetchRecovery() async throws -> RecoverySnapshot? { nil }
-    func fetchRecoveryTrend(days: Int) async throws -> RecoveryTrend? { nil }
-    func fetchWorkload() async throws -> WorkloadInput? { nil }
-    func fetchFitnessTrend(weeks: Int) async throws -> FitnessTrend? { nil }
+    func fetchSummary(weeks: Int) async throws -> FitnessSummary {
+        if let summaryFailure { throw summaryFailure }
+        return summary
+    }
+    func fetchRecovery() async throws -> RecoverySnapshot? { recovery }
+    func fetchRecoveryTrend(days: Int) async throws -> RecoveryTrend? { recoveryTrend }
+    func fetchWorkload() async throws -> WorkloadInput? { workload }
+    func fetchFitnessTrend(weeks: Int) async throws -> FitnessTrend? { fitnessTrend }
     func fetchRoute(onDay date: Date, distanceKm: Double?) async throws -> WorkoutRoute? { nil }
     func workoutUpdates() -> AsyncStream<Void> { AsyncStream { $0.finish() } }
+}
+
+/// Check-ins de recuperación (para calibrar el modelo). Igual de simple que los demás: sin
+/// `failure` inyectado, `save` reemplaza el del mismo día como hace Firestore (`set` por id).
+final class FakeRecoveryLogRepository: RecoveryLogRepository, @unchecked Sendable {
+    var checkIns: [RecoveryCheckIn] = []
+    var failure: Error?
+
+    func save(_ checkIn: RecoveryCheckIn, userID: String) async throws {
+        if let failure { throw failure }
+        checkIns.removeAll { Calendar.current.isDate($0.date, inSameDayAs: checkIn.date) }
+        checkIns.append(checkIn)
+    }
+
+    func fetchRecent(days: Int, userID: String) async throws -> [RecoveryCheckIn] { checkIns }
 }
 
 // MARK: - Review dominical, clima y calendario
@@ -221,6 +248,7 @@ struct TestApp {
     let raceRepo: FakeRaceRepository
     let trainingRepo: FakeTrainingRepository
     let healthRepo: FakeHealthRepository
+    let recoveryLogRepo: FakeRecoveryLogRepository
     let bodyLogRepo: FakeBodyLogRepository
     let weatherRepo: FakeWeatherRepository
     let calendarRepo: FakeCalendarRepository
@@ -229,14 +257,18 @@ struct TestApp {
     let races: RacesViewModel
     let training: TrainingViewModel
     let goals: GoalsViewModel
+    let health: HealthViewModel
 
     init(goals seededGoals: [Goal] = [], races seededRaces: [Race] = [],
-         sessions: [TrainingSession] = [], userID: String = "test-user") {
+         sessions: [TrainingSession] = [], healthAvailable: Bool = false,
+         userID: String = "test-user") {
         clearPersistedDefaults()
         goalRepo = FakeGoalRepository(seededGoals)
         raceRepo = FakeRaceRepository(seededRaces)
         trainingRepo = FakeTrainingRepository(sessions)
         healthRepo = FakeHealthRepository()
+        healthRepo.available = healthAvailable
+        recoveryLogRepo = FakeRecoveryLogRepository()
         bodyLogRepo = FakeBodyLogRepository()
         weatherRepo = FakeWeatherRepository()
         calendarRepo = FakeCalendarRepository()
@@ -261,6 +293,21 @@ struct TestApp {
             fetchBestSplits: FetchBestSplitsUseCase(repository: healthRepo),
             fetchWorkoutRoute: FetchWorkoutRouteUseCase(repository: healthRepo),
             fetchWeather: FetchRaceWeatherUseCase(repository: weatherRepo)
+        )
+        health = HealthViewModel(
+            userID: userID,
+            fetchSummary: FetchFitnessSummaryUseCase(repository: healthRepo),
+            assessReadiness: AssessReadinessUseCase(),
+            fetchRecovery: FetchRecoveryUseCase(repository: healthRepo),
+            assessRecovery: AssessRecoveryUseCase(),
+            fetchRecoveryTrend: FetchRecoveryTrendUseCase(repository: healthRepo),
+            fetchWorkload: FetchWorkloadUseCase(repository: healthRepo),
+            assessWorkload: AssessWorkloadUseCase(),
+            fetchFitnessTrend: FetchFitnessTrendUseCase(repository: healthRepo),
+            saveCheckIn: SaveRecoveryCheckInUseCase(repository: recoveryLogRepo),
+            fetchCheckIns: FetchRecoveryCheckInsUseCase(repository: recoveryLogRepo),
+            computeTrainingLoad: ComputeTrainingLoadUseCase(),
+            trainingViewModel: training
         )
         goals = GoalsViewModel(
             userID: userID,
