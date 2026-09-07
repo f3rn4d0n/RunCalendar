@@ -47,9 +47,12 @@ struct HoyView: View {
                     missionCard
                     todayTrainingCard
                     recoveryCard
-                    accessLinks
                 }
                 .padding(16)
+                // El ancho del contenido es el del contenedor, punto. Sin esto, si una sola card
+                // mide de más (un texto que no parte, un dato largo), el VStack se ensancha, se
+                // lleva a *todas* las demás y la pantalla entera empieza a scrollear en horizontal.
+                .containerRelativeFrame(.horizontal)
             }
             .background(Neon.background.ignoresSafeArea())
             .navigationTitle("Hoy")
@@ -349,21 +352,6 @@ struct HoyView: View {
         .shimmering()
     }
 
-    private var accessLinks: some View {
-        VStack(spacing: 10) {
-            NavigationLink {
-                RaceListView(viewModel: racesViewModel, trainingViewModel: trainingViewModel,
-                             healthViewModel: healthViewModel)
-            } label: { DashLink(title: "Todas las carreras", icon: "flag.checkered") }
-                .buttonStyle(.plain)
-            NavigationLink {
-                CalendarView(racesViewModel: racesViewModel, trainingViewModel: trainingViewModel,
-                             healthViewModel: healthViewModel)
-            } label: { DashLink(title: "Calendario", icon: "calendar") }
-                .buttonStyle(.plain)
-        }
-    }
-
     // MARK: - Recovery helpers (mismo criterio que Progreso)
 
     private func recoveryColor(_ level: RecoveryLevel) -> Color {
@@ -401,23 +389,5 @@ struct DashCard<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Neon.surface, in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Color.primary.opacity(0.06)))
-    }
-}
-
-/// Fila de acceso rápido (ícono + título + chevron).
-struct DashLink: View {
-    let title: String
-    let icon: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon).foregroundStyle(Neon.accent).frame(width: 24)
-            Text(title).font(.mHeadline).foregroundStyle(.primary)
-            Spacer()
-            Image(systemName: "chevron.right").font(.mCaption).foregroundStyle(.tertiary)
-        }
-        .padding(.vertical, 14).padding(.horizontal, 16)
-        .background(Neon.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.primary.opacity(0.06)))
     }
 }
