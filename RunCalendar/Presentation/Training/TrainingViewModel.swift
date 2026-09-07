@@ -212,7 +212,7 @@ final class TrainingViewModel {
             sessions = items
             if !sessionsLoaded {
                 sessionsLoaded = true
-                Task { await self.syncFromHealth() } // primer snapshot listo: sincronizar
+                await syncFromHealth() // primer snapshot listo: sincronizar
             }
         }
     }

@@ -69,6 +69,7 @@ struct HealthViewModelTests {
                             title: "Rodaje", durationMin: 60, completed: true, rpe: 5)
         }
         let app = TestApp(sessions: sessions, healthAvailable: true)
+        await app.training.start() // las sesiones llegan al ViewModel por el stream, no por el init
         // Si el ViewModel tomara esto en vez de las sesiones, el resultado sería otro.
         app.healthRepo.workload = WorkloadInput(acuteMinutes: 1, chronicMinutes: 4_000)
 
