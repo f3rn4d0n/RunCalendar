@@ -38,6 +38,13 @@ struct RaceFormView: View {
     private var isNew: Bool { race == nil }
     private var title: String { isNew ? "Nueva carrera" : "Editar carrera" }
 
+    /// La entrega de kit suele ser el día antes de la carrera; se asume a las 9am.
+    private var defaultKitDate: Date {
+        let cal = Calendar.current
+        let dayBefore = cal.date(byAdding: .day, value: -1, to: date) ?? date
+        return cal.date(bySettingHour: 9, minute: 0, second: 0, of: dayBefore) ?? dayBefore
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -97,6 +104,9 @@ struct RaceFormView: View {
 
                 Section("Entrega de kit") {
                     Toggle("Tiene entrega de kit", isOn: $hasKit)
+                        .onChange(of: hasKit) { _, isOn in
+                            if isOn && isNew { kitDate = defaultKitDate }
+                        }
                     if hasKit {
                         DatePicker("Fecha del kit", selection: $kitDate)
                         LocationPickerField(location: $kitLocation, prompt: "Buscar lugar del kit")
