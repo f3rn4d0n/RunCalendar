@@ -78,6 +78,25 @@ struct CalendarView: View {
             }
             .background(Neon.background.ignoresSafeArea())
             .navigationTitle("Calendario")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel)
+                    } label: {
+                        Image(systemName: "figure.run")
+                    }
+                    .accessibilityLabel("Entrenamientos")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        RaceListView(viewModel: racesViewModel, trainingViewModel: trainingViewModel,
+                                     healthViewModel: healthViewModel)
+                    } label: {
+                        Image(systemName: "flag.checkered")
+                    }
+                    .accessibilityLabel("Carreras")
+                }
+            }
         }
     }
 

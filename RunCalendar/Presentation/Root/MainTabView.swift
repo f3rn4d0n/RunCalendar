@@ -49,8 +49,9 @@ struct MainTabView: View {
                     remindersViewModel: remindersViewModel
                 )
             }
-            Tab("Entrenar", systemImage: "figure.run") {
-                TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel)
+            Tab("Calendario", systemImage: "calendar") {
+                CalendarView(racesViewModel: racesViewModel, trainingViewModel: trainingViewModel,
+                             healthViewModel: healthViewModel)
             }
             Tab("Objetivos", systemImage: "target") {
                 GoalsView(viewModel: goalsViewModel)
