@@ -128,7 +128,7 @@ struct TrainingViewModelTests {
 
     @Test("syncFromHealth rellena RPE y cadencia de una sesión ya importada, sin duplicarla")
     func syncBackfillsEffortOnExistingSession() async {
-        let existing = session("Rodaje", type: .running, daysAgo: 0, distanceKm: 10, rpe: nil)
+        let existing = session("Rodaje", type: .running, daysAgo: 0, rpe: nil, distanceKm: 10)
         let app = TestApp(sessions: [existing])
         await app.training.start()
         app.healthRepo.workouts = [
