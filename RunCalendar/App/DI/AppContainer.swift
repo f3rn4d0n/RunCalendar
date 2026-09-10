@@ -19,6 +19,7 @@ final class AppContainer {
     private let goalRepository: GoalRepository
     private let bodyLogRepository: BodyLogRepository
     private let weekPlanRepository: WeekPlanRepository
+    private let feedbackRepository: FeedbackRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
@@ -33,7 +34,8 @@ final class AppContainer {
         recoveryLogRepository: RecoveryLogRepository = FirestoreRecoveryLogRepository(),
         goalRepository: GoalRepository = FirestoreGoalRepository(),
         bodyLogRepository: BodyLogRepository = FirestoreBodyLogRepository(),
-        weekPlanRepository: WeekPlanRepository = FirestoreWeekPlanRepository()
+        weekPlanRepository: WeekPlanRepository = FirestoreWeekPlanRepository(),
+        feedbackRepository: FeedbackRepository = FirestoreFeedbackRepository()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
@@ -47,6 +49,7 @@ final class AppContainer {
         self.goalRepository = goalRepository
         self.bodyLogRepository = bodyLogRepository
         self.weekPlanRepository = weekPlanRepository
+        self.feedbackRepository = feedbackRepository
     }
 
     // MARK: - ViewModels
@@ -92,7 +95,8 @@ final class AppContainer {
         ProfileViewModel(
             userID: userID,
             observeProfile: ObserveProfileUseCase(repository: profileRepository),
-            saveProfile: SaveProfileUseCase(repository: profileRepository)
+            saveProfile: SaveProfileUseCase(repository: profileRepository),
+            submitFeedback: SubmitFeedbackUseCase(repository: feedbackRepository)
         )
     }
 

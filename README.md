@@ -418,6 +418,13 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
+
+    // Comentarios del usuario (colección raíz, no por usuario). Cualquiera con sesión
+    // puede crear; nadie lee/edita/borra desde la app (el equipo los ve en la consola).
+    match /feedback/{id} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
   }
 }
 ```
@@ -450,6 +457,7 @@ users/{uid}/trainings/{id}           # entrenamientos (cualquier TrainingType; i
 users/{uid}/recoveryLogs/{yyyy-MM-dd} # check-in diario de recuperación (para calibrar)
 users/{uid}/goals/{goalId}           # objetivos del atleta (tiempo/VO₂max/peso)  (fase 1)
 users/{uid}/bodyLogs/{yyyy-MM-dd}    # review semanal: energía y hambre (fase 2)
+feedback/{autoId}                    # comentarios del usuario: texto + rating 1–5 (colección raíz)
 ```
 
 > **El plan de entrenamiento (fase 3) no se persiste.** Es una función pura de tus metas + volumen

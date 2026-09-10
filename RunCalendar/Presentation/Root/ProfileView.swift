@@ -68,6 +68,14 @@ struct ProfileView: View {
                     }
                 }
 
+                Section("Comentarios") {
+                    NavigationLink {
+                        FeedbackView(viewModel: viewModel)
+                    } label: {
+                        Label("Enviar comentarios", systemImage: "text.bubble")
+                    }
+                }
+
                 Section("Cuenta") {
                     LabeledContent("Correo", value: user.email ?? "—")
                 }
