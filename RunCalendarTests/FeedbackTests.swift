@@ -46,3 +46,33 @@ struct FeedbackTests {
         }
     }
 }
+
+@MainActor
+@Suite("AppReviewPrompt.isDue")
+struct AppReviewPromptTests {
+
+    private let now = Date(timeIntervalSince1970: 1_000_000_000)
+
+    @Test("Toca tras una semana desde el primer arranque")
+    func dueAfterAWeek() {
+        let weekAgo = now.addingTimeInterval(-7 * 86_400)
+        #expect(AppReviewPrompt.isDue(now: now, firstLaunch: weekAgo, alreadyAsked: false))
+    }
+
+    @Test("No toca antes de la semana")
+    func notDueBefore() {
+        let sixDaysAgo = now.addingTimeInterval(-6 * 86_400)
+        #expect(!AppReviewPrompt.isDue(now: now, firstLaunch: sixDaysAgo, alreadyAsked: false))
+    }
+
+    @Test("No toca si ya se preguntó, aunque haya pasado la semana")
+    func notDueIfAlreadyAsked() {
+        let monthAgo = now.addingTimeInterval(-30 * 86_400)
+        #expect(!AppReviewPrompt.isDue(now: now, firstLaunch: monthAgo, alreadyAsked: true))
+    }
+
+    @Test("No toca sin fecha de primer arranque")
+    func notDueWithoutFirstLaunch() {
+        #expect(!AppReviewPrompt.isDue(now: now, firstLaunch: nil, alreadyAsked: false))
+    }
+}

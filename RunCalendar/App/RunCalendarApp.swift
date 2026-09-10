@@ -17,6 +17,7 @@ struct RunCalendarApp: App {
         let projectID = FirebaseApp.app()?.options.projectID ?? "nil"
         Log.app.info("Firebase configurado, projectID=\(projectID, privacy: .public)")
         Self.configureNavigationAppearance()
+        AppReviewPrompt.recordFirstLaunch()
         _container = State(initialValue: AppContainer())
     }
 

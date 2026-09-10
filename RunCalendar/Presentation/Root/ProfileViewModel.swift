@@ -59,6 +59,7 @@ final class ProfileViewModel {
             try await submitFeedback(feedback, userID: userID)
             Haptics.success()
             Usage.feedbackSent(rating: rating)
+            AppReviewPrompt.markAsked()   // ya opinó: no pedirle valorar la semana que viene
             return true
         } catch {
             errorMessage = error.localizedDescription
