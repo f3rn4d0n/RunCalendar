@@ -510,8 +510,11 @@ struct GeneratePlanUseCase: Sendable {
     private var maxTempoKm: Double     { 14 }
     private var maxIntervalsKm: Double { 9 }
     private var minEasyKm: Double      { 4 }
-    /// Km sobrantes a partir de los cuales avisamos que el volumen no cabe en los días dados.
-    private var unfitThresholdKm: Double { 5 }
+    /// Fracción del volumen semanal, sobrante, a partir de la cual avisamos que no cabe en los días
+    /// dados. Antes era un absoluto (5 km): 3 km sobrantes de 40 km (7.5%) merecen aviso, los mismos
+    /// 3 km de 120 km (2.5%) no — ver docs/pendientes.md "El plan descarta volumen sin avisar".
+    /// ponytail: 5% sin calibrar contra datos reales; ajústalo cuando haya usuarios reportando.
+    private var unfitThresholdFraction: Double { 0.05 }
 
     /// Días/semana sugeridos para repartir un volumen alto sin sesiones enormes (~14 km/día).
     private func suggestedDays(_ weekKm: Double) -> Int {
@@ -734,7 +737,7 @@ struct GeneratePlanUseCase: Sendable {
         case nil:
             break
         }
-        if unfit > unfitThresholdKm {
+        if weekKm > 0, unfit / weekKm > unfitThresholdFraction {
             return "Tu volumen (~\(Goal.trim(weekKm)) km) no cabe sano en \(days) días: sube a "
                 + "~\(suggestedDays(weekKm)) días para repartirlo en vez de meter sesiones enormes."
         }

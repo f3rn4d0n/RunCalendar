@@ -101,7 +101,24 @@ struct AssessRecoveryUseCase: Sendable {
         // Ajuste personal aprendido de tus check-ins (1 si aún no hay suficientes).
         let needed = min(loadHours * hrvFactor * rhrFactor * sleepFactor * calibration.factor,
                          Self.maxRecoveryHours)
-        let elapsed = s.hoursSinceLastWorkout ?? needed
+
+        // Sin fecha del último entreno no hay horas que restar. Antes `?? needed` leía la falta de
+        // dato como "ya pasó justo lo que hacía falta" y el anillo de Hoy mostraba "Recuperado" sin
+        // ninguna base para decirlo — el peor momento para inventar el mejor caso posible.
+        guard let elapsed = s.hoursSinceLastWorkout else {
+            return RecoveryEstimate(
+                level: .unknown,
+                remainingHours: 0,
+                currentHRV: s.currentHRV,
+                baselineHRV: s.baselineHRV,
+                hrvDeviationPct: deviation,
+                sleepHours: s.lastNightSleepHours,
+                note: "No tenemos la fecha de tu último entrenamiento, así que no podemos estimar tu "
+                    + "recuperación todavía.",
+                tips: ["Registra tu próximo entrenamiento para que el estimado empiece a calcularse."],
+                calibration: calibration.isActive ? calibration : nil
+            )
+        }
         let remaining = max(0, Int((needed - elapsed).rounded()))
 
         let level: RecoveryLevel = remaining == 0 ? .recovered : (remaining <= 12 ? .partial : .fatigued)
@@ -134,6 +151,10 @@ struct AssessRecoveryUseCase: Sendable {
             let low = (deviation ?? 0) < -10 ? " Tu HRV está por debajo de tu base." : ""
             let sleep = shortSleep ? " Dormiste poco anoche, lo que frena tu recuperación." : ""
             return "Acumulaste carga y aún no te recuperas del todo.\(low)\(sleep) Prioriza descanso, sueño e hidratación."
+        case .unknown:
+            // No llega aquí: `callAsFunction` corta antes con su propia nota. El caso queda para
+            // que el switch siga exhaustivo si algún día se llama desde otro sitio.
+            return "No tenemos la fecha de tu último entrenamiento, así que no podemos estimar tu recuperación."
         }
     }
 
@@ -149,6 +170,9 @@ struct AssessRecoveryUseCase: Sendable {
         case .fatigued:
             result = ["Descansa o haz recuperación activa muy suave.",
                       "Hidrátate y cuida la nutrición post-entrenamiento."]
+        case .unknown:
+            // Igual que en `note(level:...)`: inalcanzable hoy, el switch queda exhaustivo por si acaso.
+            result = ["Registra tu próximo entrenamiento para que el estimado empiece a calcularse."]
         }
         if let sleep = snapshot.lastNightSleepHours, sleep < 7 {
             result.append("Anoche dormiste \(sleep.formatted(.number.precision(.fractionLength(1)))) h; "

@@ -116,8 +116,19 @@ struct RecoveryTests {
             case .recovered: #expect(estimate.remainingHours == 0)
             case .partial:   #expect((1...12).contains(estimate.remainingHours))
             case .fatigued:  #expect(estimate.remainingHours > 12)
+            case .unknown:   Issue.record("con hoursSince fijo nunca debería salir .unknown")
             }
         }
+    }
+
+    // MARK: - Sin fecha de último entreno
+
+    @Test("Sin fecha del último entreno el nivel es 'sin datos', no 'recuperado'")
+    func unknownWhenNoLastWorkoutDate() {
+        let noDate = snapshot(loadMinutes: 300, hoursSince: nil)
+        let estimate = assess(noDate)
+        #expect(estimate.level == .unknown)
+        #expect(estimate.remainingHours == 0)
     }
 }
 

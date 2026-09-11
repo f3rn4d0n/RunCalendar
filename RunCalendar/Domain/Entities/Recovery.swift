@@ -35,12 +35,16 @@ enum RecoveryLevel: String, Sendable {
     case recovered = "Recuperado"
     case partial   = "Recuperación parcial"
     case fatigued  = "Fatiga"
+    /// Sin la fecha del último entrenamiento no hay horas que restar: es un dato que falta, no la
+    /// mejor recuperación posible. Distinto de `.recovered` a propósito.
+    case unknown   = "Sin datos"
 
     var systemImage: String {
         switch self {
         case .recovered: return "checkmark.seal.fill"
         case .partial:   return "clock.badge.checkmark"
         case .fatigued:  return "bolt.heart.fill"
+        case .unknown:   return "questionmark.circle"
         }
     }
 }
