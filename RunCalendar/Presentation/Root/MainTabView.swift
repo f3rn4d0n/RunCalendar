@@ -7,6 +7,8 @@ struct MainTabView: View {
     let user: AppUser
     let authViewModel: AuthViewModel
 
+    @Environment(\.requestReview) private var requestReview
+
     @State private var racesViewModel: RacesViewModel
     @State private var trainingViewModel: TrainingViewModel
     @State private var profileViewModel: ProfileViewModel
@@ -62,6 +64,9 @@ struct MainTabView: View {
             }
         }
         .task { await remindersViewModel.refresh() }
+        // Valoración en la App Store: una vez, a partir de la primera semana de uso.
+        // Se salta sola si el atleta ya mandó un comentario (ver ProfileViewModel.sendFeedback).
+        .task { AppReviewPrompt.askIfDue(requestReview) }
         .onChange(of: racesViewModel.races) { _, _ in
             Task { await remindersViewModel.refresh() }
         }

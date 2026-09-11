@@ -48,6 +48,12 @@ enum Usage {
         log("workout_sent_to_watch", ["workout_kind": key(of: kind)])
     }
 
+    /// El usuario mandó un comentario. Solo el conteo y la valoración (1–5, rango cerrado):
+    /// el texto va a Firestore, nunca aquí.
+    static func feedbackSent(rating: Int) {
+        log("feedback_sent", ["rating": rating])
+    }
+
     // MARK: - Interno
 
     /// Identificador estable en inglés para un `case`. **No** se manda el `rawValue`: esos son los

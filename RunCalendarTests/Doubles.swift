@@ -236,6 +236,18 @@ final class FakeWeekPlanRepository: WeekPlanRepository, @unchecked Sendable {
     }
 }
 
+// MARK: - Comentarios
+
+final class FakeFeedbackRepository: FeedbackRepository, @unchecked Sendable {
+    var failure: Error?
+    private(set) var submitted: [Feedback] = []
+
+    func submit(_ feedback: Feedback, userID: String) async throws {
+        if let failure { throw failure }
+        submitted.append(feedback)
+    }
+}
+
 // MARK: - Montaje
 
 /// Arma los tres ViewModels cableados a dobles, igual que hace `AppContainer` con las
