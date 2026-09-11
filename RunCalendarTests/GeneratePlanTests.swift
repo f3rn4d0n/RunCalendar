@@ -396,9 +396,10 @@ struct GeneratePlanTests {
         // Los topes de las sesiones de calidad hacen que en pocos días **no quepa** todo el
         // volumen; eso es deliberado (se avisa subir días en vez de inflar la sesión).
         //
-        // Ojo: con 40 km en 3 días sobran ~3 km y el plan **no** avisa, porque el aviso solo
-        // salta arriba de `unfitThresholdKm` (5 km). Está documentado en docs/pendientes.md;
-        // aquí no se fija ese comportamiento para no cementar un umbral sin calibrar.
+        // Con 40 km en 3 días sobra un ~7-8% del volumen sin repartir — por encima de
+        // `unfitThresholdFraction` (5%), así que ahora sí avisa. Antes el umbral era un absoluto
+        // (5 km) y este caso quedaba mudo; ver docs/pendientes.md "El plan descarta volumen sin avisar".
+        #expect(three.note != nil, "más del 5% del volumen sin repartir debería avisar")
         #expect(five.totalKm >= three.totalKm)
 
         let tempo3 = three.days.first { $0.kind == .tempo }?.targetKm ?? 0

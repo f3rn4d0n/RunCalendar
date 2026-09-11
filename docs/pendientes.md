@@ -181,8 +181,9 @@ Tres detalles que cuestan una tarde si no se saben:
 
 **Lo que falta:**
 
-1. `HealthViewModel` y `TrainingViewModel` siguen sin pruebas propias (los dobles ya están; falta
-   escribirlas). El import de Salud —deduplicar contra lo que ya existe— es lo que más lo pide.
+1. ~~`HealthViewModel` y `TrainingViewModel` siguen sin pruebas propias~~ ✅ hecho:
+   `RunCalendarTests/HealthViewModelTests.swift` y `TrainingViewModelTests.swift` (commit `4387e68`,
+   #260), incluido el import de Salud deduplicando contra lo que ya existe.
 2. ~~**CI en GitHub Actions**~~ ✅ hecho: `.github/workflows/pruebas.yml` corre el target en cada
    PR — **solo ahí**, no en cada push a `main`. Antes eran las dos cosas y cada cambio se probaba
    dos veces (una en la rama, otra al mergear). Lo que la corrida de `main` protegía era que `main`
@@ -238,9 +239,9 @@ Lo que **sigue pendiente** del modelo, por orden de valor:
 2. **Los escalones dan saltos absurdos.** Un ratio de HRV de 0.899 da factor 1.3 y 0.901 da 1.0:
    **0.2% de cambio mueve el estimado 30%**. Interpolar linealmente entre los mismos umbrales
    conserva el modelo y quita el salto. Igual en los tramos de sueño.
-3. **Sin fecha del último entreno se declara "recuperado".** `elapsed = hoursSinceLastWorkout ??
-   needed` convierte la falta de dato en la afirmación más optimista posible. Debería ser un estado
-   desconocido, no un verde.
+3. ~~**Sin fecha del último entreno se declara "recuperado".**~~ ✅ resuelto: `RecoveryLevel.unknown`
+   es un estado propio (`AssessRecoveryUseCase`, `HealthUseCases.swift`), distinto de `.recovered`;
+   *Hoy* y *Progreso* muestran "Sin datos" en vez del anillo en verde.
 4. **`isHighLoad` no es una condición adversa.** Se define como *por encima de la mediana*, o sea
    **la mitad de los días por construcción**: el segmento siempre se activa y no distingue nada.
    Debería ser un percentil alto o un umbral absoluto.
@@ -251,8 +252,9 @@ Lo que **sigue pendiente** del modelo, por orden de valor:
 6. **La calibración no mide si mejora.** Existe la gráfica "¿acierta el modelo?" pero nada compara
    el error medio antes y después de calibrar — que es lo único que responde si la feature sirve.
 
-> **1–3 se pueden hacer ya** (son del modelo, no de los datos). **4–6 esperan usuarios reales**:
-> recalibrar segmentos sin registros de nadie es justo lo que dice *Umbrales sin calibrar*.
+> **1–2 se pueden hacer ya** (son del modelo, no de los datos; el 3 ya se hizo). **4–6 esperan
+> usuarios reales**: recalibrar segmentos sin registros de nadie es justo lo que dice
+> *Umbrales sin calibrar*.
 
 ### Huecos documentados de la adherencia
 
@@ -290,20 +292,18 @@ km, y el propio plan ya pide capturarlos— así que no se arregló: la solució
 `PlanDayOutcome` distinga "día fijo sin meta de km" de "descanso", y eso es un caso más en un
 enum que hoy nadie está pidiendo.
 
-### El plan descarta volumen sin avisar
+### ~~El plan descarta volumen sin avisar~~ ✅ resuelto
 
 Con las sesiones de calidad topadas, parte del volumen no cabe: `allocate` devuelve el sobrante
-(`unfit`) y el plan solo avisa **arriba de `unfitThresholdKm` (5 km)**. Debajo de ese umbral los
-kilómetros simplemente desaparecen.
+(`unfit`). El aviso avisaba **arriba de un absoluto (`unfitThresholdKm`, 5 km)**, así que un caso
+real —**40 km en 3 días** generaba un plan de 37 km y `note == nil`, el atleta pedía 40, recibía 37
+y nada se lo decía— quedaba mudo mientras el README promete *"si aún no cabe, avisa subir días en
+vez de inflar"*.
 
-Caso real, encontrado al migrar los self-checks a pruebas: **40 km en 3 días** genera un plan de
-37 km y `note == nil`. El atleta pidió 40, recibe 37, y nada se lo dice — mientras el README
-promete *"si aún no cabe, avisa subir días en vez de inflar"*.
-
-No se arregló aquí porque el arreglo es **elegir un número nuevo** (¿1 km? ¿un % del volumen?) y
-eso es calibrar a ojo, justo lo que dice *Umbrales sin calibrar*. Lo defendible sin datos es que
-el aviso dependa de la **fracción** del volumen, no de un absoluto: 3 km sobre 40 es 7.5% y merece
-mención; 3 km sobre 120 no.
+Ahora el aviso depende de la **fracción** del volumen sin repartir, no de un absoluto
+(`unfitThresholdFraction`, 5%): 3 km sobre 40 son 7.5% y avisan; 3 km sobre 120 son 2.5% y no. El
+5% en sí sigue sin calibrar contra datos reales (`// ponytail:` en `PlanUseCases.swift`), igual que
+el resto de constantes de *Umbrales sin calibrar*.
 
 ### Los dos escalones del taper están sin calibrar
 
