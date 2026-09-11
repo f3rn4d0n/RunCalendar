@@ -1,13 +1,18 @@
 import SwiftUI
 
 /// La semana día por día: qué pedía el plan y qué corriste. Responde "¿por qué me faltaron
-/// sesiones?" con el detalle que la barra de *Hoy* no cabe a mostrar.
+/// sesiones?" con el detalle que la barra de *Hoy* no cabía a mostrar.
+///
+/// Es contenido, no pantalla: quien la usa (`PlanView`) pone el `NavigationStack` y el título.
 struct WeekAdherenceView: View {
     let adherence: PlanAdherence
     let outcomes: [PlanDayOutcome]
     /// Semanas ya cerradas, de la más reciente a la más vieja. Vacío mientras no haya historial.
     var past: [(plan: TrainingPlan, adherence: PlanAdherence)] = []
-    @Environment(\.dismiss) private var dismiss
+    /// Semana en pausa (lesión/enfermedad) o descarga/afinamiento — el porqué de un volumen menor.
+    var pauseMessage: (text: String, systemImage: String)? = nil
+    /// Aviso del motor cuando el volumen no cabe sano en los días configurados.
+    var planNote: String? = nil
 
     /// Las semanas anteriores con lo que pidieron y lo que hiciste.
     ///
@@ -47,66 +52,76 @@ struct WeekAdherenceView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(adherence.summary).font(.mHeadline)
+                    ProgressView(value: adherence.fraction).tint(Neon.green)
+                    Text("\(adherence.completedSessions)/\(adherence.plannedSessions) sesiones · "
+                         + "\(Goal.trim(adherence.completedKm))/\(Goal.trim(adherence.plannedKm)) km"
+                         + (adherence.completedMinutes > 0 ? " · \(adherence.completedMinutes) min" : ""))
+                        .font(.mCaption.monospacedDigit()).foregroundStyle(.secondary)
+                    if adherence.plannedHardSessions > 0 {
+                        Text("Calidad: \(adherence.completedHardSessions) de "
+                             + "\(adherence.plannedHardSessions) sesiones (tempo/series)")
+                            .font(.mCaption).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
+            // En descarga/afinamiento la sesión sigue, así que el motivo hay que decirlo (en
+            // lesión/enfermedad el mensaje ya lo dio la misión de hoy, esto es el mismo texto
+            // visto desde la semana completa).
+            if let pauseMessage {
                 Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(adherence.summary).font(.mHeadline)
-                        ProgressView(value: adherence.fraction).tint(Neon.green)
-                        Text("\(adherence.completedSessions)/\(adherence.plannedSessions) sesiones · "
-                             + "\(Goal.trim(adherence.completedKm))/\(Goal.trim(adherence.plannedKm)) km"
-                             + (adherence.completedMinutes > 0 ? " · \(adherence.completedMinutes) min" : ""))
-                            .font(.mCaption.monospacedDigit()).foregroundStyle(.secondary)
-                        if adherence.plannedHardSessions > 0 {
-                            Text("Calidad: \(adherence.completedHardSessions) de "
-                                 + "\(adherence.plannedHardSessions) sesiones (tempo/series)")
-                                .font(.mCaption).foregroundStyle(.secondary)
+                    Label(pauseMessage.text, systemImage: pauseMessage.systemImage)
+                        .font(.mSubheadline).foregroundStyle(Neon.gold)
+                }
+            }
+
+            if let warning = adherence.extraLoadWarning {
+                Section {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.mSubheadline).foregroundStyle(Neon.orange)
+                }
+            }
+
+            if let planNote {
+                Section {
+                    Label(planNote, systemImage: "exclamationmark.triangle.fill")
+                        .font(.mSubheadline).foregroundStyle(Neon.orange)
+                }
+            }
+
+            Section("Día por día") {
+                ForEach(outcomes) { outcome in
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: icon(outcome.status))
+                            .foregroundStyle(color(outcome.status))
+                            .frame(width: 22)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(outcome.weekdayName.capitalized).font(.mSubheadline)
+                            Text(outcome.summary).font(.mCaption).foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
                 }
-
-                if let warning = adherence.extraLoadWarning {
-                    Section {
-                        Label(warning, systemImage: "exclamationmark.triangle.fill")
-                            .font(.mSubheadline).foregroundStyle(Neon.orange)
-                    }
-                }
-
-                Section("Día por día") {
-                    ForEach(outcomes) { outcome in
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: icon(outcome.status))
-                                .foregroundStyle(color(outcome.status))
-                                .frame(width: 22)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(outcome.weekdayName.capitalized).font(.mSubheadline)
-                                Text(outcome.summary).font(.mCaption).foregroundStyle(.secondary)
-                            }
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
-                }
-
-                Section {
-                    Text("Una sesión cuenta como de calidad por tu **RPE** (7 o más), no por el día: "
-                         + "así vale igual si moviste el tempo del martes al jueves. El kilometraje "
-                         + "cuenta como cumplido desde el 90% del objetivo — nadie clava el número "
-                         + "exacto.")
-                        .font(.mCaption2).foregroundStyle(.secondary)
-                }
-
-                pastWeeksSection
             }
-            .scrollContentBackground(.hidden)
-            .listRowBackground(Neon.surface)
-            .background(Neon.background.ignoresSafeArea())
-            .navigationTitle("Tu semana")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Cerrar") { dismiss() } }
+
+            Section {
+                Text("Una sesión cuenta como de calidad por tu **RPE** (7 o más), no por el día: "
+                     + "así vale igual si moviste el tempo del martes al jueves. El kilometraje "
+                     + "cuenta como cumplido desde el 90% del objetivo — nadie clava el número "
+                     + "exacto.")
+                    .font(.mCaption2).foregroundStyle(.secondary)
             }
+
+            pastWeeksSection
         }
+        .scrollContentBackground(.hidden)
+        .listRowBackground(Neon.surface)
+        .background(Neon.background.ignoresSafeArea())
     }
 
     private func icon(_ status: PlanDayOutcome.Status) -> String {

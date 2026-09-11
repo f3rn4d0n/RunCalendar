@@ -411,7 +411,7 @@ usuarios, no antes.
 | **Registro de fuerza + PR de levantamiento** | La mitad **híbrida** del producto, y hoy no existe. Dominio nuevo: ejercicio × peso × reps. Es la extensión que más cambia lo que la app *es* — ver la nota de abajo |
 | **Programar la sesión sola en el reloj** | `WorkoutScheduler` (WorkoutKit) deja el entreno de mañana en el Watch sin que el atleta lo mande. Hoy se manda a mano desde el detalle (`.workoutPreview`), que no pide autorización ni cuenta de pago. **Diferido a propósito hasta tener el target de pruebas**; además falta confirmar si `WorkoutScheduler` exige una *managed capability* de Apple, como Sign in with Apple |
 | **Alertas de ritmo en la sesión del reloj** | `SpeedRangeAlert` haría que el reloj avise si te sales del ritmo, no solo al cerrar el tramo. Pide convertir un PR de 5K a un rango de velocidad; hoy el plan es cualitativo por principio ("nunca un dato inventado") |
-| **Tab Plan propia** | Hoy el plan vive entre *Hoy* y *Objetivos*. Se promueve si se gana el espacio |
+| ~~**Tab Plan propia**~~ | ✅ resuelto: `PlanView` (la semana día por día + avisos + ajustar días, antes un sheet colgando de *Hoy*) tiene su propio tab. *Hoy* conserva solo la misión del día como atajo |
 | **Varias campañas simultáneas + misiones manuales** | Requiere persistir `Campaign`, que hoy es derivada a propósito |
 | **Fotos del review dominical** | Necesita Firebase Storage |
 | **Widget de cuenta regresiva** | WidgetKit + App Groups → espera membresía de pago |
