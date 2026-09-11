@@ -55,6 +55,9 @@ struct MainTabView: View {
                 CalendarView(racesViewModel: racesViewModel, trainingViewModel: trainingViewModel,
                              healthViewModel: healthViewModel)
             }
+            Tab("Plan", systemImage: "list.bullet.clipboard") {
+                PlanView(viewModel: goalsViewModel)
+            }
             Tab("Objetivos", systemImage: "target") {
                 GoalsView(viewModel: goalsViewModel)
             }

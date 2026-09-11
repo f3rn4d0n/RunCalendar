@@ -8,7 +8,8 @@
 App iPhone/Mac que es un **coach del atleta híbrido**: tus **objetivos** (con sugerencia y ritmo
 esperado), tu **entrenamiento** (carrera, CrossFit, caminata, senderismo — con import de Apple Salud,
 rutas y RPE), tu **progreso/condición** (recuperación, calibración, ACWR, VO₂max, readiness) y tu
-agenda de **carreras**. Navegación por *ciclo del atleta*: **Hoy · Entrenar · Objetivos · Progreso**.
+agenda de **carreras**. Navegación por *ciclo del atleta*: **Hoy · Calendario · Plan · Objetivos ·
+Progreso**.
 
 Construida con **SwiftUI**, **Clean Architecture**, **SOLID** y **Firebase** (Auth + Firestore).
 
@@ -518,8 +519,8 @@ RunCalendar/
 ### Entrada y wiring
 - `App/…App.swift` (`@main`) → `AppDelegate` (init de Firebase) → `RootView` (gate de auth) → `MainTabView`.
 - `App/DI/AppContainer.swift` — **composition root**: crea repos, services y los `makeXxxViewModel(...)`.
-- `Presentation/Root/MainTabView.swift` — **dueño de todos los ViewModels**; monta los 4 tabs (Hoy/
-  Entrenar/Objetivos/Progreso), arranca
+- `Presentation/Root/MainTabView.swift` — **dueño de todos los ViewModels**; monta los 5 tabs (Hoy/
+  Calendario/Plan/Objetivos/Progreso), arranca
   los streams de Firestore (`.task { … start() }`) y los observadores de Salud (`HKObserverQuery`).
   También dispara la **carga inicial de Condición** (`healthViewModel.onAppear()`) aquí, no solo en
   la tab Progreso: la card de recuperación de *Hoy* la necesita aunque nunca abras Progreso.
@@ -794,10 +795,10 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 | **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app**. Indefendible sin target de pruebas (ver [Pendientes](docs/pendientes.md)) |
 | ~~Nutrición~~ | **Movida a post-MVP.** Incluso acotada (objetivos + checkbox, sin food-logger) arrastra dominio, UI y un modelo de adherencia propios | Demasiado para ahora y no es lo que sostiene el MVP. Detalle en [Pendientes](docs/pendientes.md#post-mvp) |
 
-> **Reestructura UX:** ✅ hecha en su mayoría — 4 tabs por *ciclo del atleta* (**Hoy · Entrenar ·
-> Objetivos · Progreso**), Carreras/Calendario dentro de Hoy, Perfil como avatar. **Hoy** ya tiene la
-> **misión del día** (Fase 3); la config del plan se abre desde ahí. Falta decidir si el plan merece
-> **tab propia** (hoy vive en Hoy/Objetivos) — se promoverá si se gana el espacio.
+> **Reestructura UX:** ✅ hecha — 5 tabs por *ciclo del atleta* (**Hoy · Calendario · Plan ·
+> Objetivos · Progreso**), Carreras dentro de Hoy, Perfil como avatar. **Hoy** conserva la
+> **misión del día** (Fase 3) como atajo; la semana completa (día por día, avisos del motor,
+> ajustar días/semana) vive en el tab **Plan**, que antes era un sheet colgando de Hoy.
 >
 > **Rediseño visual (RunCalendar UI Kit):** ✅ en su mayoría — paleta, tipografía (Permanent Marker en
 > display + San Francisco en cuerpo), **superficies dark-first** en todas las tabs, **`ProgressRing`**
@@ -814,9 +815,10 @@ PRs), readiness por carrera, RPE por sesión + esfuerzo del Watch, calibración 
 caminata/senderismo, recordatorios locales (carreras, kit con lugar/hora, entrenamientos + pendientes),
 exportar carreras/kit al Calendario (EventKit, con coordenadas/URL/alarma). **Objetivos** con confianza
 cualitativa, Coach Insight y ritmo semanal esperado. **Rediseño del Kit** (paleta/tipografía/superficies/
-rings) y **navegación por ciclo del atleta** (Hoy · Entrenar · Objetivos · Progreso). **Plan (Fase 3):**
-generación automática de la semana (motor determinista), misión de hoy, detalle de sesión, "Sugerir plan"
-desde historial, preview con descansos, **adherencia de la semana** y **Campañas** (misiones derivadas).
+rings) y **navegación por ciclo del atleta** (Hoy · Calendario · Plan · Objetivos · Progreso).
+**Plan (Fase 3):** generación automática de la semana (motor determinista), misión de hoy en *Hoy*,
+la semana día por día + ajuste de días en su propio tab, detalle de sesión, "Sugerir plan" desde
+historial, preview con descansos, **adherencia de la semana** y **Campañas** (misiones derivadas).
 
 ## Pendiente
 
@@ -830,5 +832,5 @@ Lo que hay que saber sin abrirlo:
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
 | **P1 · antes de tener usuarios** | ✅ completo: **Observabilidad** (Crashlytics + no fatales vía `Logger.failure` + 5 eventos de uso en `Usage`) y **pruebas** (target + CI + dobles de repositorio + cableado de ViewModels + `HealthViewModel`/`TrainingViewModel`) |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
-| **P3 · extensiones** | **Fuerza** (Fase 4) · tab Plan · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
+| **P3 · extensiones** | **Fuerza** (Fase 4) · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |
