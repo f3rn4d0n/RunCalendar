@@ -22,7 +22,28 @@ enum TrainingDTO {
         dict["isPriority"] = session.isPriority
         dict["targetRaceID"] = session.targetRaceID
         dict["rpe"] = session.rpe
+        // Sin condicional: con `setData(merge: true)` el arreglo se reemplaza entero, pero solo
+        // si la clave viaja. Un `session.sets.isEmpty ? nil : …` haría que borrar la última serie
+        // no se borrara nunca en Firestore.
+        dict["sets"] = session.sets.map(setToFirestore)
         return dict
+    }
+
+    private static func setToFirestore(_ set: StrengthSet) -> [String: Any] {
+        ["id": set.id, "exercise": set.exercise.rawValue, "weightKg": set.weightKg, "reps": set.reps]
+    }
+
+    private static func setFromFirestore(_ data: [String: Any]) -> StrengthSet? {
+        guard
+            let id = data["id"] as? String,
+            let exerciseRaw = data["exercise"] as? String,
+            let exercise = StrengthExercise(rawValue: exerciseRaw)
+        else { return nil }
+        // Como NSNumber: un peso escrito a mano en la consola de Firebase (p. ej. "100") vuelve
+        // como Int, y `as? Double` fallaría en silencio.
+        let weightKg = (data["weightKg"] as? NSNumber)?.doubleValue ?? 0
+        let reps = (data["reps"] as? NSNumber)?.intValue ?? 0
+        return StrengthSet(id: id, exercise: exercise, weightKg: weightKg, reps: reps)
     }
 
     static func toDomain(id: String, data: [String: Any]) -> TrainingSession? {
@@ -43,6 +64,7 @@ enum TrainingDTO {
             avgHeartRate: data["avgHeartRate"] as? Int,
             cadenceSPM: data["cadenceSPM"] as? Int,
             wod: data["wod"] as? String,
+            sets: (data["sets"] as? [[String: Any]] ?? []).compactMap(setFromFirestore),
             completed: data["completed"] as? Bool ?? false,
             notes: data["notes"] as? String ?? "",
             isPriority: data["isPriority"] as? Bool ?? false,
