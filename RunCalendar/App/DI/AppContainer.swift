@@ -20,6 +20,7 @@ final class AppContainer {
     private let bodyLogRepository: BodyLogRepository
     private let weekPlanRepository: WeekPlanRepository
     private let feedbackRepository: FeedbackRepository
+    private let liftEntryRepository: LiftEntryRepository
 
     init(
         authRepository: AuthRepository = FirebaseAuthRepository(),
@@ -35,7 +36,8 @@ final class AppContainer {
         goalRepository: GoalRepository = FirestoreGoalRepository(),
         bodyLogRepository: BodyLogRepository = FirestoreBodyLogRepository(),
         weekPlanRepository: WeekPlanRepository = FirestoreWeekPlanRepository(),
-        feedbackRepository: FeedbackRepository = FirestoreFeedbackRepository()
+        feedbackRepository: FeedbackRepository = FirestoreFeedbackRepository(),
+        liftEntryRepository: LiftEntryRepository = FirestoreLiftEntryRepository()
     ) {
         self.authRepository = authRepository
         self.raceRepository = raceRepository
@@ -50,6 +52,7 @@ final class AppContainer {
         self.bodyLogRepository = bodyLogRepository
         self.weekPlanRepository = weekPlanRepository
         self.feedbackRepository = feedbackRepository
+        self.liftEntryRepository = liftEntryRepository
     }
 
     // MARK: - ViewModels
@@ -157,6 +160,17 @@ final class AppContainer {
             saveCheckIn: SaveRecoveryCheckInUseCase(repository: recoveryLogRepository),
             fetchCheckIns: FetchRecoveryCheckInsUseCase(repository: recoveryLogRepository),
             computeTrainingLoad: ComputeTrainingLoadUseCase(),
+            trainingViewModel: trainingViewModel
+        )
+    }
+
+    func makeWeightliftingViewModel(userID: String, trainingViewModel: TrainingViewModel) -> WeightliftingViewModel {
+        WeightliftingViewModel(
+            userID: userID,
+            observeEntries: ObserveLiftEntriesUseCase(repository: liftEntryRepository),
+            addEntry: AddLiftEntryUseCase(repository: liftEntryRepository),
+            updateEntry: UpdateLiftEntryUseCase(repository: liftEntryRepository),
+            deleteEntry: DeleteLiftEntryUseCase(repository: liftEntryRepository),
             trainingViewModel: trainingViewModel
         )
     }

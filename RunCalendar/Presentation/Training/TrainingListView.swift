@@ -9,7 +9,6 @@ struct TrainingListView: View {
     @State private var isCreating = false
     @State private var rpePromptDismissed = false
     @State private var showingRecords = false
-    @State private var showingLiftRecords = false
 
     private var filtered: [TrainingSession] {
         var result = filter.map(viewModel.sessions(of:)) ?? viewModel.sessions
@@ -85,12 +84,6 @@ struct TrainingListView: View {
                     Button { showingRecords = true } label: { Image(systemName: "medal") }
                         .accessibilityLabel("Récords personales")
                 }
-                // ponytail: dos botones de récords en el toolbar. Si se llena, fusionar bajo
-                // "Récords" con un Picker segmentado Carrera/Fuerza.
-                ToolbarItem(placement: .primaryAction) {
-                    Button { showingLiftRecords = true } label: { Image(systemName: "dumbbell") }
-                        .accessibilityLabel("Récords de fuerza")
-                }
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         Picker("Filtro", selection: $filter) {
@@ -111,9 +104,6 @@ struct TrainingListView: View {
             }
             .sheet(isPresented: $showingRecords) {
                 PersonalRecordsView(racesViewModel: racesViewModel, trainingViewModel: viewModel)
-            }
-            .sheet(isPresented: $showingLiftRecords) {
-                LiftRecordsView(trainingViewModel: viewModel)
             }
         }
     }
