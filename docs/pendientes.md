@@ -398,9 +398,10 @@ No sincroniza entre dispositivos. Mover a Firestore cuando haya más de un dispo
 ### Umbrales sin calibrar
 
 Recuperación (72 h), sueño (7–9 h), oscilación de peso (~1 kg), ventana de tirada larga (8 semanas),
-peso volumen/frecuencia de la adherencia (2:1). Todos son constantes nombradas y aisladas a
-propósito; ninguna se ha comprobado contra datos reales de nadie. Se recalibran cuando haya
-usuarios, no antes.
+peso volumen/frecuencia de la adherencia (2:1), **fórmula de Epley para el 1RM estimado y su tope
+de 12 repeticiones** (`StrengthSet.estimatedOneRM`, `LiftRecords.maxRepsForEstimate`). Todos son
+constantes nombradas y aisladas a propósito; ninguna se ha comprobado contra datos reales de
+nadie. Se recalibran cuando haya usuarios, no antes.
 
 ---
 
@@ -408,7 +409,7 @@ usuarios, no antes.
 
 | Qué | Nota |
 |---|---|
-| **Registro de fuerza + PR de levantamiento** | La mitad **híbrida** del producto, y hoy no existe. Dominio nuevo: ejercicio × peso × reps. Es la extensión que más cambia lo que la app *es* — ver la nota de abajo |
+| ~~**Registro de fuerza + PR de levantamiento**~~ | ✅ resuelto: series (ejercicio × peso × reps) embebidas en `TrainingSession.sets`, récords por 1RM estimado en `LiftRecords`. **Quedan fuera**, deliberadamente: meta de fuerza (`GoalType`) y días de fuerza en el plan — ver la nota de abajo |
 | **Programar la sesión sola en el reloj** | `WorkoutScheduler` (WorkoutKit) deja el entreno de mañana en el Watch sin que el atleta lo mande. Hoy se manda a mano desde el detalle (`.workoutPreview`), que no pide autorización ni cuenta de pago. **Diferido a propósito hasta tener el target de pruebas**; además falta confirmar si `WorkoutScheduler` exige una *managed capability* de Apple, como Sign in with Apple |
 | **Alertas de ritmo en la sesión del reloj** | `SpeedRangeAlert` haría que el reloj avise si te sales del ritmo, no solo al cerrar el tramo. Pide convertir un PR de 5K a un rango de velocidad; hoy el plan es cualitativo por principio ("nunca un dato inventado") |
 | ~~**Tab Plan propia**~~ | ✅ resuelto: `PlanView` (la semana día por día + avisos + ajustar días, antes un sheet colgando de *Hoy*) tiene su propio tab. *Hoy* conserva solo la misión del día como atajo |
@@ -419,10 +420,18 @@ usuarios, no antes.
 | **Catálogo de carreras compartido** | Entre usuarios; implica backend y moderación |
 | **Rename técnico a Rumbo** | Bundle id, target, scheme, Firebase. Riesgoso y sin prisa: la marca visible ya dice Rumbo |
 
-> **Sobre el registro de fuerza.** Está en P3 por dependencias, no por importancia: es dominio nuevo
-> y conviene meterlo con el target de pruebas ya montado. En cuanto exista, sube — es lo que hace
-> que la app sea del atleta *híbrido* que dice ser y no solo de corredores, y hoy es la brecha más
-> grande entre lo que el producto promete y lo que hace.
+> **Sobre el registro de fuerza.** Ya resuelto (arriba). Lo que sigue fuera de alcance a propósito:
+> `GoalType.liftPR` (meta de fuerza) —sin historial de levantamientos no hay de dónde sacar
+> "valor actual" ni recomendación, y el qualifier del ejercicio no cabe en el `distance:
+> RaceDiscipline?` que hoy solo sirve a `raceTime`— y días de fuerza en el plan de entrenamiento
+> —`PlannedWorkoutKind` es 100% de carrera y el motor no sabe repartir dos tipos de carga a la
+> vez. Se suman cuando haya datos/uso real que los justifique.
+>
+> **Deuda de producto, no de código:** `docs/ejemplo-manual-atleta.md` —el norte de diseño— no
+> menciona fuerza en absoluto (lo más cercano son unos lunges dentro de la sesión de técnica de
+> carrera). Esta fase se diseñó sin requisitos de producto escritos ahí; conviene extender el
+> manual antes de la Fase 5 (IA), que razonará sobre "objetivos + plan + adherencia + condición
+> (y fuerza, si ya existe)".
 
 ---
 
