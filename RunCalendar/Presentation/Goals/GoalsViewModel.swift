@@ -677,6 +677,7 @@ final class GoalsViewModel {
         for goal in goals where goal.id != anchor.id {
             let progress = progress(for: goal)
             missions.append(CampaignMission(
+                id: "goal-\(goal.id)",
                 title: "\(goal.type.displayName): \(Goal.format(goal.targetValue, type: goal.type))",
                 detail: progress.deltaText,
                 isDone: progress.achieved,
@@ -894,5 +895,35 @@ final class GoalsViewModel {
     func delete(_ goal: Goal) async {
         do { try await deleteGoal(goalID: goal.id, userID: userID) }
         catch { errorMessage = error.localizedDescription }
+    }
+
+    // MARK: - Misiones manuales (varias campañas: una por meta, ver Campaign.swift)
+
+    /// Agrega una misión escrita a mano a esta meta. Vacía o solo espacios no cuenta.
+    func addManualMission(_ title: String, to goal: Goal) async {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        var updated = goal
+        updated.manualMissions.append(CampaignMission(
+            id: UUID().uuidString, title: trimmed, detail: "",
+            isDone: false, systemImage: "square.and.pencil"
+        ))
+        _ = await save(updated, isNew: false)
+    }
+
+    func toggleManualMission(_ mission: CampaignMission, in goal: Goal) async {
+        var updated = goal
+        guard let index = updated.manualMissions.firstIndex(where: { $0.id == mission.id }) else { return }
+        updated.manualMissions[index] = CampaignMission(
+            id: mission.id, title: mission.title, detail: mission.detail,
+            isDone: !mission.isDone, systemImage: mission.systemImage
+        )
+        _ = await save(updated, isNew: false)
+    }
+
+    func deleteManualMission(_ mission: CampaignMission, from goal: Goal) async {
+        var updated = goal
+        updated.manualMissions.removeAll { $0.id == mission.id }
+        _ = await save(updated, isNew: false)
     }
 }

@@ -29,7 +29,10 @@ struct GoalsView: View {
                                 goal: goal,
                                 progress: viewModel.progress(for: goal),
                                 confidence: viewModel.confidence(for: goal),
-                                insight: viewModel.coachInsight(for: goal)
+                                insight: viewModel.coachInsight(for: goal),
+                                onAddMission: { title in Task { await viewModel.addManualMission(title, to: goal) } },
+                                onToggleMission: { mission in Task { await viewModel.toggleManualMission(mission, in: goal) } },
+                                onDeleteMission: { mission in Task { await viewModel.deleteManualMission(mission, from: goal) } }
                             )
                             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                             .listRowSeparator(.hidden)
@@ -69,6 +72,14 @@ struct GoalHeroCard: View {
     let progress: GoalProgress
     let confidence: GoalConfidence?
     let insight: String?
+    /// Misiones manuales de esta meta: "varias campañas" es esto — cada meta lleva las suyas,
+    /// escritas a mano y marcadas hechas a mano (las del plan siguen siendo solo de la meta ancla,
+    /// en la `CampaignCard` de arriba).
+    let onAddMission: (String) -> Void
+    let onToggleMission: (CampaignMission) -> Void
+    let onDeleteMission: (CampaignMission) -> Void
+
+    @State private var newMissionText = ""
 
     private var targetText: String { Goal.format(goal.targetValue, type: goal.type) }
     private var pct: Int? { progress.fraction.map { Int(($0 * 100).rounded()) } }
@@ -134,11 +145,55 @@ struct GoalHeroCard: View {
             if let insight {
                 CoachInsightView(text: insight)
             }
+
+            missionsSection
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Neon.surface, in: RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Color.primary.opacity(0.06)))
+    }
+
+    /// Misiones propias de esta meta: las que el atleta escribió a mano, más el campo para
+    /// agregar una nueva. No hay swipe-to-delete aquí (esto no es una fila de `List`) — la "x"
+    /// siempre visible cumple lo mismo con menos gestos que aprender.
+    @ViewBuilder private var missionsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !goal.manualMissions.isEmpty {
+                Divider().overlay(Color.primary.opacity(0.06))
+                ForEach(goal.manualMissions) { mission in
+                    HStack(spacing: 10) {
+                        Button { onToggleMission(mission) } label: {
+                            Image(systemName: mission.isDone ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(mission.isDone ? AnyShapeStyle(Neon.green) : AnyShapeStyle(.tertiary))
+                        }
+                        .buttonStyle(.plain)
+                        Text(mission.title).font(.mSubheadline)
+                            .strikethrough(mission.isDone, color: .secondary)
+                        Spacer()
+                        Button { onDeleteMission(mission) } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Eliminar misión")
+                    }
+                }
+            }
+            HStack(spacing: 8) {
+                TextField("Agregar misión", text: $newMissionText)
+                    .font(.mSubheadline)
+                Button {
+                    onAddMission(newMissionText)
+                    newMissionText = ""
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(newMissionText.trimmingCharacters(in: .whitespaces).isEmpty
+                                         ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Neon.accent))
+                }
+                .buttonStyle(.plain)
+                .disabled(newMissionText.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
     }
 }
 

@@ -1,24 +1,27 @@
 import Foundation
 
-/// Una misión de la campaña: una victoria pequeña y accionable, con su estado sacado de datos
-/// reales (no un checkbox manual).
+/// Una misión de la campaña: una victoria pequeña y accionable. Las del plan (km/sesiones/calidad)
+/// sacan su estado de datos reales; las que el atleta escribe a mano se marcan hechas a mano —
+/// mismo tipo para las dos, `id` es lo que las distingue de forma estable (antes era el `title`,
+/// que con misiones manuales editables ya no alcanza).
 struct CampaignMission: Identifiable, Equatable, Sendable {
+    let id: String
     let title: String        // "Corre 40 km esta semana"
     let detail: String       // "vas 22 km"
     let isDone: Bool
     let systemImage: String
-
-    var id: String { title }
 }
 
 /// Campaña: el objetivo principal + las misiones de esta semana que te acercan a él. Es la capa
 /// de UX que une Fases 1–3 (ver README): en vez de perseguir un número lejano, persigues victorias
 /// pequeñas que sí puedes cerrar hoy.
 ///
-/// **Derivada, no persistida**: se arma de la meta ancla + el plan de la semana + la adherencia +
-/// las metas secundarias, que ya viven en la app. No hay colección de Firestore ni CRUD.
-/// ponytail: una campaña a la vez, la que sale de tu meta principal. Persistir el modelo solo
-/// hace falta si quieres varias campañas simultáneas o misiones escritas a mano.
+/// **Sigue derivada, no persistida**: se arma de la meta ancla + el plan de la semana + la
+/// adherencia, que ya viven en la app — sin colección ni CRUD propios. "Varias campañas" no
+/// multiplica este tipo: cada `Goal` lleva sus propias misiones manuales
+/// (`Goal.manualMissions`, persistidas en el mismo documento de la meta) y las muestra en su
+/// `GoalHeroCard`; esta `Campaign` sigue siendo una sola, la de la meta ancla, con las misiones
+/// del plan de la semana.
 struct Campaign: Equatable, Sendable {
     let title: String            // "Primer Medio Maratón" / nombre de la carrera objetivo
     let goalHeadline: String     // "21K en 2:00"
@@ -49,6 +52,7 @@ extension Campaign {
         var missions: [CampaignMission] = []
         if adherence.plannedKm > 0 {
             missions.append(CampaignMission(
+                id: "km",
                 title: "Corre \(Goal.trim(adherence.plannedKm)) km esta semana",
                 detail: adherence.completedKm >= adherence.plannedKm
                     ? "hecho: \(Goal.trim(adherence.completedKm)) km"
@@ -59,6 +63,7 @@ extension Campaign {
         }
         if adherence.plannedSessions > 0 {
             missions.append(CampaignMission(
+                id: "sessions",
                 title: "Completa tus \(adherence.plannedSessions) sesiones",
                 detail: "vas \(adherence.completedSessions) de \(adherence.plannedSessions)"
                     + (adherence.completedMinutes > 0 ? " · \(adherence.completedMinutes) min" : ""),
@@ -71,6 +76,7 @@ extension Campaign {
         if adherence.plannedHardSessions > 0 {
             let done = adherence.completedHardSessions >= adherence.plannedHardSessions
             missions.append(CampaignMission(
+                id: "quality",
                 title: "\(adherence.plannedHardSessions) "
                     + (adherence.plannedHardSessions == 1 ? "sesión" : "sesiones") + " de calidad",
                 detail: adherence.completedHardSessions > adherence.plannedHardSessions

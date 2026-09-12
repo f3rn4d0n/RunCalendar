@@ -456,7 +456,7 @@ users/{uid}                          # perfil
 users/{uid}/races/{raceId}           # carreras
 users/{uid}/trainings/{id}           # entrenamientos (cualquier TrainingType; incluye rpe)
 users/{uid}/recoveryLogs/{yyyy-MM-dd} # check-in diario de recuperación (para calibrar)
-users/{uid}/goals/{goalId}           # objetivos del atleta (tiempo/VO₂max/peso)  (fase 1)
+users/{uid}/goals/{goalId}           # objetivos del atleta (tiempo/VO₂max/peso) + misiones manuales propias (fase 1)
 users/{uid}/bodyLogs/{yyyy-MM-dd}    # review semanal: energía y hambre (fase 2)
 feedback/{autoId}                    # comentarios del usuario: texto + rating 1–5 (colección raíz)
 ```
