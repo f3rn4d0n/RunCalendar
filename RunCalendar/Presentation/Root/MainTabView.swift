@@ -15,6 +15,7 @@ struct MainTabView: View {
     @State private var remindersViewModel: RemindersViewModel
     @State private var healthViewModel: HealthViewModel
     @State private var goalsViewModel: GoalsViewModel
+    @State private var weightliftingViewModel: WeightliftingViewModel
 
     init(container: AppContainer, user: AppUser, authViewModel: AuthViewModel) {
         self.container = container
@@ -35,6 +36,9 @@ struct MainTabView: View {
         _goalsViewModel = State(initialValue: container.makeGoalsViewModel(
             userID: user.id, racesViewModel: races, trainingViewModel: trainings
         ))
+        _weightliftingViewModel = State(initialValue: container.makeWeightliftingViewModel(
+            userID: user.id, trainingViewModel: trainings
+        ))
     }
 
     var body: some View {
@@ -53,7 +57,7 @@ struct MainTabView: View {
             }
             Tab("Calendario", systemImage: "calendar") {
                 CalendarView(racesViewModel: racesViewModel, trainingViewModel: trainingViewModel,
-                             healthViewModel: healthViewModel)
+                             healthViewModel: healthViewModel, weightliftingViewModel: weightliftingViewModel)
             }
             Tab("Plan", systemImage: "list.bullet.clipboard") {
                 PlanView(viewModel: goalsViewModel)
@@ -85,6 +89,7 @@ struct MainTabView: View {
         .task { await trainingViewModel.start() }
         .task { await profileViewModel.start() }
         .task { await goalsViewModel.start() }
+        .task { await weightliftingViewModel.start() }
         // Carga inicial de Condición aquí (no solo en la tab Progreso): la card de
         // recuperación de "Hoy" la necesita aunque nunca abras Progreso.
         .task { await healthViewModel.onAppear() }
