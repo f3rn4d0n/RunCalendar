@@ -1,5 +1,32 @@
 import Foundation
 
+/// Lo mínimo para calcular volumen y 1RM estimado de una serie, venga de donde venga: embebida
+/// en un WOD (`StrengthSet`) o registrada suelta (`LiftEntry`). Un solo lugar para Epley evita
+/// que las dos fuentes de series se desincronicen si algún día se recalibra la fórmula.
+protocol LiftPerformance {
+    var exercise: StrengthExercise { get }
+    var weightKg: Double { get }
+    var reps: Int { get }
+}
+
+extension LiftPerformance {
+    /// El "distanceKm" de una serie: cuánto se movió en total.
+    var volumeKg: Double { weightKg * Double(reps) }
+
+    /// 1RM estimado (fórmula de Epley), o `nil` si el ejercicio es de peso corporal —estimarlo ahí
+    /// exigiría el peso corporal del atleta, y eso sería inventar un dato que no se tiene.
+    ///
+    /// ponytail: Epley (`peso × (1 + reps/30)`), sin calibrar contra nadie. Elegida sobre Brzycki
+    /// porque es lineal, no se rompe cerca de 30 reps, y es la que usan Strong/Hevy —la que el
+    /// atleta ya vio en otra app.
+    var estimatedOneRM: Double? {
+        guard exercise.loadStyle == .external, weightKg > 0, reps > 0 else { return nil }
+        // Con una sola rep, Epley da 1.033× el peso: inventaría kilos que nadie levantó.
+        if reps == 1 { return weightKg }
+        return weightKg * (1 + Double(reps) / 30)
+    }
+}
+
 /// Cómo se rankea el récord de un ejercicio y qué significa `StrengthSet.weightKg` en él.
 enum LoadStyle: Sendable {
     /// La barra/mancuerna es la carga completa. `weightKg` es el peso total movido.
@@ -55,7 +82,7 @@ enum StrengthExercise: String, CaseIterable, Identifiable, Sendable {
 /// Una serie: ejercicio, carga y repeticiones. Vive embebida en `TrainingSession.sets` —la sesión
 /// de gimnasio ya existe como `.crossfit`, ya se importa de Salud y ya cuenta para la carga; una
 /// colección aparte duplicaría la sesión y partiría en dos la carga del mismo día.
-struct StrengthSet: Identifiable, Equatable, Sendable {
+struct StrengthSet: Identifiable, Equatable, Sendable, LiftPerformance {
     let id: String
     var exercise: StrengthExercise
     /// Peso total (carga externa) o lastre añadido (peso corporal, 0 = sin lastre). Nunca libras.
@@ -67,21 +94,5 @@ struct StrengthSet: Identifiable, Equatable, Sendable {
         self.exercise = exercise
         self.weightKg = weightKg
         self.reps = reps
-    }
-
-    /// El "distanceKm" de una serie: cuánto se movió en total.
-    var volumeKg: Double { weightKg * Double(reps) }
-
-    /// 1RM estimado (fórmula de Epley), o `nil` si el ejercicio es de peso corporal —estimarlo ahí
-    /// exigiría el peso corporal del atleta, y eso sería inventar un dato que no se tiene.
-    ///
-    /// ponytail: Epley (`peso × (1 + reps/30)`), sin calibrar contra nadie. Elegida sobre Brzycki
-    /// porque es lineal, no se rompe cerca de 30 reps, y es la que usan Strong/Hevy —la que el
-    /// atleta ya vio en otra app.
-    var estimatedOneRM: Double? {
-        guard exercise.loadStyle == .external, weightKg > 0, reps > 0 else { return nil }
-        // Con una sola rep, Epley da 1.033× el peso: inventaría kilos que nadie levantó.
-        if reps == 1 { return weightKg }
-        return weightKg * (1 + Double(reps) / 30)
     }
 }

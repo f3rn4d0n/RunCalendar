@@ -248,6 +248,34 @@ final class FakeFeedbackRepository: FeedbackRepository, @unchecked Sendable {
     }
 }
 
+// MARK: - Pesas
+
+final class FakeLiftEntryRepository: LiftEntryRepository, @unchecked Sendable {
+    var entries: [LiftEntry]
+    var failure: Error?
+
+    private(set) var added: [LiftEntry] = []
+    private(set) var updated: [LiftEntry] = []
+    private(set) var deleted: [String] = []
+
+    init(_ entries: [LiftEntry] = []) { self.entries = entries }
+
+    func entriesStream(userID: String) -> AsyncStream<[LiftEntry]> { onceStream(entries) }
+
+    func add(_ entry: LiftEntry, userID: String) async throws {
+        if let failure { throw failure }
+        added.append(entry)
+    }
+    func update(_ entry: LiftEntry, userID: String) async throws {
+        if let failure { throw failure }
+        updated.append(entry)
+    }
+    func delete(entryID: String, userID: String) async throws {
+        if let failure { throw failure }
+        deleted.append(entryID)
+    }
+}
+
 // MARK: - Montaje
 
 /// Arma los tres ViewModels cableados a dobles, igual que hace `AppContainer` con las
@@ -265,15 +293,17 @@ struct TestApp {
     let weatherRepo: FakeWeatherRepository
     let calendarRepo: FakeCalendarRepository
     let weekPlanRepo: FakeWeekPlanRepository
+    let liftEntryRepo: FakeLiftEntryRepository
 
     let races: RacesViewModel
     let training: TrainingViewModel
     let goals: GoalsViewModel
     let health: HealthViewModel
+    let weightlifting: WeightliftingViewModel
 
     init(goals seededGoals: [Goal] = [], races seededRaces: [Race] = [],
-         sessions: [TrainingSession] = [], healthAvailable: Bool = false,
-         userID: String = "test-user") {
+         sessions: [TrainingSession] = [], liftEntries: [LiftEntry] = [],
+         healthAvailable: Bool = false, userID: String = "test-user") {
         clearPersistedDefaults()
         goalRepo = FakeGoalRepository(seededGoals)
         raceRepo = FakeRaceRepository(seededRaces)
@@ -285,6 +315,7 @@ struct TestApp {
         weatherRepo = FakeWeatherRepository()
         calendarRepo = FakeCalendarRepository()
         weekPlanRepo = FakeWeekPlanRepository()
+        liftEntryRepo = FakeLiftEntryRepository(liftEntries)
 
         races = RacesViewModel(
             userID: userID,
@@ -346,13 +377,22 @@ struct TestApp {
             racesViewModel: races,
             trainingViewModel: training
         )
+        weightlifting = WeightliftingViewModel(
+            userID: userID,
+            observeEntries: ObserveLiftEntriesUseCase(repository: liftEntryRepo),
+            addEntry: AddLiftEntryUseCase(repository: liftEntryRepo),
+            updateEntry: UpdateLiftEntryUseCase(repository: liftEntryRepo),
+            deleteEntry: DeleteLiftEntryUseCase(repository: liftEntryRepo),
+            trainingViewModel: training
+        )
     }
 
-    /// Carga los tres ViewModels desde sus streams, en el orden en que lo hace la app.
+    /// Carga los ViewModels desde sus streams, en el orden en que lo hace la app.
     func start() async {
         await races.start()
         await training.start()
         await goals.start()
+        await weightlifting.start()
     }
 }
 

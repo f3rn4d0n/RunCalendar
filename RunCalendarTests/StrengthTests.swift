@@ -20,7 +20,7 @@ struct LiftRecordsTests {
     func singleRepIsExactlyTheWeight() {
         let sessions = [session([StrengthSet(exercise: .pressBanca, weightKg: 100, reps: 1)])]
         let record = LiftRecords.compute(sessions: sessions).first { $0.exercise == .pressBanca }
-        #expect(record?.best.set.estimatedOneRM == 100)
+        #expect(record?.best.estimatedOneRM == 100)
     }
 
     @Test("Más peso con las mismas repeticiones nunca rankea peor")
@@ -62,8 +62,8 @@ struct LiftRecordsTests {
             Issue.record("se esperaba un récord de peso muerto")
             return
         }
-        let maxInHistory = record.history.compactMap { $0.set.estimatedOneRM }.max()
-        #expect(record.best.set.estimatedOneRM == maxInHistory)
+        let maxInHistory = record.history.compactMap { $0.estimatedOneRM }.max()
+        #expect(record.best.estimatedOneRM == maxInHistory)
     }
 
     @Test("Ejercicios distintos no se mezclan en el mismo récord")
@@ -109,7 +109,7 @@ struct LiftRecordsTests {
         ]
         let record = LiftRecords.compute(sessions: sessions).first { $0.exercise == .sentadilla }
         #expect(record?.history.count == 1, "la serie de 20 reps no debería contar")
-        #expect(record?.best.set.weightKg == 90)
+        #expect(record?.best.weightKg == 90)
     }
 
     @Test("En peso corporal, más repeticiones gana; a igualdad de reps, gana el lastre")
@@ -123,8 +123,8 @@ struct LiftRecordsTests {
             Issue.record("se esperaba un récord de dominada")
             return
         }
-        #expect(record.best.set.reps == 12)
-        #expect(record.best.set.weightKg == 10, "a 12 reps iguales, gana la que lleva lastre")
+        #expect(record.best.reps == 12)
+        #expect(record.best.weightKg == 10, "a 12 reps iguales, gana la que lleva lastre")
     }
 
     @Test("En peso corporal no hay 1RM estimado")
@@ -137,7 +137,7 @@ struct LiftRecordsTests {
     func highRepBodyweightStillCounts() {
         let sessions = [session([StrengthSet(exercise: .dominada, weightKg: 0, reps: 30)])]
         let record = LiftRecords.compute(sessions: sessions).first { $0.exercise == .dominada }
-        #expect(record?.best.set.reps == 30)
+        #expect(record?.best.reps == 30)
     }
 
     @Test("Peso o repeticiones en cero no producen esfuerzo, sin crash")
@@ -155,6 +155,43 @@ struct LiftRecordsTests {
     func noStrengthSessionsMeansNoRecords() {
         let onlyRunning = [TrainingSession(date: Date(), type: .running, title: "5K", distanceKm: 5, completed: true)]
         #expect(LiftRecords.compute(sessions: onlyRunning).isEmpty)
+    }
+
+    // MARK: - Fusión de las dos fuentes: WOD embebido + registro suelto
+
+    @Test("Un registro suelto compite por récord contra una serie de WOD del mismo ejercicio")
+    func looseEntryCompetesWithSessionSet() {
+        let sessions = [session([StrengthSet(exercise: .pesoMuerto, weightKg: 100, reps: 5)])]
+        let entries = [LiftEntry(exercise: .pesoMuerto, weightKg: 150, reps: 1,
+                                 date: Date().addingTimeInterval(-3600))]
+        let record = LiftRecords.compute(sessions: sessions, entries: entries)
+            .first { $0.exercise == .pesoMuerto }
+        #expect(record?.best.estimatedOneRM == 150, "el registro suelto es el mejor esfuerzo")
+        #expect(record?.history.count == 2)
+    }
+
+    @Test("Y al revés: una serie de WOD puede ganarle a un registro suelto más flojo")
+    func sessionSetCanBeatLooseEntry() {
+        let sessions = [session([StrengthSet(exercise: .cargada, weightKg: 90, reps: 1)])]
+        let entries = [LiftEntry(exercise: .cargada, weightKg: 60, reps: 3,
+                                 date: Date().addingTimeInterval(-3600))]
+        let record = LiftRecords.compute(sessions: sessions, entries: entries)
+            .first { $0.exercise == .cargada }
+        #expect(record?.best.weightKg == 90)
+    }
+
+    @Test("history(for:) incluye una serie de más de 12 reps que compute() excluiría del récord")
+    func historyIncludesHighRepSets() {
+        let sessions = [session([StrengthSet(exercise: .sentadilla, weightKg: 60, reps: 20)])]
+        let history = LiftRecords.history(for: .sentadilla, sessions: sessions)
+        #expect(history.count == 1, "el historial sí lo muestra, aunque no compita por récord")
+        #expect(LiftRecords.compute(sessions: sessions).isEmpty, "compute() lo sigue excluyendo")
+    }
+
+    @Test("history(for:) de un ejercicio sin ningún esfuerzo es vacío")
+    func historyIsEmptyWithoutEfforts() {
+        let sessions = [session([StrengthSet(exercise: .sentadilla, weightKg: 100, reps: 5)])]
+        #expect(LiftRecords.history(for: .pressBanca, sessions: sessions).isEmpty)
     }
 }
 
@@ -232,4 +269,73 @@ struct StrengthRegistrationTests {
         #expect(withSets.strengthVolumeKg == 860)
         #expect(session().strengthVolumeKg == nil)
     }
+}
+
+/// `WeightliftingViewModel`: el CRUD de registros sueltos y la edición puntual de un esfuerzo
+/// —sin importar si vino de un WOD o de un registro suelto— pasan por aquí.
+@Suite("WeightliftingViewModel · registro suelto y edición")
+@MainActor
+struct WeightliftingViewModelTests {
+
+    @Test("Agregar un registro lo manda al repo de entries")
+    func addSendsToRepo() async {
+        let app = TestApp()
+        await app.start()
+
+        _ = await app.weightlifting.save(
+            LiftEntry(exercise: .sentadilla, weightKg: 100, reps: 5), isNew: true)
+
+        #expect(app.liftEntryRepo.added.count == 1)
+        #expect(app.liftEntryRepo.added.first?.exercise == .sentadilla)
+    }
+
+    @Test("Borrar un registro lo manda al repo de entries")
+    func deleteSendsToRepo() async {
+        let entry = LiftEntry(exercise: .sentadilla, weightKg: 100, reps: 5)
+        let app = TestApp(liftEntries: [entry])
+        await app.start()
+
+        await app.weightlifting.delete(entry)
+
+        #expect(app.liftEntryRepo.deleted == [entry.id])
+    }
+
+    @Test("Editar un esfuerzo suelto actualiza el LiftEntry en su repo")
+    func editingLooseEffortUpdatesEntry() async {
+        let entry = LiftEntry(exercise: .sentadilla, weightKg: 100, reps: 5)
+        let app = TestApp(liftEntries: [entry])
+        await app.start()
+
+        let effort = app.weightlifting.history(for: .sentadilla).first { $0.origin.isEntry }
+        guard let effort else { Issue.record("se esperaba un esfuerzo suelto"); return }
+
+        let ok = await app.weightlifting.updatePerformance(of: effort, weightKg: 110, reps: 3)
+
+        #expect(ok)
+        #expect(app.liftEntryRepo.updated.last?.weightKg == 110)
+        #expect(app.liftEntryRepo.updated.last?.reps == 3)
+    }
+
+    @Test("Editar un esfuerzo de WOD actualiza esa serie dentro de la sesión, no un LiftEntry")
+    func editingSessionEffortUpdatesTrainingSession() async {
+        let session = TrainingSession(date: Date(), type: .crossfit, title: "WOD",
+                                      sets: [StrengthSet(exercise: .cargada, weightKg: 70, reps: 3)],
+                                      completed: true)
+        let app = TestApp(sessions: [session])
+        await app.start()
+
+        let effort = app.weightlifting.history(for: .cargada).first
+        guard let effort else { Issue.record("se esperaba un esfuerzo de WOD"); return }
+
+        let ok = await app.weightlifting.updatePerformance(of: effort, weightKg: 80, reps: 2)
+
+        #expect(ok)
+        #expect(app.liftEntryRepo.updated.isEmpty, "no debe tocar el repo de entries")
+        #expect(app.trainingRepo.updated.last?.sets.first?.weightKg == 80)
+        #expect(app.trainingRepo.updated.last?.sets.first?.reps == 2)
+    }
+}
+
+private extension LiftEffort.Origin {
+    var isEntry: Bool { if case .entry = self { return true }; return false }
 }
