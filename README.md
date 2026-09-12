@@ -454,7 +454,7 @@ La pestaña **Condición** lee entrenamientos y datos de forma física de Salud.
 ```
 users/{uid}                          # perfil
 users/{uid}/races/{raceId}           # carreras
-users/{uid}/trainings/{id}           # entrenamientos (cualquier TrainingType; incluye rpe)
+users/{uid}/trainings/{id}           # entrenamientos (cualquier TrainingType; incluye rpe y series de fuerza)
 users/{uid}/recoveryLogs/{yyyy-MM-dd} # check-in diario de recuperación (para calibrar)
 users/{uid}/goals/{goalId}           # objetivos del atleta (tiempo/VO₂max/peso) + misiones manuales propias (fase 1)
 users/{uid}/bodyLogs/{yyyy-MM-dd}    # review semanal: energía y hambre (fase 2)
@@ -486,7 +486,6 @@ users/{uid}/goals/{goalId}          # ✅ fase 1 (ya existe): tipo, targetValue,
 users/{uid}/plan/{planId}           # plantilla del plan (semanas, días)                       (fase 2)
 users/{uid}/plan/{planId}/days/{d}  # día planificado: tipo, descripción (p. ej. 8×1'/2')       (fase 2)
 users/{uid}/bodyLogs/{yyyy-MM-dd}   # ✅ fase 2: energía y hambre (peso/cintura viven en Salud)
-users/{uid}/strength/{sessionId}     # fuerza: ejercicio × peso × reps; PR de levantamiento      (fase 4)
 users/{uid}/nutrition/{profileId}   # objetivos: kcal, macros, hidratación             (post-MVP, ver Pendientes)
 ```
 
@@ -495,6 +494,12 @@ la semana (derivado) con las `TrainingSession.completed`; persistir `plan/{planI
 que falta para tener adherencia **histórica** (ver [Pendientes](docs/pendientes.md)). El **review
 corporal** reusa el patrón de `recoveryLogs`. La **nutrición** sale del MVP; si vuelve, se acota a
 *objetivos + adherencia (checkbox)*, no a un registro de alimentos.
+
+> **La fuerza (Fase 4) no está aquí.** Este boceto proponía `users/{uid}/strength/{sessionId}`
+> como colección aparte; al implementarla se decidió lo contrario: las series de fuerza son
+> `TrainingSession.sets`, un campo embebido en `trainings/` (ver modelo de datos actual, arriba).
+> La sesión de CrossFit ya existía, ya se importaba de Salud y ya contaba para la carga/ACWR — una
+> colección aparte la habría duplicado y partido en dos la carga del mismo día.
 
 ---
 
@@ -764,8 +769,8 @@ IA** que, sobre tus objetivos, tu plan, tu adherencia y tus tendencias reales, g
 entrenamiento y de alimentación personalizados** y te entregue **reportes por correo**. El artefacto
 objetivo es un [Manual del Atleta Híbrido](docs/ejemplo-manual-atleta.md) (objetivos → carrera +
 técnica + hidratación → nutrición/macros → seguimiento) — hoy hecho a mano; la app debería generarlo.
-La base de métricas fiables ya existe; falta la estructura (objetivos, plan, fuerza) sobre la que la
-IA pueda razonar — por eso la IA es la **última** fase, no la primera. La **nutrición sale del MVP**:
+La base de métricas fiables y la estructura (objetivos, plan, fuerza) sobre la que la IA razonará
+ya existen — por eso la IA es la **última** fase, no la primera. La **nutrición sale del MVP**:
 la primera versión del reporte razonará sobre entrenamiento y condición, no sobre alimentación.
 
 **No competimos contra Strava/Garmin; competimos contra el papel.** La app es el **dashboard**; el
@@ -791,7 +796,7 @@ del plan (Fase 3) y del Manual**; hasta entonces son checklist manual. Llega cua
 | **1. Objetivos** ✅ | Entidad `Goal` + CRUD + tab con progreso (tiempo vs. PRs, VO₂max/peso vs. Salud) y **"Sugerir meta"** (Riegel/IMC, sin IA) | Marco del que cuelga todo; también abre el rediseño de navegación |
 | **2. Review dominical** ✅ | Check-in semanal: peso y cintura (→ Salud) + energía y hambre (→ `bodyLogs`), con card en *Hoy* los domingos. **Fotos pendientes** (requieren Firebase Storage) | Reusa el patrón de `recoveryLogs`. La **cintura** detecta *recomposición*: peso estancado pero cintura bajando |
 | **3. Plan + Campañas** ✅ | **Generación automática** de la semana (motor determinista sin IA), **misión de hoy** en Hoy, **detalle** de sesión, **"Sugerir plan"** desde historial, preview con descansos, **adherencia** de la semana y **Campañas** (misiones derivadas del plan + las metas) | Responde "¿qué hago hoy?" y "¿cómo voy?". Ver [Plan](#-plan-fase-3) |
-| **4. Fuerza** | Registro de fuerza + **PR de levantamiento** (dominio nuevo: ejercicio × peso × reps). La mitad **híbrida** del producto | Es la brecha más grande entre lo que la app promete y lo que hace: hoy solo sirve a corredores |
+| **4. Fuerza** ✅ | **Registro de fuerza** (ejercicio × peso × reps, embebido en `TrainingSession.sets`) + **récords por 1RM estimado** (Epley). Cierra la mitad **híbrida** del producto — la app ya no solo sirve a corredores. **Pendientes:** meta de fuerza (`GoalType`) y días de fuerza en el plan (ver [Pendientes](docs/pendientes.md)) | Catálogo cerrado de 14 ejercicios, sin caso "Otro"; peso corporal (dominada/fondo) rankea por repeticiones, no por 1RM |
 | **5. IA + reportes** | Claude API razona sobre 1–4 → plan/reporte tipo Manual; entrega por correo | Requiere backend (Firebase Functions); **la API key vive en el backend, nunca en la app**. Indefendible sin target de pruebas (ver [Pendientes](docs/pendientes.md)) |
 | ~~Nutrición~~ | **Movida a post-MVP.** Incluso acotada (objetivos + checkbox, sin food-logger) arrastra dominio, UI y un modelo de adherencia propios | Demasiado para ahora y no es lo que sostiene el MVP. Detalle en [Pendientes](docs/pendientes.md#post-mvp) |
 
@@ -832,5 +837,5 @@ Lo que hay que saber sin abrirlo:
 | **Bloqueado** | **Sign in with Apple**: falta cuenta de pago en el Apple Developer Program, así que la capability no se puede habilitar y Xcode quita el entitlement al firmar. Email/contraseña y Google funcionan |
 | **P1 · antes de tener usuarios** | ✅ completo: **Observabilidad** (Crashlytics + no fatales vía `Logger.failure` + 5 eventos de uso en `Usage`) y **pruebas** (target + CI + dobles de repositorio + cableado de ViewModels + `HealthViewModel`/`TrainingViewModel`) |
 | **P2 · deuda con costo** | Huecos de la adherencia (distribución de la carga, histórico, entorno) · duración en minutos enteros · periodización lineal · umbrales sin calibrar |
-| **P3 · extensiones** | **Fuerza** (Fase 4) · campañas persistidas · fotos del review · widget · Watch · catálogo compartido |
+| **P3 · extensiones** | Fotos del review · widget · Watch · catálogo compartido |
 | **Post-MVP** | **Nutrición** |
