@@ -49,6 +49,10 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
 
     // Específicos de CrossFit
     var wod: String?          // descripción del WOD
+    /// Series de fuerza (ejercicio × peso × reps). Vive aquí y no en una colección aparte: la
+    /// sesión de CrossFit ya existe, ya se importa de Salud y ya cuenta para la carga/ACWR — una
+    /// colección `strength/` la duplicaría y partiría en dos la carga del mismo día.
+    var sets: [StrengthSet]
 
     var completed: Bool
     var notes: String
@@ -73,6 +77,13 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         return Double(durationMin) * Double(rpe ?? 5) / 5.0
     }
 
+    /// El "distanceKm" del gimnasio: cuánto se movió en total esta sesión. `nil` sin series —igual
+    /// que `distanceKm`, que no es 0 cuando no aplica. Las series de peso corporal sin lastre suman
+    /// 0 kg: es honesto (no conocemos el peso del atleta), no un error.
+    var strengthVolumeKg: Double? {
+        sets.isEmpty ? nil : sets.reduce(0) { $0 + $1.volumeKg }
+    }
+
     init(
         id: String = UUID().uuidString,
         date: Date,
@@ -85,6 +96,7 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         avgHeartRate: Int? = nil,
         cadenceSPM: Int? = nil,
         wod: String? = nil,
+        sets: [StrengthSet] = [],
         completed: Bool = false,
         notes: String = "",
         isPriority: Bool = false,
@@ -102,6 +114,7 @@ struct TrainingSession: Identifiable, Equatable, Sendable {
         self.avgHeartRate = avgHeartRate
         self.cadenceSPM = cadenceSPM
         self.wod = wod
+        self.sets = sets
         self.completed = completed
         self.notes = notes
         self.isPriority = isPriority

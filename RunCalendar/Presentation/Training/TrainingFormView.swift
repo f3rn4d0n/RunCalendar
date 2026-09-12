@@ -16,6 +16,7 @@ struct TrainingFormView: View {
     @State private var distanceText = ""
     @State private var targetPace = ""
     @State private var wod = ""
+    @State private var sets: [StrengthSet] = []
     @State private var completed = false
     @State private var notes = ""
     @State private var isPriority = false
@@ -85,6 +86,30 @@ struct TrainingFormView: View {
                     Section("CrossFit") {
                         TextField("WOD", text: $wod, axis: .vertical).lineLimit(2...6)
                     }
+                    Section("Series") {
+                        ForEach($sets) { $set in
+                            HStack {
+                                Picker("", selection: $set.exercise) {
+                                    ForEach(StrengthExercise.allCases) { Text($0.displayName).tag($0) }
+                                }
+                                .labelsHidden()
+                                Spacer()
+                                TextField(set.exercise.loadStyle == .external ? "kg" : "lastre",
+                                          value: $set.weightKg, format: .number)
+                                    .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                                    .frame(width: 56)
+                                Text("×").foregroundStyle(.secondary)
+                                TextField("reps", value: $set.reps, format: .number)
+                                    .keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                                    .frame(width: 44)
+                            }
+                        }
+                        .onDelete { sets.remove(atOffsets: $0) }
+
+                        Button { addSet() } label: {
+                            Label("Agregar serie", systemImage: "plus.circle")
+                        }
+                    }
                 }
 
                 Section("Descripción") {
@@ -143,11 +168,19 @@ struct TrainingFormView: View {
         distanceText = session.distanceKm.map { String($0) } ?? ""
         targetPace = session.targetPace ?? ""
         wod = session.wod ?? ""
+        sets = session.sets
         completed = session.completed
         notes = session.notes
         isPriority = session.isPriority
         targetRaceID = session.targetRaceID
         rpe = session.rpe ?? 0
+    }
+
+    /// Nueva serie que hereda ejercicio y peso de la anterior: es la diferencia entre registrar
+    /// 5 series y abandonar en la segunda.
+    private func addSet() {
+        sets.append(StrengthSet(exercise: sets.last?.exercise ?? .sentadilla,
+                                weightKg: sets.last?.weightKg ?? 0, reps: sets.last?.reps ?? 0))
     }
 
     private func rpeLabel(_ level: Int) -> String {
@@ -173,6 +206,7 @@ struct TrainingFormView: View {
                 : nil,
             targetPace: type.tracksDistance && !targetPace.isEmpty ? targetPace : nil,
             wod: type == .crossfit && !wod.isEmpty ? wod : nil,
+            sets: type == .crossfit ? sets : [],
             completed: completed,
             notes: notes,
             isPriority: isPriority,

@@ -87,8 +87,22 @@ struct TrainingDetailView: View {
                         WeatherCardView { await viewModel.weather(for: session) }
                     }
                 }
-            } else if let wod = session.wod, !wod.isEmpty {
-                Section("WOD") { Text(wod) }
+            } else {
+                if !session.sets.isEmpty {
+                    Section("Series") {
+                        ForEach(session.sets) { set in
+                            row(set.exercise.displayName,
+                                "\(Goal.trim(set.weightKg)) \(set.exercise.loadStyle == .external ? "kg" : "kg lastre") × \(set.reps)",
+                                icon: set.exercise.systemImage)
+                        }
+                        if let volume = session.strengthVolumeKg {
+                            row("Volumen total", "\(Goal.trim(volume)) kg", icon: "scalemass")
+                        }
+                    }
+                }
+                if let wod = session.wod, !wod.isEmpty {
+                    Section("WOD") { Text(wod) }
+                }
             }
 
             if let targetRaceName {
