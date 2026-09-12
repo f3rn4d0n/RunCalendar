@@ -831,8 +831,18 @@ struct GoalsViewModelTests {
         app.goals.planConfig = PlanConfig(daysPerWeek: 3)
         await app.goals.freezeCurrentWeekIfNeeded()
 
+        // Las 3 configuradas, salvo que la semana ya esté tan avanzada que no quepan — misma cuenta
+        // que `firstPlannablePosition` (PlanUseCases.swift): días de posición 0 hasta hoy quedan
+        // fuera. Fijo, el "== 3" fallaba según el día (y la zona horaria del runner: un desfase de
+        // un día entre CI en UTC y una máquina en otro huso cambia qué día de la semana es "hoy").
+        let weekStart = Calendar.app.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        let daysElapsed = Calendar.app.dateComponents([.day], from: Calendar.app.startOfDay(for: weekStart),
+                                                       to: Calendar.app.startOfDay(for: Date())).day ?? 0
+        let daysLeftThisWeek = 7 - min(max(daysElapsed, 0), 6)
+        let expectedSessions = min(3, daysLeftThisWeek)
+
         let sesiones = app.goals.weekAdherence?.plannedSessions
-        #expect(sesiones == 3, "las tres que configuró")
+        #expect(sesiones == expectedSessions, "caben \(expectedSessions) de las 3 configuradas esta semana")
 
         // Y entrenar hoy no cambia el denominador.
         let conCorrida = TestApp(goals: [meta], sessions: base + [
