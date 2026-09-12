@@ -61,6 +61,39 @@ struct AssessRecoveryUseCase: Sendable {
     /// ponytail: constante sin calibrar; 72 h es el orden de magnitud aceptado para una sesión dura.
     static let maxRecoveryHours: Double = 72
 
+    /// Puntos de control (ratio HRV actual/base → factor) para `lerp`. Mismos umbrales y mismos
+    /// valores que el `switch` que reemplazan (0.80/1.3, 0.90/1.0, 1.05/0.7); el único añadido es
+    /// 0.70, un ancho de bucket antes de 0.80 (simétrico al de al lado) para que la rampa hacia el
+    /// peor caso tampoco sea un salto.
+    /// ponytail: 0.70 sin calibrar, como los demás umbrales de este modelo.
+    private static let hrvControlPoints: [(x: Double, y: Double)] = [
+        (0.70, 1.6), (0.80, 1.3), (0.90, 1.0), (1.05, 0.7)
+    ]
+
+    /// Igual que `hrvControlPoints`, para las horas de sueño (umbrales ~7–9 h, calibrables por
+    /// persona). Los baldes originales eran de 1 h cada uno, así que el punto añadido (4.5 h) sale
+    /// solo de restarle 1 h al primer umbral real.
+    private static let sleepControlPoints: [(x: Double, y: Double)] = [
+        (4.5, 1.4), (5.5, 1.2), (6.5, 1.0), (7.5, 0.85)
+    ]
+
+    /// Interpolación lineal por tramos entre puntos de control (x creciente). Fuera del rango se
+    /// queda en el valor del extremo más cercano — no extrapola.
+    ///
+    /// Sustituye los `switch` por umbral: con ellos, un ratio de HRV de 0.899 daba factor 1.3 y
+    /// 0.901 daba 1.0 — 0.2% de cambio en el dato movía el estimado ~30%. La rampa conserva el
+    /// mismo modelo (mismos umbrales, mismos valores) y solo quita el salto entre ellos.
+    private static func lerp(_ x: Double, _ points: [(x: Double, y: Double)]) -> Double {
+        guard let first = points.first, let last = points.last else { return 1 }
+        if x <= first.x { return first.y }
+        if x >= last.x { return last.y }
+        for (p0, p1) in zip(points, points.dropFirst()) where x <= p1.x {
+            let t = (x - p0.x) / (p1.x - p0.x)
+            return p0.y + t * (p1.y - p0.y)
+        }
+        return last.y
+    }
+
     func callAsFunction(_ s: RecoverySnapshot, calibration: RecoveryCalibration = .identity) -> RecoveryEstimate {
         // Carga acumulada → horas base de recuperación (≈ 1 h por cada 6 min entrenados).
         // ponytail: constante calibrable; ajústala con datos reales.
@@ -72,12 +105,7 @@ struct AssessRecoveryUseCase: Sendable {
         if let current = s.currentHRV, let base = s.baselineHRV, base > 0 {
             let ratio = current / base
             deviation = (ratio - 1) * 100
-            switch ratio {
-            case 1.05...:   hrvFactor = 0.7
-            case 0.90..<1.05: hrvFactor = 1.0
-            case 0.80..<0.90: hrvFactor = 1.3
-            default:        hrvFactor = 1.6
-            }
+            hrvFactor = Self.lerp(ratio, Self.hrvControlPoints)
         }
 
         // FC en reposo elevada (>5 lpm sobre tu base) → recuperación más lenta.
@@ -90,12 +118,7 @@ struct AssessRecoveryUseCase: Sendable {
         // ponytail: umbrales ~7–9 h; calibrables por persona.
         var sleepFactor = 1.0
         if let sleep = s.lastNightSleepHours {
-            switch sleep {
-            case 7.5...:     sleepFactor = 0.85
-            case 6.5..<7.5:  sleepFactor = 1.0
-            case 5.5..<6.5:  sleepFactor = 1.2
-            default:         sleepFactor = 1.4
-            }
+            sleepFactor = Self.lerp(sleep, Self.sleepControlPoints)
         }
 
         // Ajuste personal aprendido de tus check-ins (1 si aún no hay suficientes).

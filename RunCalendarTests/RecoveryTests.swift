@@ -72,6 +72,26 @@ struct RecoveryTests {
         }
     }
 
+    // MARK: - Sin saltos cerca de un umbral (antes interpolación lineal)
+
+    @Test("0.2% de cambio en el HRV ya no mueve el estimado 30%")
+    func hrvNoCliffAtThreshold() {
+        // El caso exacto del reporte: ratio 0.899 (factor 1.3) vs 0.901 (factor 1.0) contra una
+        // base de 60 — antes eran 65 h vs 50 h (un salto de 15 h, ~30% del estimado).
+        let justBelow = assess(snapshot(loadMinutes: 300, hrv: 60 * 0.899, baselineHRV: 60)).remainingHours
+        let justAbove = assess(snapshot(loadMinutes: 300, hrv: 60 * 0.901, baselineHRV: 60)).remainingHours
+        #expect(abs(justAbove - justBelow) <= 2,
+                "0.2% de HRV movió el estimado \(justAbove - justBelow) h")
+    }
+
+    @Test("Un cuarto de hora de sueño cerca de un umbral no da un salto grande")
+    func sleepNoCliffAtThreshold() {
+        let justBelow = assess(snapshot(loadMinutes: 300, sleep: 6.49)).remainingHours
+        let justAbove = assess(snapshot(loadMinutes: 300, sleep: 6.51)).remainingHours
+        #expect(abs(justAbove - justBelow) <= 2,
+                "15 min de sueño movieron el estimado \(justAbove - justBelow) h")
+    }
+
     @Test("Más carga nunca da menos horas de recuperación")
     func moreLoadNeverRecoversFaster() {
         let loads = [30, 120, 300, 600]
