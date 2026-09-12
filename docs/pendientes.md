@@ -409,7 +409,7 @@ nadie. Se recalibran cuando haya usuarios, no antes.
 
 | Qué | Nota |
 |---|---|
-| ~~**Registro de fuerza + PR de levantamiento**~~ | ✅ resuelto: series (ejercicio × peso × reps) embebidas en `TrainingSession.sets`, récords por 1RM estimado en `LiftRecords`. **Quedan fuera**, deliberadamente: meta de fuerza (`GoalType`) y días de fuerza en el plan — ver la nota de abajo |
+| ~~**Registro de fuerza + PR de levantamiento**~~ | ✅ resuelto: series de un WOD embebidas en `TrainingSession.sets` + registros sueltos en `LiftEntry` (colección propia `liftEntries/`), fusionados en un solo cálculo de récords por 1RM estimado (`LiftRecords`) y una pantalla "Pesas" con detalle por ejercicio. **Quedan fuera**, deliberadamente: meta de fuerza (`GoalType`) y días de fuerza en el plan — ver la nota de abajo |
 | **Programar la sesión sola en el reloj** | `WorkoutScheduler` (WorkoutKit) deja el entreno de mañana en el Watch sin que el atleta lo mande. Hoy se manda a mano desde el detalle (`.workoutPreview`), que no pide autorización ni cuenta de pago. **Diferido a propósito hasta tener el target de pruebas**; además falta confirmar si `WorkoutScheduler` exige una *managed capability* de Apple, como Sign in with Apple |
 | **Alertas de ritmo en la sesión del reloj** | `SpeedRangeAlert` haría que el reloj avise si te sales del ritmo, no solo al cerrar el tramo. Pide convertir un PR de 5K a un rango de velocidad; hoy el plan es cualitativo por principio ("nunca un dato inventado") |
 | ~~**Tab Plan propia**~~ | ✅ resuelto: `PlanView` (la semana día por día + avisos + ajustar días, antes un sheet colgando de *Hoy*) tiene su propio tab. *Hoy* conserva solo la misión del día como atajo |
@@ -426,6 +426,14 @@ nadie. Se recalibran cuando haya usuarios, no antes.
 > RaceDiscipline?` que hoy solo sirve a `raceTime`— y días de fuerza en el plan de entrenamiento
 > —`PlannedWorkoutKind` es 100% de carrera y el motor no sabe repartir dos tipos de carga a la
 > vez. Se suman cuando haya datos/uso real que los justifique.
+>
+> **Dos repositorios para "lo mismo", y es a propósito.** Una serie de fuerza vive en
+> `TrainingSession.sets` si viene de un WOD (la sesión ya existía, ya se importaba de Salud y ya
+> contaba para la carga — duplicarla en otra colección habría partido en dos la carga del mismo
+> día) o en `LiftEntry`/`liftEntries` si es un registro suelto sin sesión que lo contenga (no hay
+> nada que duplicar ahí). `LiftRecords.compute`/`history(for:)` fusionan las dos fuentes para que
+> un PR sea un PR venga de donde venga; `WeightliftingViewModel.updatePerformance(of:)` decide a
+> cuál repositorio escribir según el `origin` del esfuerzo que se está editando.
 >
 > **Deuda de producto, no de código:** `docs/ejemplo-manual-atleta.md` —el norte de diseño— no
 > menciona fuerza en absoluto (lo más cercano son unos lunges dentro de la sesión de técnica de

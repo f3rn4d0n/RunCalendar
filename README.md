@@ -455,6 +455,7 @@ La pestaña **Condición** lee entrenamientos y datos de forma física de Salud.
 users/{uid}                          # perfil
 users/{uid}/races/{raceId}           # carreras
 users/{uid}/trainings/{id}           # entrenamientos (cualquier TrainingType; incluye rpe y series de fuerza)
+users/{uid}/liftEntries/{id}         # resultados de fuerza sueltos, sin WOD detrás (ejercicio × peso × reps)
 users/{uid}/recoveryLogs/{yyyy-MM-dd} # check-in diario de recuperación (para calibrar)
 users/{uid}/goals/{goalId}           # objetivos del atleta (tiempo/VO₂max/peso) + misiones manuales propias (fase 1)
 users/{uid}/bodyLogs/{yyyy-MM-dd}    # review semanal: energía y hambre (fase 2)
@@ -496,10 +497,12 @@ corporal** reusa el patrón de `recoveryLogs`. La **nutrición** sale del MVP; s
 *objetivos + adherencia (checkbox)*, no a un registro de alimentos.
 
 > **La fuerza (Fase 4) no está aquí.** Este boceto proponía `users/{uid}/strength/{sessionId}`
-> como colección aparte; al implementarla se decidió lo contrario: las series de fuerza son
-> `TrainingSession.sets`, un campo embebido en `trainings/` (ver modelo de datos actual, arriba).
-> La sesión de CrossFit ya existía, ya se importaba de Salud y ya contaba para la carga/ACWR — una
-> colección aparte la habría duplicado y partido en dos la carga del mismo día.
+> como colección aparte; al implementarla se decidió lo contrario para las series **de un WOD**:
+> son `TrainingSession.sets`, un campo embebido en `trainings/` (ver modelo de datos actual,
+> arriba). La sesión de CrossFit ya existía, ya se importaba de Salud y ya contaba para la
+> carga/ACWR — una colección aparte la habría duplicado y partido en dos la carga del mismo día.
+> Los resultados **sueltos**, sin WOD detrás, sí tienen colección propia: `liftEntries/` (arriba)
+> — ahí no hay sesión que los contenga, así que no hay nada que duplicar.
 
 ---
 
