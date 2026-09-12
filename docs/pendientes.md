@@ -232,13 +232,14 @@ estimado llegaba a **194 h — 8 días — y a 290 h con la calibración al máx
 
 Lo que **sigue pendiente** del modelo, por orden de valor:
 
-1. **El HRV se usa crudo, de un solo día.** La FC en reposo se promedia a 7 días *"porque el dato
-   de un día es muy ruidoso"* (README) y el HRV es **más** ruidoso (±10–20% noche a noche). Aplicar
-   el mismo criterio —media de 3–7 días— es la mejora que más estabiliza el número, y usa una regla
-   que el proyecto ya tomó.
-2. **Los escalones dan saltos absurdos.** Un ratio de HRV de 0.899 da factor 1.3 y 0.901 da 1.0:
-   **0.2% de cambio mueve el estimado 30%**. Interpolar linealmente entre los mismos umbrales
-   conserva el modelo y quita el salto. Igual en los tramos de sueño.
+1. ~~**El HRV se usa crudo, de un solo día.**~~ **Ya estaba resuelto** — no era cierto al escribir
+   este punto: `HealthKitService.fetchRecovery()` ya promedia HRV a 3 días y FC en reposo a 7
+   (`averageQuantity(..., days: 3)` / `days: 7`), como dice `RecoverySnapshot.currentHRV` en su
+   comentario. El doc no se había actualizado.
+2. ~~**Los escalones dan saltos absurdos.**~~ ✅ resuelto: un ratio de HRV de 0.899 daba factor 1.3
+   y 0.901 daba 1.0 (0.2% de cambio movía el estimado 30%). `AssessRecoveryUseCase` interpola
+   linealmente entre los mismos umbrales/valores en vez de un `switch` — mismo modelo, sin el
+   salto. Igual en los tramos de sueño.
 3. ~~**Sin fecha del último entreno se declara "recuperado".**~~ ✅ resuelto: `RecoveryLevel.unknown`
    es un estado propio (`AssessRecoveryUseCase`, `HealthUseCases.swift`), distinto de `.recovered`;
    *Hoy* y *Progreso* muestran "Sin datos" en vez del anillo en verde.
@@ -252,9 +253,8 @@ Lo que **sigue pendiente** del modelo, por orden de valor:
 6. **La calibración no mide si mejora.** Existe la gráfica "¿acierta el modelo?" pero nada compara
    el error medio antes y después de calibrar — que es lo único que responde si la feature sirve.
 
-> **1–2 se pueden hacer ya** (son del modelo, no de los datos; el 3 ya se hizo). **4–6 esperan
-> usuarios reales**: recalibrar segmentos sin registros de nadie es justo lo que dice
-> *Umbrales sin calibrar*.
+> **1–3 ya están resueltos.** **4–6 esperan usuarios reales**: recalibrar segmentos sin registros
+> de nadie es justo lo que dice *Umbrales sin calibrar*.
 
 ### Huecos documentados de la adherencia
 
