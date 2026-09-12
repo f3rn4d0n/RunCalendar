@@ -79,6 +79,10 @@ struct Goal: Identifiable, Equatable, Sendable {
     var deadline: Date?
     var notes: String
     var createdAt: Date
+    /// Misiones que el atleta escribió a mano para esta meta — a diferencia de las del plan
+    /// (km/sesiones/calidad), no se calculan de nada: se marcan hechas a mano. Cada meta lleva
+    /// las suyas, así que "varias campañas" no pide una colección nueva, solo este campo.
+    var manualMissions: [CampaignMission]
 
     init(
         id: String = UUID().uuidString,
@@ -88,7 +92,8 @@ struct Goal: Identifiable, Equatable, Sendable {
         distance: RaceDiscipline? = nil,
         deadline: Date? = nil,
         notes: String = "",
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        manualMissions: [CampaignMission] = []
     ) {
         self.id = id
         self.type = type
@@ -98,6 +103,7 @@ struct Goal: Identifiable, Equatable, Sendable {
         self.deadline = deadline
         self.notes = notes
         self.createdAt = createdAt
+        self.manualMissions = manualMissions
     }
 
     /// Título legible: "5K en 25:00", "VO₂max 55", "Peso 78 kg".
