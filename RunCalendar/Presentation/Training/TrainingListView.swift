@@ -4,11 +4,13 @@ import SwiftUI
 struct TrainingListView: View {
     @State var viewModel: TrainingViewModel
     let racesViewModel: RacesViewModel
+    let weightliftingViewModel: WeightliftingViewModel
     @State private var filter: TrainingType?
     @State private var onlyPriority = false
     @State private var isCreating = false
     @State private var rpePromptDismissed = false
     @State private var showingRecords = false
+    @State private var showingWeightlifting = false
 
     private var filtered: [TrainingSession] {
         var result = filter.map(viewModel.sessions(of:)) ?? viewModel.sessions
@@ -84,6 +86,12 @@ struct TrainingListView: View {
                     Button { showingRecords = true } label: { Image(systemName: "medal") }
                         .accessibilityLabel("Récords personales")
                 }
+                // ponytail: dos botones de récords en el toolbar. Si se llena, fusionar bajo
+                // "Récords" con un Picker segmentado Carrera/Fuerza.
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showingWeightlifting = true } label: { Image(systemName: "dumbbell") }
+                        .accessibilityLabel("Pesas")
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         Picker("Filtro", selection: $filter) {
@@ -104,6 +112,9 @@ struct TrainingListView: View {
             }
             .sheet(isPresented: $showingRecords) {
                 PersonalRecordsView(racesViewModel: racesViewModel, trainingViewModel: viewModel)
+            }
+            .sheet(isPresented: $showingWeightlifting) {
+                WeightliftingView(viewModel: weightliftingViewModel)
             }
         }
     }

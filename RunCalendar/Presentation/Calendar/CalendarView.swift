@@ -22,6 +22,7 @@ struct CalendarView: View {
     @State var racesViewModel: RacesViewModel
     @State var trainingViewModel: TrainingViewModel
     let healthViewModel: HealthViewModel
+    let weightliftingViewModel: WeightliftingViewModel
 
     @State private var selectedDate = Date()
 
@@ -81,7 +82,8 @@ struct CalendarView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
-                        TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel)
+                        TrainingListView(viewModel: trainingViewModel, racesViewModel: racesViewModel,
+                                         weightliftingViewModel: weightliftingViewModel)
                     } label: {
                         Image(systemName: "figure.run")
                     }
